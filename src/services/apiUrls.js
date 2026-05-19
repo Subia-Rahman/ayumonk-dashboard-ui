@@ -1,5 +1,6 @@
 export const API_URLS = {
   authLogin: "/authentication/api/v1/auth/login",
+  authLogout: "/authentication/api/v1/auth/logout",
   authMyPermissions: "/authentication/api/v1/auth/users/me/permissions",
   authMyEffectivePolicy: "/authentication/api/v1/auth/users/me/effective-policy",
   authMyAccessibleMenus: "/authentication/api/v1/auth/users/me/accessible-menus",
@@ -10,6 +11,47 @@ export const API_URLS = {
   permissionsMaster: "/authentication/api/v1/auth/permissions",
   permissionMasterById: (permissionId) =>
     `/authentication/api/v1/auth/permissions/${permissionId}`,
+
+  // RBAC matrix — aggregated view of which roles can access which sections.
+  //
+  //   GET /authentication/api/v1/auth/rbac-matrix?company_id=<uuid>
+  //
+  // AuthZ:
+  //   - Platform admins (`is_platform_admin: true` claim): may pass any
+  //     `company_id`. Omitting it returns the platform-wide default matrix.
+  //   - Company admins (role = "admin"): the `company_id` query param is
+  //     IGNORED; the backend derives the tenant from the JWT (Spec §7).
+  //   - All other roles (employee / hr / cxo / ...): 403 Forbidden.
+  //
+  // Response shape (see normalizeRbacMatrix in rbacMatrixSlice for parsing):
+  //   {
+  //     "success": true,
+  //     "data": {
+  //       "company_id": "<uuid>",
+  //       "company_name": "TechCorp",
+  //       "roles": [
+  //         { "key": "employee",      "label": "Employee" },
+  //         { "key": "hr",            "label": "HR Manager" },
+  //         { "key": "cxo",           "label": "CXO" },
+  //         { "key": "admin",         "label": "Company Admin" },
+  //         { "key": "ayumonk_admin", "label": "Ayumonk Admin" },
+  //         { "key": "super_admin",   "label": "Super Admin" }
+  //       ],
+  //       "sections": [
+  //         {
+  //           "key": "company_master",
+  //           "label": "Company Master",
+  //           "permissions": {
+  //             "employee": "none", "hr": "none", "cxo": "none",
+  //             "admin": "view", "ayumonk_admin": "full", "super_admin": "full"
+  //           }
+  //         },
+  //         ... one entry per section ...
+  //       ]
+  //     }
+  //   }
+  // permission values: "none" (—), "view" (read-only), "full" (read + write).
+  rbacMatrix: "/authentication/api/v1/auth/rbac-matrix",
 
   policies: "/authentication/api/v1/auth/policies",
 

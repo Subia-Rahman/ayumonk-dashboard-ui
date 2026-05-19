@@ -364,14 +364,14 @@ export default function Policies() {
               }}
             >
               <TextField
-                label="Tenant"
+                label="Company"
                 select
                 value={tenantId}
                 onChange={(event) => handleTenantChange(event.target.value)}
                 fullWidth
                 sx={filterFieldSx}
               >
-                <MenuItem value="">Select tenant</MenuItem>
+                <MenuItem value="">Select Company</MenuItem>
                 {companies.map((company) => (
                   <MenuItem key={company.id} value={company.id}>
                     {company.company_name}
@@ -441,7 +441,7 @@ export default function Policies() {
             </Typography>
 
             <Box sx={{ width: "100%", overflowX: "auto" }}>
-              <Box sx={{ height: 560, width: "max-content", minWidth: "100%" }}>
+              <Box sx={{ height: 560, width: "100%" }}>
                 <DataGrid
                   rows={filteredRows}
                   columns={columns}

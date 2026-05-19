@@ -31,7 +31,7 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Cell,
   Line,
@@ -52,6 +52,7 @@ import {
 } from "../../store/dashboardSlice";
 import { fetchMySubmissions } from "../../store/sessionSlice";
 import { getRaisedGradient, getSurfaceBackground } from "../../theme";
+import { useClientPalette } from "../../utils/clientPalette";
 
 const METRIC_ICON_SET = [
   <BedtimeRoundedIcon fontSize="small" />,
@@ -202,23 +203,6 @@ const trendData = [
   { name: "W8", social: 4.6, hydration: 4.7, energy: 4.5 },
 ];
 
-const wellnessIndexData = [
-  { name: "Sleep", value: 14, color: "#7c3aed" },
-  { name: "Stress", value: 10, color: "#ea580c" },
-  { name: "Nutrition", value: 16, color: "#16a34a" },
-  { name: "Hydration", value: 12, color: "#0284c7" },
-  { name: "Digestion", value: 11, color: "#65a30d" },
-  { name: "Activity", value: 13, color: "#f59e0b" },
-  { name: "Pain/Posture", value: 9, color: "#c026d3" },
-  { name: "Energy", value: 15, color: "#ca8a04" },
-];
-
-const doshaData = [
-  { name: "Vata", value: 30, color: "#0ea5e9" },
-  { name: "Pitta", value: 34, color: "#f97316" },
-  { name: "Kapha", value: 36, color: "#22c55e" },
-];
-
 const focusActions = [
   {
     title: "Hydration Mission",
@@ -283,131 +267,304 @@ function SectionCard({ children, sx }) {
   );
 }
 
-function Sparkline({ values = [], color = "#0f766e", width = 110, height = 28 }) {
-  if (!Array.isArray(values) || values.length < 2) {
-    return <Box sx={{ height, width: "100%" }} />;
-  }
-  const min = Math.min(...values) - 0.2;
-  const max = Math.max(...values) + 0.2;
-  const range = max - min || 1;
-  const pts = values.map((v, i) => [
-    (i / (values.length - 1)) * width,
-    height - ((v - min) / range) * height,
-  ]);
-  const linePath = pts.map(([x, y]) => `${x},${y}`).join(" ");
-  const areaPath = `${pts[0][0]},${height} ${linePath} ${pts[pts.length - 1][0]},${height}`;
+const CLIENT_PALETTE = {
+  bg: "#0b160c",
+  card: "#111e12",
+  border: "#1e3d20",
+  g1: "#2C5F2D",
+  g2: "#4A8C2A",
+  g3: "#6DB33F",
+  g4: "#97C95C",
+  white: "#FFFFFF",
+  cream: "#E8F0E0",
+  muted: "#6B8F60",
+  orange: "#E8924A",
+  blue: "#4A90C4",
+  purple: "#8B6FCB",
+  gold: "#D4A843",
+  teal: "#3AADA8",
+  red: "#E05050",
+  pink: "#f472b6",
+};
+
+const C = CLIENT_PALETTE;
+
+function ClientCard({ children, style = {}, borderColor, onClick }) {
   return (
-    <Box
-      component="svg"
-      width={width}
-      height={height}
-      sx={{ overflow: "visible", display: "block" }}
+    <div
+      onClick={onClick}
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: `1px solid ${borderColor || "rgba(255,255,255,0.07)"}`,
+        borderRadius: 14,
+        padding: "14px 16px",
+        position: "relative",
+        overflow: "hidden",
+        cursor: onClick ? "pointer" : "default",
+        transition: "all 0.2s",
+        ...style,
+      }}
+      onMouseEnter={
+        onClick
+          ? (e) => {
+              e.currentTarget.style.borderColor = (borderColor || C.g3) + "88";
+              e.currentTarget.style.transform = "translateY(-1px)";
+            }
+          : undefined
+      }
+      onMouseLeave={
+        onClick
+          ? (e) => {
+              e.currentTarget.style.borderColor =
+                borderColor || "rgba(255,255,255,0.07)";
+              e.currentTarget.style.transform = "";
+            }
+          : undefined
+      }
     >
-      <polygon points={areaPath} fill={color} opacity="0.14" />
+      {children}
+    </div>
+  );
+}
+
+function Sparkline({ values = [], color = C.g3, w = 74, h = 16 }) {
+  if (!Array.isArray(values) || values.length < 2) {
+    return <svg width={w} height={h} />;
+  }
+  const mn = Math.min(...values) - 0.2;
+  const mx = Math.max(...values) + 0.2;
+  const range = mx - mn || 1;
+  const pts = values.map((v, i) => [
+    (i / (values.length - 1)) * w,
+    h - ((v - mn) / range) * h,
+  ]);
+  const line = pts.map(([x, y]) => `${x},${y}`).join(" ");
+  const area = `${pts[0][0]},${h} ${line} ${pts[pts.length - 1][0]},${h}`;
+  return (
+    <svg width={w} height={h} style={{ overflow: "visible", display: "block" }}>
+      <polygon points={area} fill={color} opacity="0.1" />
       <polyline
-        points={linePath}
+        points={line}
         fill="none"
         stroke={color}
-        strokeWidth="1.8"
+        strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <circle
         cx={pts[pts.length - 1][0]}
         cy={pts[pts.length - 1][1]}
-        r="2.6"
+        r="2.4"
         fill={color}
       />
-    </Box>
+    </svg>
   );
 }
 
-function KpiTile({ item, sparkValues }) {
-  const theme = useTheme();
-  const trendPositive = item.change.startsWith("+");
-  const trendColor = trendPositive ? "#16a34a" : "#dc2626";
-  const trendText = item.change === "No trend" ? "—" : item.change.replace(/^\+/, "");
+function computeDonutArcs(slices) {
+  const total = slices.reduce((a, s) => a + (Number(s.v) || 0), 0) || 1;
+  let cursor = -Math.PI / 2;
+  const arcs = [];
+  for (const s of slices) {
+    const sw = ((Number(s.v) || 0) / total) * 2 * Math.PI;
+    arcs.push({ slice: s, start: cursor, end: cursor + sw, sw });
+    cursor += sw;
+  }
+  return arcs;
+}
 
+function DonutChart({ slices, size = 130, cVal, cSub }) {
+  if (!slices || slices.length === 0) {
+    return <svg width={size} height={size} />;
+  }
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - 10;
+  const ir = size / 2 - 30;
+  const arcs = computeDonutArcs(slices);
   return (
-    <Paper
-      elevation={0}
-      sx={{
+    <svg width={size} height={size}>
+      {arcs.map(({ slice: s, start, end, sw }, i) => {
+        const x1 = cx + r * Math.cos(start);
+        const y1 = cy + r * Math.sin(start);
+        const x2 = cx + r * Math.cos(end);
+        const y2 = cy + r * Math.sin(end);
+        const ix1 = cx + ir * Math.cos(start);
+        const iy1 = cy + ir * Math.sin(start);
+        const ix2 = cx + ir * Math.cos(end);
+        const iy2 = cy + ir * Math.sin(end);
+        const lg = sw > Math.PI ? 1 : 0;
+        return (
+          <path
+            key={`${s.l}-${i}`}
+            d={`M${ix1},${iy1}L${x1},${y1}A${r},${r} 0 ${lg},1 ${x2},${y2}L${ix2},${iy2}A${ir},${ir} 0 ${lg},0 ${ix1},${iy1}Z`}
+            fill={s.c}
+            stroke={C.bg}
+            strokeWidth="2"
+          />
+        );
+      })}
+      {cVal !== undefined && cVal !== null && (
+        <>
+          <text
+            x={cx}
+            y={cy - 4}
+            textAnchor="middle"
+            fontSize="22"
+            fontWeight="800"
+            fill="#fff"
+          >
+            {cVal}
+          </text>
+          <text x={cx} y={cy + 14} textAnchor="middle" fontSize="9" fill={C.muted}>
+            {cSub}
+          </text>
+        </>
+      )}
+    </svg>
+  );
+}
+
+function MultiLine({ series, labels, h = 90, highlighted = [] }) {
+  if (!series || !series.length || !series[0].vals?.length) {
+    return (
+      <div
+        style={{
+          height: h,
+          display: "grid",
+          placeItems: "center",
+          color: C.muted,
+          fontSize: 10,
+          border: "1px dashed rgba(255,255,255,0.08)",
+          borderRadius: 8,
+        }}
+      >
+        No trend data yet
+      </div>
+    );
+  }
+  const all = series.flatMap((s) => s.vals);
+  const mn = Math.min(...all) - 0.3;
+  const mx = Math.max(...all) + 0.3;
+  const W = 460;
+  const H = h;
+  const px = (i) => 16 + (i / Math.max(1, series[0].vals.length - 1)) * (W - 24);
+  const py = (v) => 6 + ((mx - v) / (mx - mn || 1)) * (H - 14);
+  return (
+    <svg
+      width="100%"
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      style={{ overflow: "visible" }}
+    >
+      {series.map((s, si) => {
+        const pts = s.vals.map((v, i) => [px(i), py(v)]);
+        const line = pts.map(([x, y]) => `${x},${y}`).join(" ");
+        const area = `${pts[0][0]},${H} ${line} ${pts[pts.length - 1][0]},${H}`;
+        const hi = highlighted.includes(s.id);
+        return (
+          <g key={`${s.id}-${si}`}>
+            {hi && <polygon points={area} fill={s.c} opacity="0.06" />}
+            <polyline
+              points={line}
+              fill="none"
+              stroke={s.c}
+              strokeWidth={hi ? 2.5 : 1}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={hi ? 1 : 0.28}
+            />
+            <circle
+              cx={pts[pts.length - 1][0]}
+              cy={pts[pts.length - 1][1]}
+              r={hi ? 4 : 2.5}
+              fill={s.c}
+              opacity={hi ? 1 : 0.4}
+            />
+          </g>
+        );
+      })}
+      {labels &&
+        labels
+          .filter((_, i) => i % Math.ceil(labels.length / 7) === 0)
+          .map((l, i) => {
+            const idx = labels.indexOf(l);
+            return (
+              <text
+                key={`${l}-${i}`}
+                x={px(idx)}
+                y={H + 2}
+                fontSize="7"
+                fill="rgba(255,255,255,0.2)"
+                textAnchor="middle"
+              >
+                {l}
+              </text>
+            );
+          })}
+    </svg>
+  );
+}
+
+function KpiTile({ item, sparkValues, selected = false, onClick }) {
+  const trend = item.change === "No trend" ? null : item.change;
+  const trendPos = trend && trend.startsWith("+");
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        minWidth: 88,
         flexShrink: 0,
-        minWidth: 168,
-        width: "100%",
-        height: "100%",
-        p: 1.75,
-        borderRadius: 3,
-        border: "1px solid",
-        borderColor: alpha(item.color, 0.22),
-        background: `linear-gradient(180deg, ${alpha(item.color, theme.palette.mode === "dark" ? 0.18 : 0.08)} 0%, ${getSurfaceBackground(theme, theme.palette.mode === "dark" ? 0.96 : 0.92)} 100%)`,
-        transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
-        "&:hover": {
-          transform: "translateY(-3px)",
-          boxShadow: `0 12px 28px ${alpha(item.color, 0.18)}`,
-          borderColor: alpha(item.color, 0.42),
-        },
+        background: selected ? item.color + "22" : "rgba(255,255,255,0.03)",
+        border: `1px solid ${selected ? item.color : item.color + "33"}`,
+        borderRadius: 12,
+        padding: "10px 8px",
+        cursor: onClick ? "pointer" : "default",
+        transition: "all 0.2s",
+        textAlign: "center",
       }}
     >
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Box
-          sx={{
-            width: 32,
-            height: 32,
-            borderRadius: 2,
-            display: "grid",
-            placeItems: "center",
-            bgcolor: alpha(item.color, 0.14),
-            color: item.color,
-          }}
-        >
-          {item.icon}
-        </Box>
-        <Typography
-          variant="caption"
-          sx={{
-            fontWeight: 800,
-            color: trendColor,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 0.4,
-          }}
-        >
-          {item.change === "No trend"
-            ? "—"
-            : `${trendPositive ? "▲" : "▼"} ${trendText.replace(/^-/, "")}`}
-        </Typography>
-      </Stack>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{
-          display: "block",
-          mt: 1,
-          fontWeight: 700,
-          letterSpacing: 0.3,
-          textTransform: "uppercase",
-          fontSize: 10.5,
-          lineHeight: 1.2,
+      <div style={{ fontSize: 18, marginBottom: 3, color: item.color }}>
+        {item.icon}
+      </div>
+      <div
+        style={{
+          fontSize: 9,
+          color: "rgba(255,255,255,0.4)",
+          marginBottom: 3,
+          letterSpacing: 0.2,
+          height: 22,
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
         }}
+        title={item.label}
       >
         {item.label}
-      </Typography>
-      <Typography
-        sx={{
-          mt: 0.25,
-          fontSize: 24,
-          fontWeight: 800,
-          color: item.color,
-          lineHeight: 1.1,
-        }}
+      </div>
+      <div
+        style={{ fontSize: 16, fontWeight: 800, color: item.color, lineHeight: 1 }}
       >
         {Number(item.score).toFixed(1)}
-      </Typography>
-      <Box sx={{ mt: 1.25 }}>
-        <Sparkline values={sparkValues} color={item.color} />
-      </Box>
-    </Paper>
+      </div>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          marginTop: 3,
+          color: trend ? (trendPos ? "#4ade80" : "#f87171") : "rgba(255,255,255,0.3)",
+        }}
+      >
+        {trend
+          ? `${trendPos ? "▲" : "▼"}${trend.replace(/^[+-]/, "")}`
+          : "—"}
+      </div>
+      <div style={{ marginTop: 4, display: "flex", justifyContent: "center" }}>
+        <Sparkline values={sparkValues} color={item.color} w={74} h={16} />
+      </div>
+    </div>
   );
 }
 
@@ -992,11 +1149,13 @@ function ChallengeDashboardContent() {
 }
 
 export default function Dashboard() {
-  const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("wellness");
+  const themed = useClientPalette();
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "challenges" ? "challenges" : "wellness";
   const [trendsPeriod, setTrendsPeriod] = useState("weekly");
+  const [moodIndex, setMoodIndex] = useState(null);
   const {
     items: dashboardItems,
     loading: dashboardLoading,
@@ -1009,21 +1168,6 @@ export default function Dashboard() {
     trendsError,
   } = useSelector((state) => state.dashboard);
   const { mySubmissions } = useSelector((state) => state.session);
-  const chartTooltipStyles = {
-    contentStyle: {
-      backgroundColor: getSurfaceBackground(theme, 0.98),
-      border: `1px solid ${alpha(theme.palette.divider, 1)}`,
-      borderRadius: 12,
-      boxShadow: theme.shadows[8],
-    },
-    labelStyle: {
-      color: theme.palette.text.secondary,
-      fontWeight: 700,
-    },
-    itemStyle: {
-      color: theme.palette.text.primary,
-    },
-  };
 
   useEffect(() => {
     dispatch(fetchDashboardKpis());
@@ -1140,643 +1284,722 @@ const dynamicTrendData = useMemo(() => {
     return row;
   });
 }, [mySubmissions]);
+
+const trendsMultiSeries = useMemo(
+  () =>
+    (trends.series || []).map((s) => ({
+      id: s.kpi_key ?? s.kpi_name,
+      c: s.color || C.g3,
+      vals: (s.points || []).map((p) => Number(p.average_score) || 0),
+    })).filter((s) => s.vals.length >= 2),
+  [trends.series],
+);
+
+const trendsLabels = useMemo(() => {
+  const first = (trends.series || []).find((s) => (s.points || []).length);
+  return (first?.points || []).map((p) => p.bucket_label || "");
+}, [trends.series]);
+
+const topImprovementIds = useMemo(() => {
+  return (trends.top_improvements || [])
+    .filter((t) => t.delta_percent > 0)
+    .slice(0, 2)
+    .map((t) => t.kpi_key ?? t.kpi_name);
+}, [trends.top_improvements]);
   return (
     <Layout role="user" title="Wellness Dashboard">
       <Stack spacing={2.5}>
-        <SectionCard
+        <Box
           sx={{
-            overflow: "hidden",
-            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.24 : 0.12)} 0%, ${getSurfaceBackground(theme, theme.palette.mode === "dark" ? 0.96 : 0.92)} 52%, ${alpha("#f59e0b", theme.palette.mode === "dark" ? 0.18 : 0.1)} 100%)`,
-            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            color: C.muted,
+            fontSize: 12,
+            fontWeight: 600,
+            mt: -0.5,
           }}
         >
-          <Box
-            sx={{
-              position: "absolute",
-              top: -40,
-              right: -30,
-              width: 220,
-              height: 220,
-              borderRadius: "50%",
-              background: `radial-gradient(circle, ${alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.22 : 0.12)}, transparent 68%)`,
-            }}
-          />
-          <Stack
-            direction={{ xs: "column", lg: "row" }}
-            justifyContent="space-between"
-            spacing={2}
-            alignItems={{ lg: "center" }}
-            sx={{ position: "relative" }}
-          >
-            <Box>
-              <Typography
-                variant="overline"
-                sx={{ color: "primary.main", fontWeight: 700 }}
-              >
-                Personal Wellness Journey
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, mt: 0.5 }}>
-                Welcome back, Ayumonk User
-              </Typography>
-              <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 760 }}>
-                Switch between your personal wellness overview and the daily
-                challenge experience requested in the client reference, while
-                keeping the existing dashboard theme intact.
-              </Typography>
-            </Box>
-            <Stack spacing={1} sx={{ minWidth: { md: 320 } }}>
-              <Tabs
-                value={activeTab}
-                onChange={(_, value) => setActiveTab(value)}
-                variant="fullWidth"
-                sx={{
-                  minHeight: 46,
-                  p: 0.5,
-                  borderRadius: 999,
-                  bgcolor: alpha(theme.palette.common.white, theme.palette.mode === "dark" ? 0.05 : 0.55),
-                  "& .MuiTabs-flexContainer": {
-                    gap: 0.5,
-                  },
-                  "& .MuiTabs-indicator": {
-                    display: "none",
-                  },
-                }}
-              >
-                <Tab
-                  value="wellness"
-                  label="My Wellness"
-                  sx={{
-                    minHeight: 40,
-                    borderRadius: 999,
-                    textTransform: "none",
-                    fontWeight: 700,
-                    color: activeTab === "wellness" ? "primary.main" : "text.secondary",
-                    bgcolor:
-                      activeTab === "wellness"
-                        ? alpha(theme.palette.primary.main, 0.12)
-                        : "transparent",
-                  }}
-                />
-                <Tab
-                  value="challenges"
-                  label="Challenges"
-                  sx={{
-                    minHeight: 40,
-                    borderRadius: 999,
-                    textTransform: "none",
-                    fontWeight: 700,
-                    color: activeTab === "challenges" ? "primary.main" : "text.secondary",
-                    bgcolor:
-                      activeTab === "challenges"
-                        ? alpha(theme.palette.primary.main, 0.12)
-                        : "transparent",
-                  }}
-                />
-              </Tabs>
-            </Stack>
-          </Stack>
-        </SectionCard>
+          <Box component="span" sx={{ fontSize: 14 }}>🌿</Box>
+          <Box component="span">
+            {activeTab === "challenges"
+              ? "Daily Challenges — 1 to 3 taps to complete · Earn XP · Build Streaks · Unlock Badges"
+              : "Your Personal Wellness Journey — Nutrition · Lifestyle · Wellness · Dosha-aligned Ayurveda"}
+          </Box>
+        </Box>
 
         {activeTab === "wellness" && (
-          <>
-            {dashboardError && <Alert severity="error">{dashboardError}</Alert>}
+          <Box
+            sx={{
+              bgcolor: themed.bg,
+              color: themed.text,
+              borderRadius: 3,
+              p: { xs: 1.5, md: 2 },
+              fontFamily: "inherit",
+              colorScheme: themed.isDark ? "dark" : "light",
+            }}
+          >
+            {dashboardError && (
+              <Alert severity="error" sx={{ mb: 1.5 }}>{dashboardError}</Alert>
+            )}
 
             {!dashboardError && dashboardLoading && (
-              <SectionCard>
-                <Typography>Loading wellness metrics...</Typography>
-              </SectionCard>
+              <Box sx={{ p: 1, color: C.muted, fontSize: 11 }}>
+                Loading wellness metrics…
+              </Box>
+            )}
+
+            {!dashboardError && !dashboardLoading && metrics.length === 0 && (
+              <Box sx={{ p: 1, color: C.muted, fontSize: 11 }}>
+                No KPI metrics are available for your dashboard yet.
+              </Box>
             )}
 
             {!dashboardError && !dashboardLoading && metrics.length > 0 && (
               <Box
                 sx={{
                   display: "flex",
-                  gap: 1.5,
+                  gap: "8px",
                   overflowX: "auto",
-                  pb: 1,
-                  scrollSnapType: "x mandatory",
-                  "&::-webkit-scrollbar": { height: 6 },
-                  "&::-webkit-scrollbar-track": {
-                    bgcolor: "transparent",
-                  },
-                  "&::-webkit-scrollbar-thumb": {
-                    bgcolor: alpha(theme.palette.text.secondary, 0.22),
-                    borderRadius: 999,
-                  },
+                  pb: "8px",
+                  mb: "18px",
+                  scrollbarWidth: "none",
+                  "&::-webkit-scrollbar": { display: "none" },
                 }}
               >
                 {metrics.map((item) => (
-                  <Box
+                  <KpiTile
                     key={`${item.kpiKey ?? item.label}`}
-                    sx={{
-                      flex: { xs: "0 0 168px", md: "1 1 168px" },
-                      minWidth: 168,
-                      scrollSnapAlign: "start",
-                    }}
-                  >
-                    <KpiTile item={item} sparkValues={getSparkValues(item)} />
-                  </Box>
+                    item={item}
+                    sparkValues={getSparkValues(item)}
+                  />
                 ))}
               </Box>
             )}
 
-            {!dashboardError && !dashboardLoading && metrics.length === 0 && (
-              <SectionCard>
-                <Typography>No KPI metrics are available for your dashboard yet.</Typography>
-              </SectionCard>
-            )}
-
-        <Grid container spacing={2.5}>
-          <Grid size={{ xs: 12, lg: 8.2 }}>
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, lg: 4.4 }}>
-                <SectionCard sx={{ height: "100%" }}>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    Wellness Index
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    Overall score based on your key wellness factors
-                  </Typography>
-
-                  <Box sx={{ position: "relative", height: 230 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={dynamicWellnessData}
-                          dataKey="value"
-                          innerRadius={62}
-                          outerRadius={90}
-                          paddingAngle={2}
-                          stroke="none"
-                        >
-                          {dynamicWellnessData.map((entry) => (
-                            <Cell key={entry.name} fill={entry.color} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        inset: 0,
-                        display: "grid",
-                        placeItems: "center",
-                        textAlign: "center",
-                      }}
-                    >
-                      <Box>
-                        <Typography variant="h3" sx={{ fontWeight: 800 }}>
-                          {overallWellnessScore}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          / 100
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-
-                  <Stack
-                    direction="row"
-                    flexWrap="wrap"
-                    useFlexGap
-                    spacing={1}
-                    sx={{ rowGap: 1, mt: 1 }}
-                  >
-                    {wellnessIndexData.map((item) => (
-                      <Stack
-                        key={item.name}
-                        direction="row"
-                        spacing={0.8}
-                        alignItems="center"
-                      >
-                        <Box
-                          sx={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: "50%",
-                            bgcolor: item.color,
-                          }}
-                        />
-                        <Typography variant="caption" color="text.secondary">
-                          {item.name}
-                        </Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
-
-                  <Chip
-                    label="43% improvement from baseline"
-                    sx={{
-                      mt: 2,
-                      bgcolor: alpha("#16a34a", 0.1),
-                      color: "#15803d",
-                      fontWeight: 700,
-                    }}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "190px 1fr 210px" },
+                gap: "14px",
+                mb: "16px",
+              }}
+            >
+              {/* Wellness Index */}
+              <ClientCard>
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: C.muted,
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                    marginBottom: 8,
+                    textAlign: "center",
+                  }}
+                >
+                  Wellness Index
+                </div>
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <DonutChart
+                    slices={dynamicWellnessData.map((d) => ({
+                      l: d.name,
+                      v: d.value,
+                      c: d.color,
+                    }))}
+                    size={130}
+                    cVal={overallWellnessScore || "—"}
+                    cSub="/ 100"
                   />
-                </SectionCard>
-              </Grid>
-
-              <Grid size={{ xs: 12, lg: 7.6 }}>
-                <SectionCard sx={{ height: "100%" }}>
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    justifyContent="space-between"
-                    alignItems={{ sm: "center" }}
-                    spacing={1.5}
-                    sx={{ mb: 2 }}
-                  >
-                    <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                        Wellness Trends
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {trendsPeriod === "daily"
-                          ? "Daily"
-                          : trendsPeriod === "monthly"
-                            ? "Monthly"
-                            : "Weekly"}{" "}
-                        movement across your strongest improvement areas
-                      </Typography>
-                    </Box>
-                    <Stack direction="row" spacing={1}>
-                      {[
-                        { id: "daily", label: "Daily" },
-                        { id: "weekly", label: "Weekly" },
-                        { id: "monthly", label: "Monthly" },
-                      ].map((option) => {
-                        const active = trendsPeriod === option.id;
-                        return (
-                          <Chip
-                            key={option.id}
-                            label={option.label}
-                            size="small"
-                            color={active ? "primary" : "default"}
-                            variant={active ? "filled" : "outlined"}
-                            onClick={() => setTrendsPeriod(option.id)}
-                            sx={{ cursor: "pointer", fontWeight: 700 }}
-                          />
-                        );
-                      })}
-                    </Stack>
-                  </Stack>
-
-                  {trendsError && (
-                    <Alert severity="error" sx={{ mb: 1.5 }}>
-                      {trendsError}
-                    </Alert>
-                  )}
-
-                  {trends.overall.points.length === 0 ? (
-                    <Box
-                      sx={{
-                        height: 290,
-                        display: "grid",
-                        placeItems: "center",
-                        textAlign: "center",
-                        color: "text.secondary",
-                        border: "1px dashed",
-                        borderColor: "divider",
-                        borderRadius: 2,
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 3,
+                    justifyContent: "center",
+                    marginTop: 8,
+                  }}
+                >
+                  {dynamicWellnessData.map((s) => (
+                    <div
+                      key={s.name}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        fontSize: 8,
+                        color: "rgba(255,255,255,0.38)",
                       }}
                     >
-                      <Box sx={{ px: 2 }}>
-                        <Typography sx={{ fontSize: 32, mb: 0.5 }}>📈</Typography>
-                        <Typography variant="body2">
-                          {trendsLoading
-                            ? "Loading wellness trends…"
-                            : trends.insight ||
-                              "No submissions yet — your trend chart will appear here after your first session."}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={290}>
-                      <LineChart data={trends.overall.points}>
-                        <XAxis dataKey="bucket_label" />
-                        <YAxis domain={[0, 5]} ticks={[1, 2, 3, 4, 5]} />
-                        <Tooltip
-                          {...chartTooltipStyles}
-                          formatter={(value) => [Number(value).toFixed(2), "Score"]}
-                          labelFormatter={(label, items) => {
-                            const at = items?.[0]?.payload?.bucket_at;
-                            if (!at) return label;
-                            try {
-                              const date = new Date(at);
-                              if (Number.isNaN(date.getTime())) return label;
-                              return `${label} · ${date.toLocaleDateString()}`;
-                            } catch {
-                              return label;
-                            }
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="average_score"
-                          stroke={trends.overall.color || "#fb923c"}
-                          strokeWidth={3}
-                          dot={false}
-                          isAnimationActive={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
+                      <span
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: 1,
+                          background: s.color,
+                          display: "inline-block",
+                        }}
+                      />
+                      {s.name}
+                    </div>
+                  ))}
+                </div>
+                {trends.overall?.delta_percent ? (
+                  <div style={{ textAlign: "center", marginTop: 8 }}>
+                    <span
+                      style={{
+                        background: "#16a34a22",
+                        borderRadius: 8,
+                        padding: "3px 10px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#4ade80",
+                      }}
+                    >
+                      {trends.overall.delta_percent >= 0 ? "▲" : "▼"}{" "}
+                      {Math.abs(Math.round(trends.overall.delta_percent))}% from baseline
+                    </span>
+                  </div>
+                ) : null}
+              </ClientCard>
 
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    spacing={1}
-                    alignItems={{ sm: "center" }}
-                    useFlexGap
-                    flexWrap="wrap"
-                    sx={{ mt: 1.5 }}
+              {/* Wellness Trends */}
+              <ClientCard>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 10,
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700 }}>Wellness Trends</div>
+                    <div style={{ fontSize: 9, color: C.muted }}>
+                      Bold lines = most improved recently
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 3,
+                      background: "rgba(0,0,0,0.3)",
+                      borderRadius: 8,
+                      padding: 3,
+                    }}
                   >
-                    {trends.top_improvements
-                      .filter((item) => item.delta_percent > 0)
-                      .slice(0, 2)
-                      .map((item) => {
-                        const matched = trends.series.find(
-                          (series) =>
-                            series.kpi_key === item.kpi_key ||
-                            series.kpi_name === item.kpi_name,
-                        );
-                        const accent = matched?.color || theme.palette.primary.main;
-                        return (
-                          <Chip
-                            key={`${item.kpi_key || item.kpi_name}-improve`}
-                            label={`${item.kpi_name} +${Math.round(item.delta_percent)}%`}
-                            sx={{
-                              bgcolor: alpha(accent, 0.12),
+                    {["daily", "weekly", "monthly"].map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setTrendsPeriod(v)}
+                        style={{
+                          padding: "4px 10px",
+                          borderRadius: 6,
+                          border: "none",
+                          fontSize: 9,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          background: trendsPeriod === v ? C.g3 : "transparent",
+                          color: trendsPeriod === v ? "#fff" : "rgba(255,255,255,0.4)",
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {trendsError && (
+                  <Alert severity="error" sx={{ mb: 1 }}>{trendsError}</Alert>
+                )}
+
+                {trendsLoading && trendsMultiSeries.length === 0 ? (
+                  <div
+                    style={{
+                      height: 96,
+                      display: "grid",
+                      placeItems: "center",
+                      color: C.muted,
+                      fontSize: 10,
+                    }}
+                  >
+                    Loading wellness trends…
+                  </div>
+                ) : (
+                  <MultiLine
+                    h={96}
+                    labels={trendsLabels}
+                    series={trendsMultiSeries}
+                    highlighted={topImprovementIds}
+                  />
+                )}
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 6,
+                    marginTop: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  {trends.top_improvements
+                    .filter((item) => item.delta_percent > 0)
+                    .slice(0, 2)
+                    .map((item) => {
+                      const matched = trends.series.find(
+                        (series) =>
+                          series.kpi_key === item.kpi_key ||
+                          series.kpi_name === item.kpi_name,
+                      );
+                      const accent = matched?.color || C.g3;
+                      return (
+                        <div
+                          key={`${item.kpi_key || item.kpi_name}-improve`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            background: accent + "22",
+                            borderRadius: 8,
+                            padding: "3px 9px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 9,
                               color: accent,
                               fontWeight: 700,
                             }}
-                          />
-                        );
-                      })}
-                    {trends.insight && (
-                      <Typography variant="body2" color="text.secondary">
-                        {trends.insight}
-                      </Typography>
-                    )}
-                  </Stack>
-                </SectionCard>
-              </Grid>
-
-            </Grid>
-          </Grid>
-
-          <Grid size={{ xs: 12, lg: 3.8 }}>
-            <Stack spacing={2.5}>
-              <SectionCard>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Dosha Profile
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 2 }}
-                >
-                  Balanced composition based on the latest assessment
-                </Typography>
-
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie
-                      data={doshaData}
-                      dataKey="value"
-                      innerRadius={48}
-                      outerRadius={82}
-                      stroke="none"
-                    >
-                      {doshaData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-
-                <Stack spacing={1.2}>
-                  {doshaData.map((item) => (
-                    <Stack
-                      key={item.name}
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                    >
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Box
-                          sx={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: "50%",
-                            bgcolor: item.color,
-                          }}
-                        />
-                        <Typography variant="body2">{item.name}</Typography>
-                      </Stack>
-                      <Typography sx={{ fontWeight: 700, color: item.color }}>
-                        {item.value}%
-                      </Typography>
-                    </Stack>
-                  ))}
-                </Stack>
-
-                <Divider sx={{ my: 2 }} />
-
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 1 }}
-                >
-                  Today&apos;s Mood Check
-                </Typography>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  justifyContent="space-between"
-                >
-                  {["Sad", "Low", "Okay", "Good", "Great"].map(
-                    (label, index) => (
-                      <Chip
-                        key={label}
-                        label={label}
-                        color={index === 3 ? "primary" : "default"}
-                        variant={index === 3 ? "filled" : "outlined"}
-                        sx={{ minWidth: 0 }}
-                      />
-                    ),
+                          >
+                            {item.kpi_name} ▲{Math.round(item.delta_percent)}%
+                          </span>
+                        </div>
+                      );
+                    })}
+                  {trends.insight && (
+                    <span style={{ fontSize: 9, color: C.muted }}>
+                      {trends.insight}
+                    </span>
                   )}
-                </Stack>
-              </SectionCard>
+                </div>
+              </ClientCard>
 
-            </Stack>
-          </Grid>
-        </Grid>
-
-        <SectionCard>
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            justifyContent="space-between"
-            spacing={1}
-            sx={{ mb: 2 }}
-          >
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Lifestyle Suggestions
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Focus areas this week based on your latest session insights
-              </Typography>
-            </Box>
-            {(suggestionTierLabels.hasKpiRisk ||
-              suggestionTierLabels.hasQuestionScore) && (
-              <Stack direction="row" spacing={1}>
-                {suggestionTierLabels.hasKpiRisk && (
-                  <Chip
-                    label="Tier 1 - KPI risk"
-                    size="small"
-                    sx={{ fontWeight: 700 }}
+              {/* Dosha + Mood */}
+              <ClientCard>
+                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+                  Dosha Profile
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  <DonutChart
+                    slices={[
+                      { l: "Vata", v: 30, c: "#38bdf8" },
+                      { l: "Pitta", v: 34, c: "#f97316" },
+                      { l: "Kapha", v: 36, c: "#22c55e" },
+                    ]}
+                    size={108}
                   />
-                )}
-                {suggestionTierLabels.hasQuestionScore && (
-                  <Chip
-                    label="Tier 2 - Question score"
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontWeight: 700 }}
-                  />
-                )}
-              </Stack>
-            )}
-          </Stack>
-
-          {suggestionsError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {suggestionsError}
-            </Alert>
-          )}
-
-          {suggestionsLoading && (
-            <Typography>Loading lifestyle suggestions...</Typography>
-          )}
-
-          {!suggestionsLoading && suggestionItems.length === 0 && (
-            <Typography color="text.secondary">
-              No lifestyle suggestions are available yet.
-            </Typography>
-          )}
-
-          {!suggestionsLoading && suggestionItems.length > 0 && (
-            <Grid container spacing={2}>
-              {suggestionItems.map((item, index) => {
-                const accent = getSuggestionColor(item.suggestion_type, index);
-                const triggerBadges = (item.triggers || [])
-                  .sort((left, right) => (left.priority || 0) - (right.priority || 0))
-                  .slice(0, 2);
-
-                return (
-                  <Grid key={item.suggestion_id || item.title} size={{ xs: 12, md: 4 }}>
-                    <Paper
-                      variant="outlined"
-                      sx={{
-                        p: 2,
-                        borderRadius: 3,
-                        borderLeft: `4px solid ${accent}`,
-                        height: "100%",
+                </div>
+                {[
+                  ["Vata", "#38bdf8", 30],
+                  ["Pitta", "#f97316", 34],
+                  ["Kapha", "#22c55e", 36],
+                ].map(([l, col, v]) => (
+                  <div
+                    key={l}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 5,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <span
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: 2,
+                          background: col,
+                          display: "inline-block",
+                        }}
+                      />
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>
+                        {l}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: col }}>
+                      {v}%
+                    </span>
+                  </div>
+                ))}
+                <div
+                  style={{
+                    marginTop: 10,
+                    paddingTop: 10,
+                    borderTop: "1px solid rgba(255,255,255,0.06)",
+                  }}
+                >
+                  <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>
+                    Today&apos;s Mood Check
+                  </div>
+                  <div
+                    style={{ display: "flex", gap: 4, justifyContent: "center" }}
+                  >
+                    {["😞", "😕", "😐", "🙂", "😄"].map((em, i) => (
+                      <button
+                        key={em}
+                        type="button"
+                        onClick={() =>
+                          setMoodIndex(moodIndex === i ? null : i)
+                        }
+                        style={{
+                          fontSize: 20,
+                          border: "none",
+                          background:
+                            moodIndex === i
+                              ? "rgba(107,179,63,0.3)"
+                              : "transparent",
+                          cursor: "pointer",
+                          borderRadius: 6,
+                          padding: "2px 4px",
+                          outline:
+                            moodIndex === i ? `2px solid ${C.g3}` : "none",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                  {moodIndex !== null && (
+                    <div
+                      style={{
+                        fontSize: 9,
+                        color: C.g3,
+                        textAlign: "center",
+                        marginTop: 4,
                       }}
                     >
-                      <Stack spacing={1.4}>
-                        <Stack
-                          direction="row"
-                          justifyContent="space-between"
-                          alignItems="center"
+                      ✓ Mood logged!
+                    </div>
+                  )}
+                </div>
+              </ClientCard>
+            </Box>
+
+            {/* Lifestyle Suggestions */}
+            <ClientCard
+              style={{
+                background: "rgba(107,179,63,0.04)",
+                borderColor: "rgba(107,179,63,0.14)",
+              }}
+              borderColor="rgba(107,179,63,0.14)"
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 12,
+                  gap: 6,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.g3 }}>
+                  🌿 Ayumonk Lifestyle Suggestions — Focus Areas This Week
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {suggestionTierLabels.hasKpiRisk && (
+                    <span
+                      style={{
+                        fontSize: 8,
+                        background: "rgba(107,179,63,0.15)",
+                        color: C.g3,
+                        borderRadius: 5,
+                        padding: "2px 8px",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Tier 1 = KPI risk
+                    </span>
+                  )}
+                  {suggestionTierLabels.hasQuestionScore && (
+                    <span
+                      style={{
+                        fontSize: 8,
+                        background: "rgba(212,168,67,0.15)",
+                        color: C.gold,
+                        borderRadius: 5,
+                        padding: "2px 8px",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Tier 2 = Question score
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {suggestionsError && (
+                <Alert severity="error" sx={{ mb: 1 }}>{suggestionsError}</Alert>
+              )}
+
+              {suggestionsLoading && (
+                <div style={{ fontSize: 10, color: C.muted, padding: "8px 0" }}>
+                  Loading lifestyle suggestions…
+                </div>
+              )}
+
+              {!suggestionsLoading && suggestionItems.length === 0 && (
+                <div style={{ fontSize: 10, color: C.muted, padding: "8px 0" }}>
+                  No lifestyle suggestions are available yet.
+                </div>
+              )}
+
+              {!suggestionsLoading && suggestionItems.length > 0 && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit,minmax(240px,1fr))",
+                    gap: 10,
+                  }}
+                >
+                  {suggestionItems.map((item, index) => {
+                    const accent = getSuggestionColor(item.suggestion_type, index);
+                    const triggerBadges = (item.triggers || [])
+                      .slice()
+                      .sort(
+                        (left, right) =>
+                          (left.priority || 0) - (right.priority || 0),
+                      )
+                      .slice(0, 2);
+                    const hasKpiRisk = triggerBadges.some(
+                      (t) => t.trigger_mode === "kpi_risk",
+                    );
+                    const hasQscore = triggerBadges.some(
+                      (t) => t.trigger_mode === "question_score",
+                    );
+                    return (
+                      <div
+                        key={item.suggestion_id || item.title}
+                        style={{
+                          background: "rgba(255,255,255,0.025)",
+                          borderRadius: 10,
+                          padding: "10px 14px",
+                          borderLeft: `3px solid ${accent}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            marginBottom: 6,
+                            gap: 6,
+                          }}
                         >
-                          <Typography sx={{ fontWeight: 800, color: accent }}>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: accent,
+                            }}
+                          >
                             {item.title}
-                          </Typography>
-                        </Stack>
-
-                        {!!item.description && (
-                          <Typography variant="body2" color="text.secondary">
-                            {item.description}
-                          </Typography>
-                        )}
-
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                          {!!item.suggestion_type && (
-                            <Chip
-                              label={item.suggestion_type}
-                              size="small"
-                              sx={{ fontWeight: 700 }}
-                            />
-                          )}
-                          {!!item.difficulty && (
-                            <Chip
-                              label={item.difficulty}
-                              size="small"
-                              variant="outlined"
-                            />
-                          )}
-                          {!!item.duration_mins && (
-                            <Chip
-                              label={`${item.duration_mins} mins`}
-                              size="small"
-                              variant="outlined"
-                            />
-                          )}
-                          {!!item.dosha_type && (
-                            <Chip
-                              label={`Dosha: ${item.dosha_type}`}
-                              size="small"
-                              variant="outlined"
-                            />
-                          )}
-                        </Stack>
-
-                        {!!triggerBadges.length && (
-                          <Stack spacing={0.8}>
-                            {triggerBadges.map((trigger, triggerIndex) => (
-                              <Box
-                                key={`${item.suggestion_id}-trigger-${triggerIndex}`}
-                                sx={{
-                                  p: 1,
-                                  borderRadius: 2,
-                                  bgcolor: alpha(accent, 0.06),
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 4,
+                              flexWrap: "wrap",
+                              justifyContent: "flex-end",
+                            }}
+                          >
+                            {hasKpiRisk && (
+                              <span
+                                style={{
+                                  fontSize: 7.5,
+                                  background: "rgba(248,113,113,0.18)",
+                                  color: "#f87171",
+                                  borderRadius: 4,
+                                  padding: "1px 6px",
+                                  fontWeight: 700,
                                 }}
                               >
-                                <Typography variant="caption" color="text.secondary">
-                                  {trigger.trigger_mode === "kpi_risk"
-                                    ? `KPI risk: ${trigger.kpi_display_name || trigger.kpi_key} (${trigger.risk_level || "risk"})`
-                                    : `Question: ${trigger.question_text || trigger.question_key} (${trigger.question_score || 0})`}
-                                </Typography>
-                              </Box>
-                            ))}
-                          </Stack>
+                                T1 · KPI risk
+                              </span>
+                            )}
+                            {hasQscore && (
+                              <span
+                                style={{
+                                  fontSize: 7.5,
+                                  background: "rgba(212,168,67,0.18)",
+                                  color: C.gold,
+                                  borderRadius: 4,
+                                  padding: "1px 6px",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                T2 · Q flagged
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {!!item.description && (
+                          <div
+                            style={{
+                              fontSize: 8.5,
+                              color: "rgba(255,255,255,0.55)",
+                              lineHeight: 1.55,
+                              marginBottom: 6,
+                            }}
+                          >
+                            {item.description}
+                          </div>
                         )}
-
+                        {(item.suggestion_type ||
+                          item.difficulty ||
+                          item.duration_mins ||
+                          item.dosha_type) && (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 4,
+                              marginTop: 4,
+                            }}
+                          >
+                            {item.suggestion_type && (
+                              <span
+                                style={{
+                                  fontSize: 7.5,
+                                  background: accent + "22",
+                                  color: accent,
+                                  borderRadius: 4,
+                                  padding: "1px 6px",
+                                  fontWeight: 700,
+                                  textTransform: "uppercase",
+                                  letterSpacing: 0.3,
+                                }}
+                              >
+                                {item.suggestion_type}
+                              </span>
+                            )}
+                            {item.difficulty && (
+                              <span
+                                style={{
+                                  fontSize: 7.5,
+                                  background: "rgba(255,255,255,0.04)",
+                                  color: "rgba(255,255,255,0.55)",
+                                  border: "1px solid rgba(255,255,255,0.08)",
+                                  borderRadius: 4,
+                                  padding: "1px 6px",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {item.difficulty}
+                              </span>
+                            )}
+                            {!!item.duration_mins && (
+                              <span
+                                style={{
+                                  fontSize: 7.5,
+                                  background: "rgba(255,255,255,0.04)",
+                                  color: "rgba(255,255,255,0.55)",
+                                  border: "1px solid rgba(255,255,255,0.08)",
+                                  borderRadius: 4,
+                                  padding: "1px 6px",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {item.duration_mins} mins
+                              </span>
+                            )}
+                            {item.dosha_type && (
+                              <span
+                                style={{
+                                  fontSize: 7.5,
+                                  background: "rgba(255,255,255,0.04)",
+                                  color: "rgba(255,255,255,0.55)",
+                                  border: "1px solid rgba(255,255,255,0.08)",
+                                  borderRadius: 4,
+                                  padding: "1px 6px",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Dosha: {item.dosha_type}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {triggerBadges.length > 0 && (
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 4,
+                              flexWrap: "wrap",
+                              marginTop: 6,
+                            }}
+                          >
+                            {triggerBadges.map((trig, ti) => (
+                              <span
+                                key={`${item.suggestion_id}-trig-${ti}`}
+                                style={{
+                                  fontSize: 7.5,
+                                  background: "rgba(251,191,36,0.1)",
+                                  color: C.gold,
+                                  borderRadius: 4,
+                                  padding: "1px 6px",
+                                  border: "1px solid rgba(251,191,36,0.2)",
+                                }}
+                              >
+                                ⚡{" "}
+                                {trig.trigger_mode === "kpi_risk"
+                                  ? `${trig.kpi_display_name || trig.kpi_key} · ${trig.risk_level || "risk"}`
+                                  : `${(trig.question_text || trig.question_key || "").slice(0, 28)}${(trig.question_text || "").length > 28 ? "…" : ""} (${trig.question_score || 0})`}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {!!item.url && (
-                          <Button
-                            variant="outlined"
-                            size="small"
+                          <a
                             href={item.url}
                             target="_blank"
                             rel="noreferrer"
-                            sx={{ alignSelf: "flex-start" }}
+                            style={{
+                              display: "inline-block",
+                              marginTop: 8,
+                              fontSize: 9,
+                              color: accent,
+                              fontWeight: 700,
+                              textDecoration: "none",
+                              border: `1px solid ${accent}55`,
+                              padding: "3px 8px",
+                              borderRadius: 6,
+                            }}
                           >
-                            View Resource
-                          </Button>
+                            View Resource →
+                          </a>
                         )}
-                      </Stack>
-                    </Paper>
-                  </Grid>
-                );
-              })}
-            </Grid>
-          )}
-        </SectionCard>
-          </>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </ClientCard>
+          </Box>
         )}
 
         {activeTab === "challenges" && (

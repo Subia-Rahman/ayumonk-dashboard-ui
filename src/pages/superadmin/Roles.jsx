@@ -298,12 +298,12 @@ export default function Roles() {
     async (roleId, roleName) => {
       if (!window.confirm(`Delete role "${roleName}"?`)) return;
       try {
-        await dispatch(deleteRole(roleId)).unwrap();
+        await dispatch(deleteRole({ roleId, tenantId })).unwrap();
       } catch {
         // Redux state stores the error.
       }
     },
-    [dispatch],
+    [dispatch, tenantId],
   );
 
   const openPermissions = useCallback(
@@ -426,7 +426,7 @@ export default function Roles() {
       },
       {
         field: "tenant_id",
-        headerName: "Tenant",
+        headerName: "Company",
         flex: 1.2,
         minWidth: 240,
         headerAlign: "left",
@@ -623,7 +623,7 @@ export default function Roles() {
               }}
             >
               <TextField
-                label="Tenant"
+                label="Company"
                 select
                 value={tenantId}
                 onChange={(event) => handleTenantChange(event.target.value)}
@@ -680,7 +680,7 @@ export default function Roles() {
             </Typography>
 
             <Box sx={{ width: "100%", overflowX: "auto" }}>
-              <Box sx={{ height: 520, width: "max-content", minWidth: "100%" }}>
+              <Box sx={{ height: 520, width: "100%" }}>
                 <DataGrid
                   rows={filteredRows}
                   columns={columns}

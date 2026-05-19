@@ -431,7 +431,7 @@ export default function Sessions({ role = "admin" }) {
           </Box>
 
           <Box sx={{ width: "100%", overflowX: "auto" }}>
-            <Box sx={{ height: 520, width: "max-content", minWidth: "100%" }}>
+            <Box sx={{ height: 520, width: "100%" }}>
               <DataGrid
                 loading={listLoading}
                 rows={sessionRows}

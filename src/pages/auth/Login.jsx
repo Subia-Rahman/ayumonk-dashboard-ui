@@ -18,8 +18,9 @@ import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import VisibilityOffRoundedIcon from "@mui/icons-material/VisibilityOffRounded";
 import { clearAuthError, loginUser, setAuthError } from "../../store/authSlice";
 import { loadAuthorization } from "../../store/permissionSlice";
-import { getHomePath } from "../../utils/roleHelper";
+import { getHomePath, isPathAllowedForRole } from "../../utils/roleHelper";
 import { getSurfaceBackground } from "../../theme";
+import AyuLogo from "../../components/AyuLogo";
 
 export default function Login() {
   const theme = useTheme();
@@ -50,16 +51,22 @@ export default function Login() {
 
       await dispatch(loadAuthorization({ force: true }));
 
-      const redirectTarget = location.state?.from?.pathname
-        ? `${location.state.from.pathname}${location.state.from.search || ""}${location.state.from.hash || ""}`
-        : null;
-      const target =
-        redirectTarget ||
-        getHomePath({
-          isPlatformAdmin: result.isPlatformAdmin,
+      const homeTarget = getHomePath({
+        isPlatformAdmin: result.isPlatformAdmin,
+        role: result.role,
+        rawRole: result.rawRole,
+      });
+      const fromPath = location.state?.from?.pathname;
+      const honorFrom =
+        fromPath &&
+        isPathAllowedForRole(fromPath, {
           role: result.role,
+          isPlatformAdmin: result.isPlatformAdmin,
         });
-      navigate(target, { replace: true });
+      const target = honorFrom
+        ? `${fromPath}${location.state.from.search || ""}${location.state.from.hash || ""}`
+        : homeTarget;
+      navigate(target, { replace: true, state: null });
     } catch {
       // Error state is already handled by auth slice.
     }
@@ -100,8 +107,36 @@ export default function Login() {
           bgcolor: getSurfaceBackground(theme, 0.9),
         }}
       >
-        <Typography variant="h4" sx={{ mb: 1 }}>
-          Sign in to AYUMONK 
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+          <AyuLogo size={40} />
+          <Box>
+            <Typography
+              sx={{
+                fontWeight: 800,
+                color: "#6db33f",
+                fontSize: 22,
+                lineHeight: 1.1,
+                letterSpacing: 1,
+              }}
+            >
+              AYUMONK
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: 10,
+                color: "text.secondary",
+                letterSpacing: 1.5,
+                textTransform: "uppercase",
+                fontWeight: 700,
+              }}
+            >
+              Wellness Intelligence Platform
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Typography variant="h5" sx={{ mb: 1, fontWeight: 700 }}>
+          Sign in
         </Typography>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
           Sign in to continue to your workspace.

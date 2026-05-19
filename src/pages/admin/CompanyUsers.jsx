@@ -362,7 +362,7 @@ export default function CompanyUsers({ role = "admin" }) {
               <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 720 }}>
                 {role === "admin"
                   ? "Review and update company user records for your company."
-                  : "Manage employee records with API-backed create, update, view, delete, and file upload."}
+                  : "Manage employee records."}
               </Typography>
             </Box>
 
@@ -518,7 +518,7 @@ export default function CompanyUsers({ role = "admin" }) {
           </Box>
 
           <Box sx={{ width: "100%", overflowX: "auto" }}>
-            <Box sx={{ height: 560, width: "max-content", minWidth: "100%" }}>
+            <Box sx={{ height: 560, width: "100%" }}>
               <DataGrid
                 rows={users}
                 columns={columns}

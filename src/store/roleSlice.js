@@ -81,7 +81,7 @@ export const fetchRoleById = createAsyncThunk(
       return rejectWithValue("Role id is required.");
     }
     if (!tenantId) {
-      return rejectWithValue("Tenant id is required to fetch role.");
+      return rejectWithValue("Company id is required to fetch role.");
     }
 
     try {
@@ -154,9 +154,25 @@ export const updateRole = createAsyncThunk(
 
 export const deleteRole = createAsyncThunk(
   "role/deleteRole",
-  async (roleId, { rejectWithValue }) => {
+  async (arg, { getState, rejectWithValue }) => {
+    const roleId =
+      typeof arg === "object" && arg !== null ? arg.roleId : arg;
+    const tenantId =
+      typeof arg === "object" && arg !== null
+        ? arg.tenantId
+        : getState()?.role?.selectedTenantId;
+
+    if (!roleId) {
+      return rejectWithValue("Role id is required.");
+    }
+    if (!tenantId) {
+      return rejectWithValue("Company id is required to delete role.");
+    }
+
     try {
-      await api.delete(API_URLS.roleById(roleId));
+      await api.delete(API_URLS.roleById(roleId), {
+        params: { tenant_id: tenantId },
+      });
       return {
         id: String(roleId),
         message: "Role deleted successfully.",

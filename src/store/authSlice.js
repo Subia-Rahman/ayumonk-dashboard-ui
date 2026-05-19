@@ -3,10 +3,12 @@ import api, { getApiErrorMessage } from "../services/api";
 import { API_URLS } from "../services/apiUrls";
 import authService from "../services/authService";
 import {
+  canonicaliseRawRole,
   clearAuthSession,
   decodeJwtPayload,
   getCompanyId,
   getIsPlatformAdmin,
+  getRawRole,
   getRole,
   getToken,
   getUserProfile,
@@ -21,6 +23,10 @@ import {
 const initialState = {
   isAuthenticated: isAuthenticated(),
   role: getRole(),
+  // Original backend role string (lowercased, punctuation-stripped). Used by
+  // getHomePath to tell Company Admin apart from HR / CXO / Manager — they
+  // all share the normalized `role === "admin"` bucket.
+  rawRole: getRawRole(),
   token: getToken(),
   user: getUserProfile(),
   isPlatformAdmin: getIsPlatformAdmin(),
@@ -45,11 +51,15 @@ export const loginUser = createAsyncThunk(
 
       const claims = decodeJwtPayload(accessToken) || {};
       const normalizedRole = normalizeRole(user.role);
+      // Original role from backend, lowercased + punctuation-stripped so we
+      // can route Company Admin → /admin/dashboard and HR/CXO → /admin/hr-dashboard.
+      const rawRole = canonicaliseRawRole(user.role);
       const isPlatformAdmin = Boolean(claims.is_platform_admin);
       const jwtTenantId = claims.tenant_id || "";
       const payload = {
         token: accessToken,
         role: normalizedRole,
+        rawRole,
         isPlatformAdmin,
         jwtTenantId,
         user: {
@@ -57,6 +67,7 @@ export const loginUser = createAsyncThunk(
           name: user.username,
           email: user.email,
           role: normalizedRole,
+          rawRole,
           company_id:
             user.company_id || jwtTenantId || getCompanyId() || "",
         },
@@ -65,6 +76,7 @@ export const loginUser = createAsyncThunk(
       setAuthSession({
         token: payload.token,
         role: payload.role,
+        rawRole: payload.rawRole,
         name: payload.user.name,
         email: payload.user.email,
         id: payload.user.id,
@@ -92,15 +104,32 @@ export const loginUser = createAsyncThunk(
   },
 );
 
+// Sign the user out on the backend, then clear the local session. We do not
+// block local sign-out on the API call — if the token has expired or the
+// network is down, we still want the user to land back on the login screen.
+export const logout = createAsyncThunk(
+  "auth/logout",
+  async (_, { dispatch }) => {
+    try {
+      await api.post(API_URLS.authLogout);
+    } catch {
+      // Intentionally ignore: see comment above.
+    } finally {
+      dispatch(authSlice.actions.clearAuthState());
+    }
+  },
+);
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    logout(state) {
+    clearAuthState(state) {
       clearAuthSession();
       authService.clear();
       state.isAuthenticated = false;
       state.role = null;
+      state.rawRole = "";
       state.token = null;
       state.user = null;
       state.isPlatformAdmin = false;
@@ -142,6 +171,7 @@ const authSlice = createSlice({
         state.error = null;
         state.isAuthenticated = true;
         state.role = action.payload.role;
+        state.rawRole = action.payload.rawRole || "";
         state.token = action.payload.token;
         state.user = action.payload.user;
         state.isPlatformAdmin = action.payload.isPlatformAdmin;
@@ -154,5 +184,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearAuthError, setAuthError, updateProfile } = authSlice.actions;
+export const { clearAuthState, clearAuthError, setAuthError, updateProfile } = authSlice.actions;
 export default authSlice.reducer;

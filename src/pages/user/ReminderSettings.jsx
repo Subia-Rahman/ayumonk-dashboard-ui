@@ -1,27 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Collapse,
-  Divider,
-  Paper,
-  Stack,
-  Switch,
-  TextField,
-  Tooltip,
-  Typography,
-  useTheme,
-} from "@mui/material";
-import { alpha } from "@mui/material/styles";
-import ExpandLessRoundedIcon from "@mui/icons-material/ExpandLessRounded";
-import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
-import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsActiveRounded";
-import PauseCircleOutlineRoundedIcon from "@mui/icons-material/PauseCircleOutlineRounded";
 import { formatDateTimeISTShort } from "../../utils/dateTime";
-import { getSurfaceBackground } from "../../theme";
 import usePushNotifications from "../../hooks/usePushNotifications";
 import {
   clearMutationError,
@@ -33,6 +12,11 @@ import {
   toggleReminderField,
   updateReminderSettings,
 } from "../../store/reminderSettingsSlice";
+import { ACCENT, useClientPalette } from "../../utils/clientPalette";
+
+// Dark defaults retained for module-level helpers (Toggle, Notice) — the
+// component shadows `C` with the theme-aware palette below.
+const C = { ...ACCENT, bg: "#0b160c", card: "#111e12", border: "#1e3d20", muted: "#6B8F60" };
 
 const isIOSDevice = () =>
   typeof navigator !== "undefined" &&
@@ -155,16 +139,16 @@ const REMINDER_HISTORY = [
   },
 ];
 
-const STATUS_COLORS = {
-  sent: "#16a34a",
-  failed: "#dc2626",
-  suppressed: "#6b7280",
+const STATUS_COLOR = {
+  sent: C.g3,
+  failed: C.red,
+  suppressed: C.muted,
 };
 
-const PUSH_STATUS_COLORS = (status) => {
-  if (status.startsWith("✅")) return "#16a34a";
-  if (status.startsWith("⚠️")) return "#d97706";
-  return "#dc2626";
+const pushNoteColor = (status) => {
+  if (status.startsWith("✅")) return C.g3;
+  if (status.startsWith("⚠️")) return C.gold;
+  return "#f87171";
 };
 
 const TIME_DEBOUNCE_MS = 500;
@@ -184,11 +168,94 @@ const toInputTime = (value) => {
   return `${hh.padStart(2, "0")}:${mm.padStart(2, "0")}`;
 };
 
+function Toggle({ checked, onChange, size = "md", disabled = false }) {
+  const big = size === "md";
+  const W = big ? 42 : 36;
+  const H = big ? 24 : 20;
+  const knob = big ? 18 : 16;
+  const inset = big ? 3 : 2;
+  return (
+    <button
+      type="button"
+      onClick={() => !disabled && onChange(!checked)}
+      disabled={disabled}
+      style={{
+        width: W,
+        height: H,
+        borderRadius: H / 2,
+        border: "none",
+        cursor: disabled ? "not-allowed" : "pointer",
+        background: checked ? C.g2 : "rgba(255,255,255,0.12)",
+        position: "relative",
+        transition: "background 0.25s",
+        flexShrink: 0,
+        opacity: disabled ? 0.5 : 1,
+      }}
+      aria-pressed={checked}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: inset,
+          borderRadius: knob / 2,
+          width: knob,
+          height: knob,
+          background: "#fff",
+          left: checked ? W - knob - inset : inset,
+          transition: "left 0.18s",
+          display: "block",
+        }}
+      />
+    </button>
+  );
+}
+
+function Notice({ tone = "info", children, onClose }) {
+  const palette = {
+    info: { bg: "rgba(74,144,196,0.08)", border: "rgba(74,144,196,0.3)", color: C.blue },
+    error: { bg: "rgba(240,80,80,0.08)", border: "rgba(240,80,80,0.3)", color: "#f87171" },
+    warn: { bg: "rgba(212,168,67,0.08)", border: "rgba(212,168,67,0.3)", color: C.gold },
+  }[tone] || palette;
+  return (
+    <div
+      style={{
+        background: palette.bg,
+        border: `1px solid ${palette.border}`,
+        color: palette.color,
+        borderRadius: 8,
+        padding: "7px 12px",
+        fontSize: 10,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginBottom: 10,
+      }}
+    >
+      <span style={{ flex: 1 }}>{children}</span>
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "inherit",
+            cursor: "pointer",
+            fontSize: 12,
+            padding: 0,
+            lineHeight: 1,
+          }}
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function ReminderSettings() {
-  const theme = useTheme();
   const dispatch = useDispatch();
-  const accent = theme.palette.primary.main;
-  const surface = getSurfaceBackground(theme);
+  const themed = useClientPalette();
 
   const { data, loading, error, mutationError, saved } = useSelector(
     (state) => state.reminderSettings,
@@ -216,6 +283,7 @@ export default function ReminderSettings() {
   useEffect(() => {
     if (pushError && pushError !== lastPushErrorRef.current) {
       lastPushErrorRef.current = pushError;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ref-guarded sync from hook error → local dismissable note
       setPushDeniedNote(
         pushError.message ||
           "Could not enable browser push. Please try again.",
@@ -289,7 +357,7 @@ export default function ReminderSettings() {
 
   const statusLine = useMemo(() => {
     if (!data) return loading ? "Loading…" : "Reminders are off";
-    if (isSnoozing) return `Snoozed until ${snoozeEnds}`;
+    if (isSnoozing) return `⏸ Snoozed until ${snoozeEnds}`;
     if (!data.is_enabled) return "Reminders are off";
     const channels = activeChannels.join(", ") || "no channels";
     const time = (data.reminder_time || "").slice(0, 5);
@@ -382,545 +450,686 @@ export default function ReminderSettings() {
     dispatch(clearSnooze());
   };
 
+  const handleTimezoneBlur = () => {
+    const trimmed = tzDraft.trim();
+    if (trimmed && trimmed !== data?.timezone) {
+      dispatch(updateReminderSettings({ timezone: trimmed }));
+    }
+  };
+
   if (loading && !data) {
     return (
-      <Paper
-        elevation={0}
-        sx={{
-          p: 2.5,
-          borderRadius: 3,
-          border: "1px solid",
-          borderColor: "divider",
-          bgcolor: surface,
+      <div
+        style={{
+          marginTop: 14,
+          background: "rgba(0,0,0,0.2)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: 14,
+          padding: "14px 16px",
+          color: C.muted,
+          fontSize: 11,
         }}
       >
-        <Typography color="text.secondary">
-          Loading reminder settings…
-        </Typography>
-      </Paper>
+        Loading reminder settings…
+      </div>
     );
   }
 
   if (error && !data) {
     return (
-      <Alert
-        severity="error"
-        action={
-          <Button
-            color="inherit"
-            size="small"
-            onClick={() => dispatch(fetchReminderSettings())}
-          >
-            Retry
-          </Button>
-        }
+      <div
+        style={{
+          marginTop: 14,
+          background: "rgba(240,80,80,0.08)",
+          border: "1px solid rgba(240,80,80,0.3)",
+          borderRadius: 14,
+          padding: "14px 16px",
+          color: "#f87171",
+          fontSize: 11,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
       >
-        {error}
-      </Alert>
+        <span>{error}</span>
+        <button
+          type="button"
+          onClick={() => dispatch(fetchReminderSettings())}
+          style={{
+            background: "transparent",
+            border: "1px solid rgba(240,80,80,0.3)",
+            color: "#f87171",
+            borderRadius: 8,
+            padding: "4px 12px",
+            fontSize: 10,
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+        >
+          Retry
+        </button>
+      </div>
     );
   }
 
   if (!data) return null;
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: { xs: 2, sm: 2.5 },
-        borderRadius: 3,
-        border: "1px solid",
-        borderColor: data.is_enabled ? alpha(accent, 0.32) : "divider",
-        bgcolor: surface,
+    <div
+      style={{
+        marginTop: 14,
+        background: themed.isDark ? "rgba(0,0,0,0.2)" : "rgba(15,23,42,0.04)",
+        border: `1px solid ${data.is_enabled ? "rgba(107,179,63,0.3)" : themed.border}`,
+        borderRadius: 14,
+        padding: "14px 16px",
+        color: themed.text,
       }}
     >
-      <Stack
-        direction="row"
-        spacing={1.5}
-        alignItems="center"
-        sx={{ mb: expanded ? 2 : 0 }}
+      {/* HEADER */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: expanded ? 18 : 0,
+          flexWrap: "wrap",
+        }}
       >
-        <Box
-          sx={{
-            width: 40,
-            height: 40,
-            borderRadius: 2.5,
-            display: "grid",
-            placeItems: "center",
-            bgcolor: alpha(accent, 0.12),
-            color: accent,
-          }}
-        >
-          <NotificationsActiveRoundedIcon />
-        </Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 700 }}>Reminder Settings</Typography>
-          <Typography variant="caption" color="text.secondary">
+        <span style={{ fontSize: 20 }}>🔔</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
+            Reminder Settings
+          </div>
+          <div style={{ fontSize: 9, color: C.muted, marginTop: 2 }}>
             {statusLine}
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 700,
-              color: data.is_enabled ? "#15803d" : "text.secondary",
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
+            style={{
+              fontSize: 9,
+              color: data.is_enabled ? C.g3 : C.muted,
+              fontWeight: 600,
             }}
           >
             {data.is_enabled ? "ON" : "OFF"}
-          </Typography>
-          <Switch
+          </span>
+          <Toggle
             checked={Boolean(data.is_enabled)}
-            onChange={(event) =>
-              handleToggleField("is_enabled", event.target.checked)
-            }
+            onChange={(next) => handleToggleField("is_enabled", next)}
           />
-        </Stack>
-        <Button
-          variant="outlined"
-          size="small"
+        </div>
+        <button
+          type="button"
           onClick={() => setExpanded((current) => !current)}
-          startIcon={
-            expanded ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />
-          }
-          sx={{ textTransform: "none", fontWeight: 700 }}
+          style={{
+            background: "transparent",
+            border: "1px solid rgba(255,255,255,0.1)",
+            color: C.muted,
+            borderRadius: 8,
+            padding: "4px 12px",
+            cursor: "pointer",
+            fontSize: 10,
+            marginLeft: 4,
+            fontWeight: 600,
+          }}
         >
-          {expanded ? "Collapse" : "Configure"}
-        </Button>
-      </Stack>
+          {expanded ? "▲ Collapse" : "▼ Configure"}
+        </button>
+      </div>
 
-      <Collapse in={expanded} unmountOnExit>
-        <Box
-          sx={{
-            opacity: data.is_enabled ? 1 : 0.45,
+      {expanded && (
+        <div
+          style={{
+            opacity: data.is_enabled ? 1 : 0.38,
             pointerEvents: data.is_enabled ? "auto" : "none",
             transition: "opacity 0.2s",
           }}
         >
-          <Divider sx={{ mb: 2 }} />
-
           {mutationError && (
-            <Alert
-              severity="error"
-              onClose={() => dispatch(clearMutationError())}
-              sx={{ mb: 2 }}
-            >
+            <Notice tone="error" onClose={() => dispatch(clearMutationError())}>
               {mutationError}
-            </Alert>
+            </Notice>
           )}
 
-          <Typography
-            variant="overline"
-            color="text.secondary"
-            sx={{ fontWeight: 700, letterSpacing: 1 }}
-          >
-            Delivery Channel
-          </Typography>
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ mt: 1, mb: 1.5 }}
-            useFlexGap
-            flexWrap="wrap"
-          >
-            {CHANNELS.map((channel) => {
-              const enabled = Boolean(data[channel.field]);
-              const isPush = channel.id === "push";
-              const pushUnsupported = isPush && !pushSupported;
-              const pushDesync = isPush && enabled && !pushSubscribed && !pushBusy;
-              const cardDisabled = channel.disabled || (isPush && pushBusy);
+          {/* DELIVERY CHANNEL */}
+          <div style={{ marginBottom: 16 }}>
+            <div
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                color: C.muted,
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+                marginBottom: 8,
+              }}
+            >
+              Delivery Channel
+            </div>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                marginBottom: 12,
+              }}
+            >
+              {CHANNELS.map((channel) => {
+                const enabled = Boolean(data[channel.field]);
+                const isPush = channel.id === "push";
+                const pushUnsupported = isPush && !pushSupported;
+                const pushDesync =
+                  isPush && enabled && !pushSubscribed && !pushBusy;
+                const cardDisabled =
+                  channel.disabled || (isPush && pushBusy);
 
-              let note = channel.note;
-              if (!note) {
-                if (isPush) {
-                  if (pushUnsupported) {
-                    note = isIOSDevice() && !isStandaloneMode()
-                      ? "Add to Home Screen first"
-                      : "Not supported in this browser";
-                  } else if (pushBusy) {
-                    note = enabled ? "Disabling…" : "Requesting permission…";
-                  } else if (pushDesync) {
-                    note = "Permission lost — tap to re-enable";
-                  } else if (enabled && pushSubscribed) {
-                    note = "Enabled";
+                let note = channel.note;
+                if (!note) {
+                  if (isPush) {
+                    if (pushUnsupported) {
+                      note =
+                        isIOSDevice() && !isStandaloneMode()
+                          ? "Add to Home Screen first"
+                          : "Not supported in this browser";
+                    } else if (pushBusy) {
+                      note = enabled ? "Disabling…" : "Requesting…";
+                    } else if (pushDesync) {
+                      note = "Tap to re-enable";
+                    } else if (enabled && pushSubscribed) {
+                      note = "Enabled";
+                    } else {
+                      note = "Needs permission";
+                    }
                   } else {
-                    note = "Tap to request permission";
+                    note = enabled ? "Enabled" : "Works immediately";
                   }
-                } else {
-                  note = enabled ? "Enabled" : "Tap to enable";
                 }
-              }
 
-              return (
-                <Paper
-                  key={channel.id}
-                  variant="outlined"
-                  onClick={() => !cardDisabled && handleChannelClick(channel)}
-                  sx={{
-                    cursor: cardDisabled
-                      ? "not-allowed"
-                      : channel.disabled
-                        ? "not-allowed"
-                        : "pointer",
-                    px: 2,
-                    py: 1.25,
-                    minWidth: 116,
-                    borderRadius: 2.5,
-                    borderColor: pushDesync
-                      ? "#d97706"
-                      : enabled
-                        ? accent
-                        : "divider",
-                    bgcolor: pushDesync
-                      ? alpha("#d97706", 0.06)
-                      : enabled
-                        ? alpha(accent, 0.08)
-                        : "transparent",
-                    opacity: channel.disabled || pushUnsupported ? 0.55 : 1,
-                    textAlign: "center",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <Typography sx={{ fontSize: 20 }}>{channel.icon}</Typography>
-                  <Typography
-                    sx={{
-                      fontWeight: 700,
-                      fontSize: 13,
-                      color: pushDesync
-                        ? "#d97706"
-                        : enabled
-                          ? accent
-                          : "text.primary",
+                const borderColor = pushDesync
+                  ? "rgba(232,160,32,0.5)"
+                  : enabled
+                    ? C.g3
+                    : "rgba(255,255,255,0.1)";
+                const bg = pushDesync
+                  ? "rgba(232,160,32,0.08)"
+                  : enabled
+                    ? "rgba(107,179,63,0.12)"
+                    : "rgba(255,255,255,0.03)";
+                const labelColor = pushDesync
+                  ? C.gold
+                  : enabled
+                    ? C.g3
+                    : "#fff";
+
+                return (
+                  <button
+                    key={channel.id}
+                    type="button"
+                    disabled={cardDisabled}
+                    onClick={() => handleChannelClick(channel)}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 10,
+                      cursor: cardDisabled ? "not-allowed" : "pointer",
+                      border: `1px solid ${borderColor}`,
+                      background: bg,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 3,
+                      minWidth: 90,
+                      opacity:
+                        channel.disabled || pushUnsupported ? 0.45 : 1,
+                      transition: "all 0.15s",
                     }}
                   >
-                    {channel.label}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {note}
-                  </Typography>
-                  {isPush && pushBusy && (
-                    <Typography
-                      variant="caption"
-                      sx={{ display: "block", color: "#d97706" }}
-                    >
-                      Working…
-                    </Typography>
-                  )}
-                  {isPush && enabled && pushSubscribed && !pushBusy && (
-                    <Typography
-                      variant="caption"
-                      sx={{ display: "block", color: "#15803d" }}
-                    >
-                      ✓ Enabled
-                    </Typography>
-                  )}
-                </Paper>
-              );
-            })}
-          </Stack>
-
-          {pushDeniedNote && (
-            <Alert
-              severity="warning"
-              onClose={() => setPushDeniedNote("")}
-              sx={{ mb: 1.5 }}
-            >
-              {pushDeniedNote}
-            </Alert>
-          )}
-
-          {data.push_enabled && (
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 1.5,
-                mb: 1.5,
-                borderRadius: 2.5,
-                borderColor: alpha(accent, 0.3),
-                bgcolor: alpha(accent, 0.04),
-              }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 700,
-                  color: accent,
-                  display: "block",
-                  mb: 1,
-                }}
-              >
-                📲 How Browser Push Works
-              </Typography>
-              <Stack spacing={0.5}>
-                {PUSH_PLATFORM_NOTES.map(([platform, status]) => (
-                  <Stack
-                    key={platform}
-                    direction="row"
-                    spacing={1.25}
-                    alignItems="center"
-                  >
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ minWidth: 180 }}
-                    >
-                      {platform}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ color: PUSH_STATUS_COLORS(status) }}
-                    >
-                      {status}
-                    </Typography>
-                  </Stack>
-                ))}
-              </Stack>
-            </Paper>
-          )}
-
-          <Box
-            sx={{
-              display: "grid",
-              gap: 1.5,
-              mb: 2,
-              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-            }}
-          >
-            <TextField
-              label="Reminder Time"
-              type="time"
-              value={timeDraft}
-              onChange={handleTimeChange}
-              fullWidth
-              size="small"
-              InputLabelProps={{ shrink: true }}
-              helperText="Saved automatically when you change it"
-            />
-            <TextField
-              label="Timezone"
-              value={tzDraft}
-              onChange={(event) => setTzDraft(event.target.value)}
-              onBlur={() => {
-                const trimmed = tzDraft.trim();
-                if (trimmed && trimmed !== data.timezone) {
-                  dispatch(updateReminderSettings({ timezone: trimmed }));
-                }
-              }}
-              fullWidth
-              size="small"
-              helperText="Auto-detected on first save · saves on blur"
-            />
-          </Box>
-
-          <Typography
-            variant="overline"
-            color="text.secondary"
-            sx={{ fontWeight: 700, letterSpacing: 1 }}
-          >
-            Which Reminders to Receive
-          </Typography>
-          <Stack spacing={0.75} sx={{ mt: 1, mb: 2 }}>
-            {REMINDER_TYPES.map((type) => {
-              const active = Boolean(data[type.key]);
-              return (
-                <Paper
-                  key={type.key}
-                  variant="outlined"
-                  sx={{
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: 2.5,
-                    borderColor: active ? alpha(accent, 0.3) : "divider",
-                    bgcolor: active ? alpha(accent, 0.04) : "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                  }}
-                >
-                  <Typography sx={{ fontSize: 20 }}>{type.icon}</Typography>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography
-                      sx={{
+                    <span style={{ fontSize: 18 }}>{channel.icon}</span>
+                    <span
+                      style={{
+                        fontSize: 10,
                         fontWeight: 700,
-                        fontSize: 13,
-                        color: active ? "text.primary" : "text.secondary",
+                        color: labelColor,
                       }}
                     >
-                      {type.label}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {type.sub}
-                    </Typography>
-                  </Box>
-                  <Switch
-                    checked={active}
-                    size="small"
-                    onChange={(event) =>
-                      handleToggleField(type.key, event.target.checked)
-                    }
-                  />
-                </Paper>
-              );
-            })}
-          </Stack>
+                      {channel.label}
+                    </span>
+                    <span style={{ fontSize: 8, color: C.muted }}>{note}</span>
+                    {isPush && pushBusy && (
+                      <span style={{ fontSize: 8, color: C.gold }}>
+                        Working…
+                      </span>
+                    )}
+                    {isPush &&
+                      enabled &&
+                      pushSubscribed &&
+                      !pushBusy && (
+                        <span style={{ fontSize: 8, color: C.g3 }}>
+                          ✓ Enabled
+                        </span>
+                      )}
+                  </button>
+                );
+              })}
+            </div>
 
-          <Paper variant="outlined" sx={{ p: 1.5, mb: 2, borderRadius: 2.5 }}>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              justifyContent="space-between"
-              alignItems={{ sm: "center" }}
-              spacing={1}
-            >
-              <Stack direction="row" spacing={1} alignItems="center">
-                <PauseCircleOutlineRoundedIcon
-                  fontSize="small"
-                  sx={{ color: "text.secondary" }}
-                />
-                <Box>
-                  <Typography sx={{ fontWeight: 700, fontSize: 13 }}>
-                    Snooze All Reminders
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {isSnoozing
-                      ? `Snoozed until ${snoozeEnds}`
-                      : "Temporarily pause all notifications"}
-                  </Typography>
-                </Box>
-              </Stack>
-              {isSnoozing ? (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  color="error"
-                  onClick={handleClearSnooze}
-                  sx={{ textTransform: "none", fontWeight: 700 }}
+            {pushDeniedNote && (
+              <Notice tone="warn" onClose={() => setPushDeniedNote("")}>
+                {pushDeniedNote}
+              </Notice>
+            )}
+
+            {data.push_enabled && (
+              <div
+                style={{
+                  background: "rgba(107,179,63,0.06)",
+                  border: "1px solid rgba(107,179,63,0.2)",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  marginBottom: 12,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    color: C.g3,
+                    marginBottom: 6,
+                  }}
                 >
-                  Cancel Snooze
-                </Button>
-              ) : (
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  {SNOOZE_OPTIONS.map((option) => (
-                    <Tooltip key={option.id} title={option.note}>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => handleSnooze(option.id)}
-                        sx={{
-                          textTransform: "none",
-                          fontWeight: 700,
-                          minWidth: 64,
+                  📲 How Browser Push Works
+                </div>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 4 }}
+                >
+                  {PUSH_PLATFORM_NOTES.map(([platform, status]) => (
+                    <div
+                      key={platform}
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        fontSize: 8.5,
+                      }}
+                    >
+                      <span
+                        style={{
+                          minWidth: 160,
+                          color: "rgba(255,255,255,0.55)",
                         }}
                       >
-                        {option.label}
-                      </Button>
-                    </Tooltip>
+                        {platform}
+                      </span>
+                      <span style={{ color: pushNoteColor(status) }}>
+                        {status}
+                      </span>
+                    </div>
                   ))}
-                </Stack>
-              )}
-            </Stack>
-          </Paper>
+                </div>
+              </div>
+            )}
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.5}
-            alignItems={{ sm: "center" }}
-            sx={{ mb: 2 }}
-          >
-            <Button
-              variant="contained"
-              onClick={handleSavePreferences}
-              sx={{
-                textTransform: "none",
+            {/* TIME + TIMEZONE */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: C.muted,
+                    marginBottom: 4,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.8,
+                  }}
+                >
+                  Reminder Time
+                </div>
+                <input
+                  type="time"
+                  value={timeDraft}
+                  onChange={handleTimeChange}
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    color: "#fff",
+                    borderRadius: 8,
+                    padding: "7px 10px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    outline: "none",
+                    cursor: "pointer",
+                    colorScheme: "dark",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <div style={{ fontSize: 8, color: C.muted, marginTop: 3 }}>
+                  Daily challenge reminder fires at this time
+                </div>
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: C.muted,
+                    marginBottom: 4,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.8,
+                  }}
+                >
+                  Timezone
+                </div>
+                <input
+                  type="text"
+                  value={tzDraft}
+                  onChange={(event) => setTzDraft(event.target.value)}
+                  onBlur={handleTimezoneBlur}
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    color: "rgba(255,255,255,0.85)",
+                    borderRadius: 8,
+                    padding: "7px 10px",
+                    fontSize: 11,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <div style={{ fontSize: 8, color: C.muted, marginTop: 3 }}>
+                  Auto-detected from your browser
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* REMINDER TYPE TOGGLES */}
+          <div style={{ marginBottom: 16 }}>
+            <div
+              style={{
+                fontSize: 9,
                 fontWeight: 700,
-                px: 4,
-                bgcolor: saved ? "#16a34a" : undefined,
-                "&:hover": { bgcolor: saved ? "#15803d" : undefined },
+                color: C.muted,
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+                marginBottom: 8,
+              }}
+            >
+              Which Reminders to Receive
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {REMINDER_TYPES.map((type) => {
+                const active = Boolean(data[type.key]);
+                return (
+                  <div
+                    key={type.key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "8px 12px",
+                      background: "rgba(255,255,255,0.03)",
+                      borderRadius: 8,
+                      border: `1px solid ${active ? "rgba(107,179,63,0.2)" : "rgba(255,255,255,0.06)"}`,
+                    }}
+                  >
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>
+                      {type.icon}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: active ? "#fff" : "rgba(255,255,255,0.4)",
+                        }}
+                      >
+                        {type.label}
+                      </div>
+                      <div
+                        style={{ fontSize: 8, color: C.muted, marginTop: 1 }}
+                      >
+                        {type.sub}
+                      </div>
+                    </div>
+                    <Toggle
+                      size="sm"
+                      checked={active}
+                      onChange={(next) => handleToggleField(type.key, next)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SNOOZE */}
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "10px 14px",
+              background: "rgba(255,255,255,0.025)",
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.07)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 8,
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>
+                  ⏸ Snooze All Reminders
+                </div>
+                <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>
+                  {isSnoozing
+                    ? `Snoozed until ${snoozeEnds}`
+                    : "Temporarily pause all notifications"}
+                </div>
+              </div>
+              {isSnoozing && (
+                <button
+                  type="button"
+                  onClick={handleClearSnooze}
+                  style={{
+                    background: "rgba(240,80,80,0.15)",
+                    border: "1px solid rgba(240,80,80,0.3)",
+                    color: "#f87171",
+                    borderRadius: 8,
+                    padding: "4px 10px",
+                    cursor: "pointer",
+                    fontSize: 9,
+                    fontWeight: 600,
+                  }}
+                >
+                  Cancel Snooze
+                </button>
+              )}
+            </div>
+            {!isSnoozing && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {SNOOZE_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleSnooze(option.id)}
+                    style={{
+                      padding: "5px 14px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "transparent",
+                      color: "rgba(255,255,255,0.55)",
+                      cursor: "pointer",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {option.label}{" "}
+                    <span
+                      style={{
+                        fontSize: 8,
+                        color: C.muted,
+                        marginLeft: 2,
+                        fontWeight: 400,
+                      }}
+                    >
+                      {option.note}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* SAVE */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleSavePreferences}
+              style={{
+                padding: "9px 28px",
+                borderRadius: 10,
+                border: "none",
+                cursor: "pointer",
+                fontWeight: 700,
+                fontSize: 12,
+                background: saved
+                  ? C.g2
+                  : `linear-gradient(135deg, ${C.g1}, ${C.g2})`,
+                color: "#fff",
+                transition: "all 0.2s",
               }}
             >
               {saved ? "✓ Saved!" : "Save Preferences"}
-            </Button>
-            <Typography variant="caption" color="text.secondary">
+            </button>
+            <div style={{ fontSize: 9, color: C.muted }}>
               Toggles save instantly · this button flushes any pending time
               change
-            </Typography>
-          </Stack>
+            </div>
+          </div>
 
-          <Box>
-            <Button
-              variant="text"
-              size="small"
+          {/* HISTORY */}
+          <div>
+            <button
+              type="button"
               onClick={() => setHistoryOpen((current) => !current)}
-              endIcon={
-                historyOpen ? (
-                  <ExpandLessRoundedIcon />
-                ) : (
-                  <ExpandMoreRoundedIcon />
-                )
-              }
-              sx={{ textTransform: "none", fontWeight: 700, px: 0 }}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: C.muted,
+                cursor: "pointer",
+                fontSize: 9,
+                fontWeight: 600,
+                textDecoration: "underline",
+                padding: 0,
+                marginBottom: 8,
+              }}
             >
               {historyOpen
-                ? "Hide reminder history"
-                : "Show last 7 reminders"}
-            </Button>
-            <Collapse in={historyOpen} unmountOnExit>
-              <Stack spacing={0.75} sx={{ mt: 1 }}>
-                {REMINDER_HISTORY.map((entry, index) => (
-                  <Paper
-                    key={`${entry.type}-${index}`}
-                    variant="outlined"
-                    sx={{
-                      px: 1.5,
-                      py: 1,
-                      borderRadius: 2,
-                      display: "grid",
-                      gridTemplateColumns: "28px 1fr auto auto",
-                      alignItems: "center",
-                      gap: 1.5,
-                    }}
-                  >
-                    <Typography sx={{ fontSize: 18, textAlign: "center" }}>
-                      {entry.icon}
-                    </Typography>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 600, fontSize: 13 }} noWrap>
-                        {entry.label}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {entry.time}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      size="small"
-                      label={entry.channel}
-                      variant="outlined"
-                      sx={{ textTransform: "lowercase", fontWeight: 600 }}
-                    />
-                    <Chip
-                      size="small"
-                      label={entry.status}
-                      sx={{
-                        fontWeight: 700,
-                        textTransform: "lowercase",
-                        bgcolor: alpha(
-                          STATUS_COLORS[entry.status] || "#6b7280",
-                          0.1,
-                        ),
-                        color: STATUS_COLORS[entry.status] || "#6b7280",
+                ? "▲ Hide reminder history"
+                : "▼ Show last 7 reminders"}
+            </button>
+            {historyOpen && (
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 4 }}
+              >
+                {REMINDER_HISTORY.map((entry, index) => {
+                  const statusColor = STATUS_COLOR[entry.status] || C.muted;
+                  return (
+                    <div
+                      key={`${entry.type}-${index}`}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "28px 1fr 70px 60px",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "6px 10px",
+                        background: "rgba(255,255,255,0.02)",
+                        borderRadius: 8,
                       }}
-                    />
-                  </Paper>
-                ))}
-              </Stack>
-            </Collapse>
-          </Box>
+                    >
+                      <span style={{ fontSize: 14, textAlign: "center" }}>
+                        {entry.icon}
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 9.5,
+                            color: "rgba(255,255,255,0.65)",
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {entry.label}
+                        </div>
+                        <div style={{ fontSize: 8, color: C.muted }}>
+                          {entry.time}
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 8,
+                          color: C.muted,
+                          textAlign: "center",
+                          textTransform: "lowercase",
+                        }}
+                      >
+                        {entry.channel}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 8,
+                          fontWeight: 700,
+                          textAlign: "center",
+                          color: statusColor,
+                          background: `${statusColor}28`,
+                          borderRadius: 4,
+                          padding: "1px 6px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {entry.status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {!data.is_enabled && (
-            <Alert severity="info" sx={{ mt: 2 }} icon={false}>
-              Toggle the master switch above to enable reminders.
-            </Alert>
+            <div style={{ marginTop: 12 }}>
+              <Notice tone="info">
+                Toggle the master switch above to enable reminders.
+              </Notice>
+            </div>
           )}
-        </Box>
-      </Collapse>
-    </Paper>
+        </div>
+      )}
+    </div>
   );
 }

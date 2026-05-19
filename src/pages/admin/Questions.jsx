@@ -42,6 +42,7 @@ import { fetchThemes } from "../../store/themeSlice";
 import { fetchKpis } from "../../store/kpiSlice";
 import { fetchCompanies } from "../../store/companySlice";
 import usePermissions from "../../hooks/usePermissions";
+import useTenantContext from "../../hooks/useTenantContext";
 import { getSurfaceBackground } from "../../theme";
 import { downloadTemplateFile } from "../../utils/downloadTemplate";
 
@@ -61,6 +62,7 @@ export default function Questions({ role = "admin" }) {
   // Spec: questions slug maps to the `kpis` resource codename (questions are
   // a child of KPIs). The slug→resource map in usePermissions handles this.
   const { canCreate, canEdit, canDelete } = usePermissions();
+  const { isPlatformAdmin, companyIdForRequest } = useTenantContext();
   const canCreateQuestions = canCreate("questions");
   const canEditQuestions = canEdit("questions");
   const canDeleteQuestions = canDelete("questions");
@@ -109,12 +111,23 @@ export default function Questions({ role = "admin" }) {
     }
   }, [dispatch, role]);
 
+  // Resolve which company_id should be attached to platform-admin / super-admin
+  // requests. Mirrors the CompanyUsers.jsx pattern (Spec §7): explicit filter
+  // dropdown wins; falls back to the globally selected tenant from the tenant
+  // switcher. Tenant users never send company_id (backend uses JWT).
+  const resolvedCompanyId =
+    role === "superadmin" || isPlatformAdmin
+      ? (appliedFilters.companyId || "").trim() || companyIdForRequest
+      : "";
+
   useEffect(() => {
     const companyId =
-      role === "superadmin" ? filters.companyId || undefined : undefined;
+      role === "superadmin"
+        ? (filters.companyId || "").trim() || companyIdForRequest || undefined
+        : undefined;
     dispatch(fetchThemes({ isActive: true, companyId }));
     dispatch(fetchKpis({ isActive: true, companyId }));
-  }, [filters.companyId, dispatch, role]);
+  }, [filters.companyId, companyIdForRequest, dispatch, role]);
 
   useEffect(() => {
     dispatch(
@@ -125,12 +138,11 @@ export default function Questions({ role = "admin" }) {
         kpiKey: appliedFilters.kpiKey,
         search: appliedFilters.search,
         isActive,
-        companyId:
-          role === "superadmin" ? appliedFilters.companyId || undefined : undefined,
+        companyId: resolvedCompanyId || undefined,
       }),
     );
   }, [
-    appliedFilters.companyId,
+    resolvedCompanyId,
     appliedFilters.kpiKey,
     appliedFilters.search,
     appliedFilters.themeKey,
@@ -276,7 +288,9 @@ export default function Questions({ role = "admin" }) {
         kpiKey: "",
         search: "",
         isActive: undefined,
-        companyId: undefined,
+        // Fall back to the globally-selected tenant when the explicit filter
+        // is cleared, so platform admins still see the right tenant's data.
+        companyId: companyIdForRequest || undefined,
       }),
     );
   };
@@ -458,8 +472,7 @@ export default function Questions({ role = "admin" }) {
                 color="text.secondary"
                 sx={{ mt: 0.75, maxWidth: 760 }}
               >
-                Manage KPI questions with API-backed create, update, view, and
-                delete operations.
+                Manage question bank scoped to a company.
               </Typography>
             </Box>
 
@@ -550,14 +563,25 @@ export default function Questions({ role = "admin" }) {
                 label="Company"
                 select
                 value={filters.companyId}
-                onChange={(event) =>
+                onChange={(event) => {
+                  const nextCompanyId = event.target.value;
+                  // Auto-apply company-filter changes — themes/KPIs already
+                  // refresh on filters.companyId; mirror that for the
+                  // questions list so the GET request fires with the new
+                  // company_id without needing an Apply Filters click.
                   setFilters((current) => ({
                     ...current,
-                    companyId: event.target.value,
+                    companyId: nextCompanyId,
                     themeKey: "",
                     kpiKey: "",
-                  }))
-                }
+                  }));
+                  setAppliedFilters((current) => ({
+                    ...current,
+                    companyId: nextCompanyId,
+                    themeKey: "",
+                    kpiKey: "",
+                  }));
+                }}
                 fullWidth
                 sx={filterFieldSx}
               >
@@ -673,7 +697,7 @@ export default function Questions({ role = "admin" }) {
           </Typography>
 
           <Box sx={{ width: "100%", overflowX: "auto" }}>
-            <Box sx={{ height: 560, width: "max-content", minWidth: "100%" }}>
+            <Box sx={{ height: 560, width: "100%" }}>
               <DataGrid
                 rows={items}
                 columns={columns}

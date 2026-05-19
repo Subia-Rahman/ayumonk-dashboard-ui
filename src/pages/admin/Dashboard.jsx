@@ -1,1224 +1,887 @@
-import { Box, Grid, LinearProgress, Stack, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
-import { useTheme } from "@mui/material/styles";
-import SpaOutlinedIcon from "@mui/icons-material/SpaOutlined";
-import LocalFireDepartmentOutlinedIcon from "@mui/icons-material/LocalFireDepartmentOutlined";
-import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
-import TimelineOutlinedIcon from "@mui/icons-material/TimelineOutlined";
-import WaterDropOutlinedIcon from "@mui/icons-material/WaterDropOutlined";
-import NightsStayOutlinedIcon from "@mui/icons-material/NightsStayOutlined";
-import DirectionsRunOutlinedIcon from "@mui/icons-material/DirectionsRunOutlined";
-import RestaurantOutlinedIcon from "@mui/icons-material/RestaurantOutlined";
-import AirOutlinedIcon from "@mui/icons-material/AirOutlined";
-import FavoriteOutlinedIcon from "@mui/icons-material/FavoriteOutlined";
-import SentimentVeryDissatisfiedOutlinedIcon from "@mui/icons-material/SentimentVeryDissatisfiedOutlined";
-import SentimentDissatisfiedOutlinedIcon from "@mui/icons-material/SentimentDissatisfiedOutlined";
-import SentimentNeutralOutlinedIcon from "@mui/icons-material/SentimentNeutralOutlined";
-import SentimentSatisfiedOutlinedIcon from "@mui/icons-material/SentimentSatisfiedOutlined";
-import SentimentVerySatisfiedOutlinedIcon from "@mui/icons-material/SentimentVerySatisfiedOutlined";
-import SelfImprovementOutlinedIcon from "@mui/icons-material/SelfImprovementOutlined";
-import TrackChangesOutlinedIcon from "@mui/icons-material/TrackChangesOutlined";
-import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
-import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
-import BedtimeOutlinedIcon from "@mui/icons-material/BedtimeOutlined";
-import WbSunnyOutlinedIcon from "@mui/icons-material/WbSunnyOutlined";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { Box } from "@mui/material";
 import Layout from "../../layouts/commonLayout/Layout";
+import { fetchRbacMatrix } from "../../store/rbacMatrixSlice";
+import { ACCENT, useClientPalette } from "../../utils/clientPalette";
 
-const topNav = ["My Wellness", "Challenges", "HR Analytics"];
-
-const challengeStats = [
-  {
-    label: "Streak",
-    value: "7 Days",
-    subtext: "Day 8 unlocks a badge",
-    color: "#f7a531",
-    icon: <LocalFireDepartmentOutlinedIcon fontSize="small" />,
-  },
-  {
-    label: "XP Today",
-    value: "340 pts",
-    subtext: "Complete all 6 for bonus",
-    color: "#f7b84f",
-    icon: <EmojiEventsOutlinedIcon fontSize="small" />,
-  },
-  {
-    label: "Level",
-    value: "Banyan Sapling",
-    subtext: "3 more days -> Banyan Tree",
-    color: "#7ad03a",
-    icon: <SpaOutlinedIcon fontSize="small" />,
-  },
-  {
-    label: "Progress",
-    value: "0 / 6",
-    subtext: "Challenges completed today",
-    color: "#5cbf5a",
-    icon: <TimelineOutlinedIcon fontSize="small" />,
-  },
-];
-
-const challengeCards = [
-  {
-    title: "Hydration Mission",
-    subtitle: "hydration KPI • 20 XP available",
-    description: "Drink 8 glasses today. Tap + after each glass.",
-    icon: <WaterDropOutlinedIcon sx={{ color: "#34c8ff" }} />,
-    accent: "#1c8df0",
-    action: "+ 1 Glass",
-    meta: "0 / 8",
-  },
-  {
-    title: "Sleep Before 10PM",
-    subtitle: "sleep KPI • 25 XP available",
-    description: "One tap to commit. No screens 1 hr before.",
-    icon: <NightsStayOutlinedIcon sx={{ color: "#ffcc3f" }} />,
-    accent: "#7952ff",
-    action: "Committed to sleep by 10PM ✓",
-  },
-  {
-    title: "Move Your Body",
-    subtitle: "activity KPI • 30 XP available",
-    description: "Pick what you did today — any one counts!",
-    icon: <DirectionsRunOutlinedIcon sx={{ color: "#ff9f3b" }} />,
-    accent: "#f7872c",
-    pills: ["Walk 15min", "Yoga 20min", "Gym Session"],
-  },
-  {
-    title: "Eat Well Today",
-    subtitle: "nutrition KPI • 25 XP available",
-    description: "Tap all that apply from today.",
-    icon: <RestaurantOutlinedIcon sx={{ color: "#75d64d" }} />,
-    accent: "#2bbb5a",
-    pills: ["Ate Fruits/Veggies", "Home Cooked Meal"],
-  },
-  {
-    title: "4-7-8 Breathing",
-    subtitle: "stress KPI • 20 XP available",
-    description: "Inhale 4s -> Hold 7s -> Exhale 8s. 3 cycles. Tap Start.",
-    icon: <AirOutlinedIcon sx={{ color: "#ffb14a" }} />,
-    accent: "#ff7e1a",
-    action: "Start Timer",
-    meta: "2:00",
-  },
-  {
-    title: "Daily Mood Check",
-    subtitle: "emotional KPI • 10 XP available",
-    description: "How are you feeling right now?",
-    icon: <FavoriteOutlinedIcon sx={{ color: "#54f46f" }} />,
-    accent: "#38c172",
-    moods: [
-      <SentimentVeryDissatisfiedOutlinedIcon key="sad-2" />,
-      <SentimentDissatisfiedOutlinedIcon key="sad-1" />,
-      <SentimentNeutralOutlinedIcon key="mid" />,
-      <SentimentSatisfiedOutlinedIcon key="happy-1" />,
-      <SentimentVerySatisfiedOutlinedIcon key="happy-2" />,
-    ],
-  },
-];
-
-const badges = [
-  { name: "Hydration Hero", tier: "Gold", color: "#2db5ff", active: true },
-  { name: "Sleep Master", tier: "Silver", color: "#7a67ff", active: true },
-  { name: "Stress Buster", tier: "Bronze", color: "#7b5f28", active: false },
-  { name: "Green Eater", tier: "Bronze", color: "#3fd05a", active: true },
-  { name: "Active Star", tier: "Silver", color: "#f4a33a", active: false },
-  { name: "Banyan Legend", tier: "Legend", color: "#3ea651", active: false },
-];
-
-const leaderboard = [
-  { rank: "1st", name: "Priya S.", meta: "Engineering • Delhi", gain: "+42%" },
-  { rank: "2nd", name: "Rahul M.", meta: "Product • Mumbai", gain: "+38%" },
-  { rank: "3rd", name: "Anjali K.", meta: "HR • BLR", gain: "+35%" },
-  {
-    rank: "4th - You",
-    name: "Amit R.",
-    meta: "Finance • Delhi",
-    gain: "+31%",
-    highlight: true,
-  },
-  { rank: "5th", name: "Sneha P.", meta: "Marketing • Pune", gain: "+28%" },
-];
-
-const analyticsFilters = ["Department", "Location", "Age Band", "Gender"];
-
-const analyticsStats = [
-  {
-    label: "Avg Wellness",
-    value: "72.3",
-    note: "/ 100",
-    icon: <SelfImprovementOutlinedIcon fontSize="small" />,
-    color: "#77d64d",
-  },
-  {
-    label: "Productivity",
-    value: "75.8%",
-    note: "self-reported",
-    icon: <TrackChangesOutlinedIcon fontSize="small" />,
-    color: "#53b5ff",
-  },
-  {
-    label: "Engagement",
-    value: "71.5%",
-    note: "Gallup Q12",
-    icon: <ForumOutlinedIcon fontSize="small" />,
-    color: "#9d83ff",
-  },
-  {
-    label: "Absenteeism",
-    value: "4.7 d",
-    note: "per month",
-    icon: <EventBusyOutlinedIcon fontSize="small" />,
-    color: "#ff5a4d",
-  },
-  {
-    label: "Sleep Score",
-    value: "3.6",
-    note: "out of 5",
-    icon: <BedtimeOutlinedIcon fontSize="small" />,
-    color: "#e1cf59",
-  },
-  {
-    label: "Stress Score",
-    value: "3.5",
-    note: "lower is better",
-    icon: <WbSunnyOutlinedIcon fontSize="small" />,
-    color: "#e9a44a",
-  },
-];
-
-const dimensionBlocks = {
-  "By Department": [
-    ["Engine", 72.7],
-    ["Market", 70.2],
-    ["Finance", 73.2],
-    ["HR", 72.4],
-    ["Operat", 73.4],
-    ["Produc", 71.6],
+// Mock preview rows mirroring the client AdminDashboard sample data — scoped
+// to a single company's perspective (Company Admin sees their own tenant).
+const ADMIN_DATA = {
+  users: [
+    { id: 1, name: "Rahul Sharma", email: "rahul@company.com", company: "Your Company", role: "employee", dept: "Engineering", status: "active" },
+    { id: 2, name: "Priya Mehta", email: "priya@company.com", company: "Your Company", role: "hr", dept: "HR", status: "active" },
+    { id: 3, name: "Ananya Singh", email: "ananya@company.com", company: "Your Company", role: "employee", dept: "Marketing", status: "active" },
+    { id: 4, name: "Karan Nair", email: "karan@company.com", company: "Your Company", role: "cxo", dept: "Leadership", status: "active" },
   ],
-  "By Location": [
-    ["Delhi", 73.6],
-    ["Mumbai", 71.7],
-    ["Bengal", 72.7],
-    ["Hyder", 71.6],
-    ["Pune", 70.8],
+  themes: [
+    { key: "STRESS_RECOVERY", name: "Stress & Recovery", kpis: ["Sleep", "Stress", "Emotional"], companies: 1, status: "active" },
+    { key: "CORPORATE_VITALITY", name: "Corporate Vitality", kpis: ["Hydration", "Activity", "Energy"], companies: 1, status: "active" },
+    { key: "METABOLISM_RESET", name: "Metabolism Reset", kpis: ["Nutrition", "Digestion", "Activity"], companies: 1, status: "active" },
+  ],
+  questions: [
+    { key: "SLEEP_Q1", kpi: "SLEEP_KPI", label: "How well do you fall asleep at night?", type: "Likert 1–5", reverse: false, status: "active" },
+    { key: "SLEEP_Q2", kpi: "SLEEP_KPI", label: "How many hours of sleep do you get?", type: "Likert 1–5", reverse: false, status: "active" },
+    { key: "STRESS_Q1", kpi: "STRESS_KPI", label: "How often do you feel overwhelmed at work?", type: "Likert 1–5", reverse: true, status: "active" },
+    { key: "HYDRATION_Q1", kpi: "HYDRATION_KPI", label: "How many glasses of water do you drink daily?", type: "Likert 1–5", reverse: false, status: "active" },
+  ],
+  challenges: [
+    { id: 1, label: "Hydration Mission", kpi: "HYDRATION_KPI", type: "counter", xp: 20, status: "active", companies: 1 },
+    { id: 2, label: "Sleep Before 10PM", kpi: "SLEEP_KPI", type: "toggle", xp: 25, status: "active", companies: 1 },
+    { id: 3, label: "Move Your Body", kpi: "ACTIVITY_KPI", type: "choice", xp: 30, status: "active", companies: 1 },
+    { id: 4, label: "4-7-8 Breathing", kpi: "STRESS_KPI", type: "timer", xp: 20, status: "active", companies: 1 },
+    { id: 5, label: "Daily Mood Check", kpi: "EMOTIONAL_KPI", type: "rating", xp: 10, status: "active", companies: 1 },
+  ],
+  sessions: [
+    { id: 1, company: "Your Company", theme: "Stress & Recovery", startDate: "1 Feb 2025", endDate: "31 Oct 2025", status: "active", employees: 320 },
+    { id: 2, company: "Your Company", theme: "Metabolism Reset", startDate: "1 Apr 2025", endDate: "30 Jun 2025", status: "completed", employees: 118 },
+    { id: 3, company: "Your Company", theme: "Corporate Vitality", startDate: "1 Jun 2025", endDate: "31 Dec 2025", status: "active", employees: 850 },
   ],
 };
 
-const performanceBlocks = {
-  "By Department": [
-    ["Engine", 74.8],
-    ["Market", 75.8],
-    ["Finance", 76.2],
-    ["HR", 77.9],
-    ["Operat", 74.5],
-    ["Produc", 73.7],
-  ],
-  "By Age Band": [
-    ["20-25", 74.6],
-    ["26-30", 75.8],
-    ["31-35", 76.2],
-    ["36-40", 77.9],
-    ["41-50", 74.5],
-    ["50+", 73.7],
-  ],
+// Sections visible to a Company Admin — these are the only /admin/* CRUD
+// routes that exist (no platform-wide sections like Suggestion Master or
+// KPI Suggestion Mapping; those live under super-admin).
+const ADMIN_SECTIONS = [
+  { id: "users", icon: "👥", label: "Users & Roles", desc: "Manage employees, HR managers, CXOs, and company admins", color: "#6DB33F", route: "/admin/company-users" },
+  { id: "themes", icon: "🎨", label: "Themes", desc: "Wellness program themes assigned to your company", color: "#8B6FCB", route: "/admin/themes" },
+  { id: "questions", icon: "❓", label: "Questions", desc: "Assessment questions per KPI for your sessions", color: "#E8A020", route: "/admin/questions" },
+  { id: "challenges", icon: "🎯", label: "Challenges", desc: "Daily challenges configured per KPI", color: "#f97316", route: "/admin/challenges" },
+  { id: "sessions", icon: "📅", label: "Sessions / KPI Windows", desc: "Schedule KPI programs (start + end dates)", color: "#38bdf8", route: "/admin/sessions" },
+];
+
+const COLS = {
+  users: [["ID", "id", 40], ["Name", "name", 150], ["Email", "email", 200], ["Dept", "dept", 110], ["Role", "role", 110], ["Status", "status", 70]],
+  themes: [["Key", "key", 160], ["Theme Name", "name", 180], ["KPIs", "kpis", 220], ["Status", "status", 70]],
+  questions: [["Key", "key", 120], ["KPI", "kpi", 120], ["Question", "label", 280], ["Type", "type", 80], ["Reverse", "reverse", 60], ["Status", "status", 70]],
+  challenges: [["ID", "id", 40], ["Label", "label", 180], ["KPI", "kpi", 120], ["Type", "type", 80], ["XP", "xp", 50], ["Status", "status", 70]],
+  sessions: [["ID", "id", 40], ["Theme", "theme", 160], ["Start", "startDate", 90], ["End", "endDate", 90], ["Employees", "employees", 80], ["Status", "status", 70]],
 };
 
-const genderStats = [
-  { label: "Male", wellness: 72.6, productivity: 76.3, color: "#3ab0ff" },
-  { label: "Female", wellness: 71.1, productivity: 75.1, color: "#ff68ba" },
-  { label: "Other", wellness: 72.4, productivity: 76.0, color: "#9fe14a" },
-];
+const FORM_FIELDS = {
+  users: [["Full Name", "name", "text"], ["Email", "email", "email"], ["Role", "role", "select:employee|hr|cxo|admin"], ["Department", "dept", "text"]],
+  themes: [["Theme Key", "key", "text"], ["Display Name", "name", "text"], ["Description", "desc", "text"]],
+  questions: [["Question Key", "key", "text"], ["KPI Key", "kpi", "text"], ["Question Text", "label", "textarea"], ["Reverse Scoring", "reverse", "select:false|true"]],
+  challenges: [["Label", "label", "text"], ["KPI Key", "kpi", "text"], ["Type", "type", "select:counter|toggle|choice|multi|timer|rating"], ["XP Reward", "xp", "number"]],
+  sessions: [["Theme Key", "theme", "text"], ["KPI Start Date", "startDate", "date"], ["KPI End Date", "endDate", "date"]],
+};
 
-const heatmapColumns = [
-  "Engine",
-  "Market",
-  "Finance",
-  "HR",
-  "Operat",
-  "Produc",
-];
-const heatmapRows = [
-  { city: "Delhi", values: [74, 71, 75, 79, 74, 75] },
-  { city: "Mumbai", values: [73, 71, 71, 74, 72, 68] },
-  { city: "Bengaluru", values: [72, 71, 73, 70, 76, 74] },
-  { city: "Hyderabad", values: [74, 67, 75, 70, 72, 71] },
-];
+const ROLE_LABELS = { employee: "Employee", hr: "HR Manager", cxo: "CXO", admin: "Company Admin", ayumonk_admin: "Ayumonk Admin", super_admin: "Super Admin", superadmin: "Super Admin" };
+const ROLE_COLORS = { employee: "#6B8F6D", hr: "#4A90C4", cxo: "#D4A843", admin: "#8B6FCB", ayumonk_admin: "#6DB33F", super_admin: "#f97316", superadmin: "#f97316" };
 
-function getThemeTokens(theme) {
-  const isDark = theme.palette.mode === "dark";
-
-  return {
-    panelBg: alpha(theme.palette.background.paper, isDark ? 0.9 : 0.82),
-    sectionBg: alpha(theme.palette.background.paper, isDark ? 0.8 : 0.66),
-    navBg: alpha(theme.palette.background.default, isDark ? 0.72 : 0.5),
-    cardBg: alpha(theme.palette.background.paper, isDark ? 0.72 : 0.78),
-    strongText: theme.palette.text.primary,
-    mutedText: alpha(theme.palette.text.secondary, isDark ? 0.9 : 0.95),
-    softText: alpha(theme.palette.text.secondary, isDark ? 0.68 : 0.82),
-    divider: alpha(theme.palette.divider, isDark ? 1 : 1.3),
-    panelBorder: alpha(theme.palette.primary.main, isDark ? 0.2 : 0.12),
-    activePillBg: theme.palette.primary.main,
-    activePillText: theme.palette.primary.contrastText,
-    inactivePillText: alpha(theme.palette.text.secondary, isDark ? 0.8 : 0.9),
-    shadow: isDark
-      ? "0 30px 60px rgba(0,0,0,0.32)"
-      : "0 24px 48px rgba(15, 23, 42, 0.08)",
-    heatBase: isDark ? "45, 212, 191" : "15, 118, 110",
-  };
-}
-
-function Panel({ children, sx }) {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
-
+function StatusBadge({ s, mutedColor }) {
+  const col =
+    s === "active" ? ACCENT.g3
+      : s === "draft" ? ACCENT.gold
+        : s === "completed" ? ACCENT.blue
+          : s === "trial" ? ACCENT.orange
+            : mutedColor;
   return (
-    <Box
-      sx={{
-        bgcolor: tokens.panelBg,
-        border: `1px solid ${tokens.panelBorder}`,
-        borderRadius: 4,
-        boxShadow: tokens.shadow,
-        backdropFilter: "blur(10px)",
-        overflow: "hidden",
-        ...sx,
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
-
-function NavPill({ label, active }) {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
-
-  return (
-    <Box
-      sx={{
-        px: 2,
-        py: 1,
-        borderRadius: 2.5,
-        bgcolor: active ? tokens.activePillBg : tokens.navBg,
-        color: active ? tokens.activePillText : tokens.inactivePillText,
-        border: active
-          ? `1px solid ${alpha(theme.palette.primary.main, 0.38)}`
-          : `1px solid ${alpha(theme.palette.divider, 0.4)}`,
-        fontSize: 12,
+    <span
+      style={{
+        fontSize: 7.5,
         fontWeight: 700,
-        lineHeight: 1,
+        background: `${col}28`,
+        color: col,
+        borderRadius: 5,
+        padding: "1px 7px",
       }}
     >
-      {label}
-    </Box>
-  );
-}
-
-function MetricCard({ item }) {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
-
-  return (
-    <Box
-      sx={{
-        minHeight: 118,
-        p: 2.25,
-        borderRadius: 2.5,
-        bgcolor: tokens.cardBg,
-        border: `1px solid ${item.color}33`,
-      }}
-    >
-      <Stack spacing={1}>
-        <Box
-          sx={{
-            color: item.color,
-            display: "flex",
-            alignItems: "center",
-            gap: 0.75,
-          }}
-        >
-          {item.icon}
-          <Typography sx={{ fontSize: 11, color: tokens.mutedText }}>
-            {item.label}
-          </Typography>
-        </Box>
-        <Typography sx={{ fontSize: 15, color: item.color, fontWeight: 800 }}>
-          {item.value}
-        </Typography>
-        <Typography sx={{ fontSize: 11, color: tokens.softText }}>
-          {item.subtext}
-        </Typography>
-      </Stack>
-    </Box>
-  );
-}
-
-function ChallengeCard({ card }) {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
-
-  return (
-    <Box
-      sx={{
-        minHeight: 150,
-        p: 2.5,
-        borderRadius: 2.5,
-        bgcolor: tokens.cardBg,
-        border: `1px solid ${card.accent}33`,
-      }}
-    >
-      <Stack spacing={1.75}>
-        <Stack direction="row" spacing={1.25} alignItems="flex-start">
-          <Box sx={{ lineHeight: 0 }}>{card.icon}</Box>
-          <Box>
-            <Typography
-              sx={{ color: tokens.strongText, fontWeight: 700, fontSize: 16 }}
-            >
-              {card.title}
-            </Typography>
-            <Typography sx={{ color: tokens.mutedText, fontSize: 11 }}>
-              {card.subtitle}
-            </Typography>
-          </Box>
-        </Stack>
-        <Typography sx={{ color: tokens.softText, fontSize: 12 }}>
-          {card.description}
-        </Typography>
-
-        {card.action && (
-          <Stack
-            direction="row"
-            spacing={1.5}
-            alignItems="center"
-            flexWrap="wrap"
-          >
-            <Box
-              sx={{
-                px: 1.5,
-                py: 0.9,
-                borderRadius: 1.6,
-                border: `1px solid ${card.accent}`,
-                color: card.accent,
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              {card.action}
-            </Box>
-            {card.meta && (
-              <Typography
-                sx={{ color: card.accent, fontWeight: 800, fontSize: 14 }}
-              >
-                {card.meta}
-              </Typography>
-            )}
-          </Stack>
-        )}
-
-        {card.pills && (
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            {card.pills.map((pill) => (
-              <Box
-                key={pill}
-                sx={{
-                  px: 1.5,
-                  py: 0.85,
-                  borderRadius: 1.6,
-                  border: `1px solid ${card.accent}`,
-                  color: card.accent,
-                  fontSize: 12,
-                  fontWeight: 700,
-                }}
-              >
-                {pill}
-              </Box>
-            ))}
-          </Stack>
-        )}
-
-        {card.moods && (
-          <Stack direction="row" spacing={2} sx={{ color: "#ffc83d", pt: 0.5 }}>
-            {card.moods.map((mood, index) => (
-              <Box key={index}>{mood}</Box>
-            ))}
-          </Stack>
-        )}
-      </Stack>
-    </Box>
-  );
-}
-
-function BadgeCard({ badge }) {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
-
-  return (
-    <Box
-      sx={{
-        p: 1.75,
-        borderRadius: 2.2,
-        minHeight: 92,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        bgcolor: badge.active
-          ? alpha(badge.color, 0.14)
-          : alpha(theme.palette.background.default, 0.16),
-        border: `1px solid ${
-          badge.active
-            ? alpha(badge.color, 0.4)
-            : alpha(theme.palette.divider, 0.5)
-        }`,
-        opacity: badge.active ? 1 : 0.28,
-      }}
-    >
-      <Typography sx={{ color: badge.color, fontSize: 24, lineHeight: 1 }}>
-        ⬟
-      </Typography>
-      <Box>
-        <Typography
-          sx={{ color: tokens.strongText, fontWeight: 700, fontSize: 12 }}
-        >
-          {badge.name}
-        </Typography>
-        <Typography sx={{ color: tokens.softText, fontSize: 11 }}>
-          {badge.tier}
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
-
-function SectionTitle({ title, subtitle }) {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
-
-  return (
-    <Stack
-      direction="row"
-      justifyContent="space-between"
-      alignItems="center"
-      sx={{ mb: 1.75 }}
-    >
-      <Box>
-        <Typography
-          sx={{ color: tokens.strongText, fontWeight: 700, fontSize: 16 }}
-        >
-          {title}
-        </Typography>
-        {subtitle ? (
-          <Typography sx={{ color: tokens.softText, fontSize: 11, mt: 0.4 }}>
-            {subtitle}
-          </Typography>
-        ) : null}
-      </Box>
-    </Stack>
-  );
-}
-
-function FilterChip({ label }) {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
-
-  return (
-    <Box
-      sx={{
-        minWidth: 88,
-        px: 1.6,
-        py: 1.1,
-        borderRadius: 1.6,
-        bgcolor: alpha(theme.palette.background.default, 0.24),
-        border: `1px solid ${tokens.panelBorder}`,
-        color: tokens.strongText,
-        fontSize: 12,
-        fontWeight: 600,
-      }}
-    >
-      {label}
-    </Box>
-  );
-}
-
-function MiniStat({ item }) {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
-
-  return (
-    <Box
-      sx={{
-        p: 2,
-        borderRadius: 2.2,
-        bgcolor: tokens.cardBg,
-        border: `1px solid ${item.color}33`,
-        height: "100%",
-      }}
-    >
-      <Stack spacing={0.9}>
-        <Box
-          sx={{
-            color: item.color,
-            display: "flex",
-            alignItems: "center",
-            gap: 0.8,
-          }}
-        >
-          {item.icon}
-          <Typography sx={{ color: tokens.mutedText, fontSize: 10.5 }}>
-            {item.label}
-          </Typography>
-        </Box>
-        <Typography sx={{ color: item.color, fontWeight: 800, fontSize: 16 }}>
-          {item.value}
-        </Typography>
-        <Typography sx={{ color: tokens.softText, fontSize: 10.5 }}>
-          {item.note}
-        </Typography>
-      </Stack>
-    </Box>
-  );
-}
-
-function SegmentedBars({ title, color, tabs, sections }) {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
-
-  return (
-    <Box
-      sx={{
-        p: 2.2,
-        borderRadius: 2.5,
-        bgcolor: tokens.sectionBg,
-        border: `1px solid ${tokens.panelBorder}`,
-        height: "100%",
-      }}
-    >
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 1.8 }}
-      >
-        <Typography
-          sx={{ color: tokens.strongText, fontWeight: 700, fontSize: 14.5 }}
-        >
-          {title}
-        </Typography>
-        <Stack direction="row" spacing={0.8}>
-          {tabs.map((tab, index) => (
-            <Box
-              key={tab}
-              sx={{
-                px: 1.2,
-                py: 0.6,
-                borderRadius: 1.2,
-                bgcolor:
-                  index === 0
-                    ? alpha(color, 0.22)
-                    : alpha(theme.palette.background.default, 0.18),
-                color: index === 0 ? tokens.strongText : tokens.softText,
-                fontSize: 10,
-                fontWeight: 700,
-              }}
-            >
-              {tab}
-            </Box>
-          ))}
-        </Stack>
-      </Stack>
-
-      <Stack spacing={1.8}>
-        {Object.entries(sections).map(([label, values]) => (
-          <Box key={label}>
-            <Typography
-              sx={{ color: tokens.softText, fontSize: 10.5, mb: 0.75 }}
-            >
-              {label}
-            </Typography>
-            <Grid container spacing={1}>
-              {values.map(([name, score]) => (
-                <Grid key={name} size={{ xs: 6, sm: 4, md: 2 }}>
-                  <Box>
-                    <Typography
-                      sx={{
-                        color,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        textAlign: "center",
-                        mb: 0.4,
-                      }}
-                    >
-                      {score}
-                    </Typography>
-                    <Box
-                      sx={{
-                        height: 48,
-                        borderRadius: 0.8,
-                        bgcolor: color,
-                        opacity: 0.72,
-                      }}
-                    />
-                    <Typography
-                      sx={{
-                        color: tokens.softText,
-                        fontSize: 9,
-                        textAlign: "center",
-                        mt: 0.5,
-                      }}
-                    >
-                      {name}
-                    </Typography>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-          </Box>
-        ))}
-      </Stack>
-    </Box>
-  );
-}
-
-function GenderBarRow({ item }) {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
-
-  return (
-    <Box>
-      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.6 }}>
-        <Typography sx={{ color: item.color, fontWeight: 700, fontSize: 12 }}>
-          {item.label}
-        </Typography>
-        <Typography sx={{ color: tokens.softText, fontSize: 11 }}>
-          Wellness{" "}
-          <Box component="span" sx={{ color: item.color, fontWeight: 700 }}>
-            {item.wellness}
-          </Box>
-          {" | "}Productivity{" "}
-          <Box component="span" sx={{ color: item.color, fontWeight: 700 }}>
-            {item.productivity}%
-          </Box>
-        </Typography>
-      </Stack>
-      <LinearProgress
-        variant="determinate"
-        value={item.productivity}
-        sx={{
-          height: 6,
-          borderRadius: 999,
-          bgcolor: alpha(theme.palette.divider, 0.3),
-          "& .MuiLinearProgress-bar": {
-            borderRadius: 999,
-            bgcolor: item.color,
-          },
-        }}
-      />
-    </Box>
-  );
-}
-
-function HeatCell({ value }) {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
-
-  return (
-    <Box
-      sx={{
-        py: 0.7,
-        borderRadius: 1,
-        textAlign: "center",
-        bgcolor: `rgba(${tokens.heatBase}, ${0.2 + ((value - 65) / 20) * 0.38})`,
-        color: tokens.strongText,
-        fontWeight: 700,
-        fontSize: 11,
-      }}
-    >
-      {value}
-    </Box>
+      {s?.toUpperCase()}
+    </span>
   );
 }
 
 export default function Dashboard() {
-  const theme = useTheme();
-  const tokens = getThemeTokens(theme);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const stateRole = useSelector((state) => state.auth.role);
+  const stateRawRole = useSelector((state) => state.auth.rawRole);
+  const C = useClientPalette();
+  const userName = useSelector(
+    (state) => state.auth.user?.name || state.auth.user?.email || "",
+  );
+  const effectiveRole = stateRole || "admin";
+  const {
+    data: rbacData,
+    loading: rbacLoading,
+    error: rbacError,
+  } = useSelector((state) => state.rbacMatrix);
+
+  // Company admins cannot pick a different company — the backend uses their
+  // JWT-derived tenant and ignores any company_id query param (Spec §7).
+  useEffect(() => {
+    dispatch(fetchRbacMatrix({ companyId: "" }));
+  }, [dispatch]);
+
+  const [section, setSection] = useState("users");
+  const [showForm, setShowForm] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+  const [searchQ, setSearchQ] = useState("");
+  const [formData, setFormData] = useState({});
+
+  const sec = ADMIN_SECTIONS.find((s) => s.id === section);
+  const cols = COLS[section] || [];
+  const formFields = FORM_FIELDS[section] || [];
+
+  const filtered = useMemo(() => {
+    const rows = ADMIN_DATA[section] || [];
+    return rows.filter(
+      (r) =>
+        !searchQ ||
+        Object.values(r).some((v) =>
+          String(v).toLowerCase().includes(searchQ.toLowerCase()),
+        ),
+    );
+  }, [section, searchQ]);
+
+  const handleSectionClick = (s) => {
+    setSection(s.id);
+    setShowForm(false);
+    setSearchQ("");
+    setEditItem(null);
+    setFormData({});
+  };
+
+  const handleOpenInEditor = () => {
+    if (sec?.route) navigate(sec.route);
+  };
+
+  const myRoleLabel =
+    ROLE_LABELS[stateRawRole] ||
+    ROLE_LABELS[effectiveRole] ||
+    "Company Admin";
+  const myRoleColor =
+    ROLE_COLORS[stateRawRole] || ROLE_COLORS[effectiveRole] || C.purple;
 
   return (
-    <Layout role="admin" title="Admin Dashboard">
+    <Layout role="admin" title="Admin Panel">
       <Box
         sx={{
-          color: tokens.strongText,
-          display: "flex",
-          flexDirection: "column",
-          gap: 3,
+          bgcolor: C.bg,
+          color: C.text,
+          borderRadius: 3,
+          p: { xs: 1.5, md: 2 },
+          fontFamily: "inherit",
+          colorScheme: C.isDark ? "dark" : "light",
         }}
       >
-        <Grid container spacing={3}>
-          {/* <Grid size={{ xs: 12, xl: 6 }}>
-            <Panel sx={{ p: 2.2 }}>
-              <Stack spacing={2.2}>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  flexWrap="wrap"
-                  useFlexGap
-                >
-                  <Stack spacing={0.25}>
-                    <Typography
-                      sx={{
-                        color: "primary.main",
-                        fontSize: 28,
-                        fontWeight: 900,
-                        lineHeight: 1,
-                      }}
-                    >
-                      GOOGLE DASHBOARD
-                    </Typography>
-                    <Typography
-                      sx={{
-                        color: tokens.softText,
-                        fontSize: 10,
-                        letterSpacing: 0.8,
-                      }}
-                    >
-                      WELLNESS INTELLIGENCE PLATFORM
-                    </Typography>
-                  </Stack>
+        {/* Subtitle strip */}
+        <div
+          style={{
+            fontSize: 10,
+            color: "rgba(255,255,255,0.32)",
+            marginBottom: 14,
+            borderBottom: "1px solid rgba(255,255,255,0.05)",
+            paddingBottom: 10,
+          }}
+        >
+          ⚙️ Admin Panel — Manage users, themes, questions, challenges, and
+          KPI sessions for your company
+        </div>
 
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    sx={{
-                      p: 0.7,
-                      borderRadius: 2.5,
-                      bgcolor: tokens.navBg,
+        {/* ADMIN HEADER */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: 16,
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 4,
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontSize: 18 }}>⚙️</span>
+              <span style={{ fontSize: 15, fontWeight: 800 }}>Admin Panel</span>
+              <span
+                style={{
+                  fontSize: 8,
+                  background: "rgba(139,111,203,0.14)",
+                  color: "#a78bfa",
+                  borderRadius: 5,
+                  padding: "2px 8px",
+                  fontWeight: 700,
+                  letterSpacing: 0.4,
+                }}
+              >
+                COMPANY ADMIN
+              </span>
+            </div>
+            <div style={{ fontSize: 9, color: C.muted }}>
+              Manage your company's wellness program — users, themes, questions,
+              challenges, and KPI session windows.
+            </div>
+          </div>
+          <div
+            style={{
+              fontSize: 8,
+              background: "rgba(107,179,63,0.08)",
+              border: "1px solid rgba(107,179,63,0.2)",
+              borderRadius: 8,
+              padding: "6px 12px",
+              color: C.g3,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Logged in as {myRoleLabel}
+            {userName ? ` (${userName})` : ""} · Tenant-scoped access
+          </div>
+        </div>
+
+        {/* RBAC MATRIX — admins see their own company's matrix only */}
+        <div
+          style={{
+            marginBottom: 16,
+            background: "rgba(255,255,255,0.02)",
+            borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.06)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "10px 14px",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: "rgba(255,255,255,0.6)",
+              }}
+            >
+              🔐 Role-Based Access Control Matrix
+              {rbacData.company_name && (
+                <span style={{ fontWeight: 400, color: C.muted, marginLeft: 6 }}>
+                  · {rbacData.company_name}
+                </span>
+              )}
+              {rbacLoading && (
+                <span style={{ fontWeight: 400, color: C.muted, marginLeft: 6 }}>
+                  · loading…
+                </span>
+              )}
+            </span>
+            <span style={{ fontSize: 8, color: C.muted }}>
+              Your role:{" "}
+              <span style={{ color: myRoleColor, fontWeight: 700 }}>
+                {myRoleLabel}
+              </span>
+            </span>
+          </div>
+          {rbacError && (
+            <div
+              style={{
+                padding: "6px 14px",
+                fontSize: 9,
+                color: "#f87171",
+                background: "rgba(240,80,80,0.06)",
+                borderBottom: "1px solid rgba(240,80,80,0.18)",
+              }}
+            >
+              {rbacError} — showing the default platform matrix below.
+            </div>
+          )}
+          <div style={{ overflowX: "auto" }}>
+            <table
+              style={{ width: "100%", borderCollapse: "collapse", fontSize: 8 }}
+            >
+              <thead>
+                <tr style={{ background: "rgba(255,255,255,0.03)" }}>
+                  <th
+                    style={{
+                      padding: "6px 10px",
+                      textAlign: "left",
+                      color: C.muted,
+                      fontWeight: 600,
+                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    {topNav.map((label, index) => (
-                      <NavPill key={label} label={label} active={index === 1} />
-                    ))}
-                  </Stack>
-
-                  <Typography sx={{ color: tokens.softText, fontSize: 11 }}>
-                    Sun, 8 Mar, 26
-                  </Typography>
-                </Stack>
-
-                <Box
-                  sx={{
-                    color: tokens.mutedText,
-                    fontSize: 12,
-                    borderTop: `1px solid ${tokens.divider}`,
-                    pt: 1.6,
-                  }}
-                >
-                  Daily Challenges - 1 to 3 taps to complete • Earn XP • Build
-                  Streaks • Unlock Badges
-                </Box>
-
-                <Grid container spacing={1.6}>
-                  {challengeStats.map((item) => (
-                    <Grid key={item.label} size={{ xs: 12, sm: 6, lg: 3 }}>
-                      <MetricCard item={item} />
-                    </Grid>
-                  ))}
-                </Grid>
-
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto",
-                    gap: 1,
-                    alignItems: "center",
-                    color: tokens.mutedText,
-                    fontSize: 11,
-                    borderTop: `1px solid ${tokens.divider}`,
-                    borderBottom: `1px solid ${tokens.divider}`,
-                    py: 1.2,
-                  }}
-                >
-                  <Typography sx={{ fontSize: 11 }}>
-                    Today&apos;s completion
-                  </Typography>
-                  <Typography sx={{ fontSize: 11 }}>
-                    0/6 challenges • 0 XP earned today
-                  </Typography>
-                </Box>
-
-                <SectionTitle
-                  title="Today's Challenges"
-                  subtitle="1 to 3 taps each. Simple as that."
-                />
-
-                <Grid container spacing={1.6}>
-                  {challengeCards.map((card) => (
-                    <Grid key={card.title} size={{ xs: 12, md: 6 }}>
-                      <ChallengeCard card={card} />
-                    </Grid>
-                  ))}
-                </Grid>
-
-                <Grid container spacing={1.6}>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <Box
-                      sx={{
-                        p: 2.2,
-                        borderRadius: 2.5,
-                        bgcolor: tokens.sectionBg,
-                        border: `1px solid ${tokens.panelBorder}`,
-                        height: "100%",
+                    Section
+                  </th>
+                  {rbacData.roles.map((role) => (
+                    <th
+                      key={role.key}
+                      style={{
+                        padding: "6px 10px",
+                        textAlign: "center",
+                        color: C.muted,
+                        fontWeight: 600,
+                        borderBottom: "1px solid rgba(255,255,255,0.04)",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      <SectionTitle title="My Badges" />
-                      <Grid container spacing={1.2}>
-                        {badges.map((badge) => (
-                          <Grid key={badge.name} size={{ xs: 6, sm: 4 }}>
-                            <BadgeCard badge={badge} />
-                          </Grid>
-                        ))}
-                      </Grid>
-                    </Box>
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <Box
-                      sx={{
-                        p: 2.2,
-                        borderRadius: 2.5,
-                        bgcolor: tokens.sectionBg,
-                        border: `1px solid ${tokens.panelBorder}`,
-                        height: "100%",
+                      {role.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rbacData.sections.map((sectionRow, ri) => (
+                  <tr
+                    key={sectionRow.key}
+                    style={{
+                      background:
+                        ri % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)",
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: "5px 10px",
+                        color: "rgba(255,255,255,0.65)",
+                        borderBottom: "1px solid rgba(255,255,255,0.03)",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      <SectionTitle title="Weekly Leaderboard" />
-                      <Stack spacing={1.25}>
-                        {leaderboard.map((entry) => (
-                          <Stack
-                            key={entry.rank}
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            sx={{
-                              py: 0.9,
-                              borderBottom: `1px solid ${tokens.divider}`,
-                              color: entry.highlight
-                                ? theme.palette.primary.main
-                                : tokens.strongText,
+                      {sectionRow.label}
+                    </td>
+                    {rbacData.roles.map((role) => {
+                      const p = sectionRow.permissions?.[role.key] || "none";
+                      const col =
+                        p === "full"
+                          ? C.g3
+                          : p === "view"
+                            ? C.blue
+                            : "rgba(255,255,255,0.1)";
+                      const bg =
+                        p === "full"
+                          ? "rgba(107,179,63,0.1)"
+                          : p === "view"
+                            ? "rgba(74,144,196,0.08)"
+                            : "transparent";
+                      return (
+                        <td
+                          key={role.key}
+                          style={{
+                            padding: "5px 10px",
+                            textAlign: "center",
+                            borderBottom: "1px solid rgba(255,255,255,0.03)",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 7.5,
+                              fontWeight: 700,
+                              color: col,
+                              background: bg,
+                              borderRadius: 4,
+                              padding: "1px 7px",
                             }}
                           >
-                            <Box>
-                              <Typography
-                                sx={{ fontWeight: 700, fontSize: 12.5 }}
-                              >
-                                {entry.rank}
-                              </Typography>
-                              <Typography
-                                sx={{ fontWeight: 700, fontSize: 13.5 }}
-                              >
-                                {entry.name}
-                              </Typography>
-                              <Typography
-                                sx={{ color: tokens.softText, fontSize: 11 }}
-                              >
-                                {entry.meta}
-                              </Typography>
-                            </Box>
-                            <Typography
-                              sx={{ color: "#f7b84f", fontWeight: 800 }}
-                            >
-                              {entry.gain}
-                            </Typography>
-                          </Stack>
-                        ))}
-                      </Stack>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Stack>
-            </Panel>
-          </Grid> */}
+                            {p === "none"
+                              ? "—"
+                              : p === "full"
+                                ? "✓ Full"
+                                : "👁 View"}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-          <Grid size={{ xs: 12, xl: 12 }}>
-            <Panel sx={{ p: 2.2 }}>
-              <Stack spacing={2.2}>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  flexWrap="wrap"
-                  useFlexGap
-                >
-                  <Stack spacing={0.25}>
-                    <Typography
-                      sx={{
-                        color: "primary.main",
-                        fontSize: 28,
-                        fontWeight: 900,
-                        lineHeight: 1,
-                      }}
-                    >
-                      GOOGLE DASHBOARD
-                    </Typography>
-                    <Typography
-                      sx={{
-                        color: tokens.softText,
-                        fontSize: 10,
-                        letterSpacing: 0.8,
-                      }}
-                    >
-                      WELLNESS INTELLIGENCE PLATFORM
-                    </Typography>
-                  </Stack>
-
-                  {/* <Stack
-                    direction="row"
-                    spacing={1}
-                    sx={{
-                      p: 0.7,
-                      borderRadius: 2.5,
-                      bgcolor: tokens.navBg,
-                    }}
-                  >
-                    {topNav.map((label, index) => (
-                      <NavPill key={label} label={label} active={index === 2} />
-                    ))}
-                  </Stack> */}
-
-                  <Typography sx={{ color: tokens.softText, fontSize: 11 }}>
-                    Sun, 8 Mar, 26
-                  </Typography>
-                </Stack>
-
-                <Box
-                  sx={{
-                    color: tokens.mutedText,
-                    fontSize: 12,
-                    borderTop: `1px solid ${tokens.divider}`,
-                    pt: 1.6,
+        {/* SECTION NAV */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+            gap: 8,
+            marginBottom: 18,
+          }}
+        >
+          {ADMIN_SECTIONS.map((s) => {
+            const active = section === s.id;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => handleSectionClick(s)}
+                onDoubleClick={() => s.route && navigate(s.route)}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: `1px solid ${active ? s.color : "rgba(255,255,255,0.08)"}`,
+                  background: active ? `${s.color}12` : "rgba(255,255,255,0.025)",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                  color: "inherit",
+                  font: "inherit",
+                }}
+              >
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: active ? s.color : "rgba(255,255,255,0.7)",
                   }}
                 >
-                  HR Intelligence Centre - Population Health Analytics • CXO
-                  Metrics • Location & Department Insights
-                </Box>
-
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  flexWrap="wrap"
-                  useFlexGap
+                  {s.label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 7.5,
+                    color: C.muted,
+                    marginTop: 2,
+                    lineHeight: 1.3,
+                  }}
                 >
-                  <Stack
-                    direction="row"
-                    spacing={1.2}
-                    useFlexGap
-                    flexWrap="wrap"
-                  >
-                    {analyticsFilters.map((label) => (
-                      <FilterChip key={label} label={`${label}  ▾`} />
-                    ))}
-                  </Stack>
-                  <Typography
-                    sx={{
-                      color: "primary.main",
-                      fontWeight: 800,
-                      fontSize: 14,
-                    }}
-                  >
-                    240{" "}
-                    <Box
-                      component="span"
-                      sx={{ color: tokens.softText, fontWeight: 500 }}
-                    >
-                      employees selected
-                    </Box>
-                  </Typography>
-                </Stack>
+                  {s.desc}
+                </div>
+              </button>
+            );
+          })}
+        </div>
 
-                <Grid container spacing={1.4}>
-                  {analyticsStats.map((item) => (
-                    <Grid
-                      key={item.label}
-                      size={{ xs: 12, sm: 6, md: 4, lg: 2 }}
-                    >
-                      <MiniStat item={item} />
-                    </Grid>
-                  ))}
-                </Grid>
+        {/* SECTION TABLE */}
+        <div
+          style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: 14,
+            padding: 0,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "12px 16px",
+              borderBottom: `1px solid ${C.border}`,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 16 }}>{sec?.icon}</span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700 }}>{sec?.label}</div>
+                <div style={{ fontSize: 8.5, color: C.muted }}>
+                  {filtered.length} records
+                </div>
+              </div>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <input
+                value={searchQ}
+                onChange={(e) => setSearchQ(e.target.value)}
+                placeholder="Search…"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  color: "#fff",
+                  borderRadius: 8,
+                  padding: "5px 10px",
+                  fontSize: 10,
+                  outline: "none",
+                  width: 140,
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm((p) => !p);
+                  setEditItem(null);
+                  setFormData({});
+                }}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  background: `linear-gradient(135deg, ${C.g1}, ${C.g2})`,
+                  border: "none",
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: 10,
+                  cursor: "pointer",
+                }}
+              >
+                + Add New
+              </button>
+              {sec?.route && (
+                <button
+                  type="button"
+                  onClick={handleOpenInEditor}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 8,
+                    background: "transparent",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    color: "rgba(255,255,255,0.7)",
+                    fontWeight: 600,
+                    fontSize: 10,
+                    cursor: "pointer",
+                  }}
+                  title={`Open full ${sec.label} editor`}
+                >
+                  Open Full Editor →
+                </button>
+              )}
+            </div>
+          </div>
 
-                <Grid container spacing={1.6}>
-                  <Grid size={{ xs: 12, lg: 6 }}>
-                    <SegmentedBars
-                      title="Wellness by Dimension"
-                      color="#79b642"
-                      tabs={["WellnessIndex", "Sleep", "Stress", "Nutrition"]}
-                      sections={dimensionBlocks}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, lg: 6 }}>
-                    <SegmentedBars
-                      title="CXO Performance Metrics"
-                      color="#5b93c4"
-                      tabs={["Productivity", "Engagement", "Absenteeism"]}
-                      sections={performanceBlocks}
-                    />
-                  </Grid>
-                </Grid>
-
-                <Grid container spacing={1.6}>
-                  <Grid size={{ xs: 12, lg: 6 }}>
-                    <Box
-                      sx={{
-                        p: 2.2,
-                        borderRadius: 2.5,
-                        bgcolor: tokens.sectionBg,
-                        border: `1px solid ${tokens.panelBorder}`,
-                        height: "100%",
+          {showForm && (
+            <div
+              style={{
+                padding: "14px 16px",
+                background: "rgba(107,179,63,0.04)",
+                borderBottom: `1px solid ${C.border}`,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  marginBottom: 10,
+                  color: C.g3,
+                }}
+              >
+                {editItem
+                  ? `Edit #${editItem.id || editItem.key || ""}`
+                  : `Add New ${sec?.label.replace(/s$/, "") || "Item"}`}
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                  gap: 10,
+                  marginBottom: 12,
+                }}
+              >
+                {formFields.map(([label, field, type]) => (
+                  <div key={field}>
+                    <div
+                      style={{
+                        fontSize: 8,
+                        color: C.muted,
+                        marginBottom: 3,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
                       }}
                     >
-                      <SectionTitle title="Gender-wise Wellness & Productivity" />
-                      <Stack spacing={2.2}>
-                        {genderStats.map((item) => (
-                          <GenderBarRow key={item.label} item={item} />
-                        ))}
-                      </Stack>
-                    </Box>
-                  </Grid>
-
-                  <Grid size={{ xs: 12, lg: 6 }}>
-                    <Box
-                      sx={{
-                        p: 2.2,
-                        borderRadius: 2.5,
-                        bgcolor: tokens.sectionBg,
-                        border: `1px solid ${tokens.panelBorder}`,
-                        height: "100%",
-                      }}
-                    >
-                      <SectionTitle
-                        title="Wellness ↔ Productivity Correlation"
-                        subtitle="each bubble = dept × age • size = headcount"
+                      {label}
+                    </div>
+                    {type === "textarea" ? (
+                      <textarea
+                        rows={2}
+                        value={formData[field] || ""}
+                        onChange={(e) =>
+                          setFormData((p) => ({ ...p, [field]: e.target.value }))
+                        }
+                        style={{
+                          width: "100%",
+                          background: "rgba(255,255,255,0.06)",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          color: "#fff",
+                          borderRadius: 7,
+                          padding: "5px 9px",
+                          fontSize: 10,
+                          resize: "vertical",
+                          outline: "none",
+                          boxSizing: "border-box",
+                          fontFamily: "inherit",
+                        }}
                       />
-                      <Box
-                        sx={{
-                          position: "relative",
-                          height: 170,
-                          mt: 1,
-                          borderLeft: `1px solid ${tokens.divider}`,
-                          borderBottom: `1px solid ${tokens.divider}`,
-                          ml: 2,
-                          mr: 3,
+                    ) : type.startsWith("select:") ? (
+                      <select
+                        value={formData[field] || ""}
+                        onChange={(e) =>
+                          setFormData((p) => ({ ...p, [field]: e.target.value }))
+                        }
+                        style={{
+                          width: "100%",
+                          background: "rgba(30,50,30,0.9)",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          color: "#fff",
+                          borderRadius: 7,
+                          padding: "6px 9px",
+                          fontSize: 10,
+                          outline: "none",
                         }}
                       >
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            left: "58%",
-                            top: "36%",
-                            width: 28,
-                            height: 28,
-                            borderRadius: "50%",
-                            display: "grid",
-                            placeItems: "center",
-                            bgcolor: "rgba(255, 183, 77, 0.9)",
-                            border: "4px solid rgba(255, 106, 106, 0.28)",
-                            boxShadow: "0 0 20px rgba(255, 183, 77, 0.25)",
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              color: tokens.strongText,
-                              fontSize: 8,
-                              fontWeight: 800,
-                            }}
-                          >
-                            HR
-                          </Typography>
-                        </Box>
-                        <Typography
-                          sx={{
-                            position: "absolute",
-                            bottom: -18,
-                            left: "44%",
-                            color: tokens.softText,
-                            fontSize: 9,
-                          }}
-                        >
-                          Wellness Index →
-                        </Typography>
-                        <Typography
-                          sx={{
-                            position: "absolute",
-                            top: "44%",
-                            left: -56,
-                            color: tokens.softText,
-                            fontSize: 9,
-                            transform: "rotate(-90deg)",
-                          }}
-                        >
-                          Productivity →
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Grid>
-                </Grid>
-
-                <Box
-                  sx={{
-                    p: 2.2,
-                    borderRadius: 2.5,
-                    bgcolor: tokens.sectionBg,
-                    border: `1px solid ${tokens.panelBorder}`,
+                        <option value="">Select…</option>
+                        {type
+                          .split(":")[1]
+                          .split("|")
+                          .map((o) => (
+                            <option key={o} value={o}>
+                              {o}
+                            </option>
+                          ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={type}
+                        value={formData[field] || ""}
+                        onChange={(e) =>
+                          setFormData((p) => ({ ...p, [field]: e.target.value }))
+                        }
+                        placeholder={label}
+                        style={{
+                          width: "100%",
+                          background: "rgba(255,255,255,0.06)",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          color: "#fff",
+                          borderRadius: 7,
+                          padding: "6px 9px",
+                          fontSize: 10,
+                          outline: "none",
+                          boxSizing: "border-box",
+                          colorScheme: "dark",
+                        }}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (sec?.route) navigate(sec.route);
+                    else setShowForm(false);
+                  }}
+                  style={{
+                    padding: "7px 20px",
+                    borderRadius: 8,
+                    background: `linear-gradient(135deg, ${C.g1}, ${C.g2})`,
+                    border: "none",
+                    color: "#fff",
+                    fontWeight: 700,
+                    fontSize: 10,
+                    cursor: "pointer",
                   }}
                 >
-                  <SectionTitle title="Location × Department Wellness Heatmap" />
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: {
-                        xs: "92px repeat(6, 1fr)",
-                        md: "140px repeat(6, 1fr)",
-                      },
-                      gap: 1,
-                      alignItems: "center",
+                  {editItem ? "Update in Editor →" : "Continue in Editor →"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditItem(null);
+                    setFormData({});
+                  }}
+                  style={{
+                    padding: "7px 16px",
+                    borderRadius: 8,
+                    background: "transparent",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    color: C.muted,
+                    fontSize: 10,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ overflowX: "auto" }}>
+            <table
+              style={{ width: "100%", borderCollapse: "collapse", fontSize: 9 }}
+            >
+              <thead>
+                <tr style={{ background: "rgba(255,255,255,0.03)" }}>
+                  {cols.map(([h, , w]) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        fontWeight: 700,
+                        color: C.muted,
+                        fontSize: 8,
+                        letterSpacing: 0.6,
+                        textTransform: "uppercase",
+                        minWidth: w,
+                        borderBottom: `1px solid ${C.border}`,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      textAlign: "right",
+                      fontWeight: 700,
+                      color: C.muted,
+                      fontSize: 8,
+                      letterSpacing: 0.6,
+                      textTransform: "uppercase",
+                      borderBottom: `1px solid ${C.border}`,
                     }}
                   >
-                    <Typography sx={{ color: tokens.softText, fontSize: 11 }}>
-                      Location / Dept
-                    </Typography>
-                    {heatmapColumns.map((column) => (
-                      <Typography
-                        key={column}
-                        sx={{
-                          color: tokens.softText,
-                          fontSize: 10.5,
-                          textAlign: "center",
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((row, ri) => (
+                  <tr
+                    key={ri}
+                    style={{
+                      borderBottom: "1px solid rgba(255,255,255,0.03)",
+                      background:
+                        ri % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)",
+                    }}
+                  >
+                    {cols.map(([, field]) => (
+                      <td
+                        key={field}
+                        style={{
+                          padding: "8px 12px",
+                          color: "rgba(255,255,255,0.65)",
+                          maxWidth: 240,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        {column}
-                      </Typography>
+                        {field === "status" ? (
+                          <StatusBadge s={row[field]} mutedColor={C.muted} />
+                        ) : field === "role" ? (
+                          <span
+                            style={{
+                              fontSize: 8,
+                              fontWeight: 700,
+                              color: ROLE_COLORS[row[field]] || C.muted,
+                            }}
+                          >
+                            {ROLE_LABELS[row[field]] || row[field]}
+                          </span>
+                        ) : field === "kpis" ? (
+                          <span>
+                            {Array.isArray(row[field])
+                              ? row[field].join(", ")
+                              : row[field]}
+                          </span>
+                        ) : field === "reverse" ? (
+                          <span
+                            style={{
+                              color: row[field] ? C.orange : C.g3,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {row[field] ? "Yes" : "No"}
+                          </span>
+                        ) : field === "type" ? (
+                          <span
+                            style={{
+                              fontSize: 8,
+                              background: "rgba(255,255,255,0.06)",
+                              color: "rgba(255,255,255,0.5)",
+                              borderRadius: 4,
+                              padding: "1px 6px",
+                            }}
+                          >
+                            {row[field]}
+                          </span>
+                        ) : (
+                          String(row[field] ?? "")
+                        )}
+                      </td>
                     ))}
-
-                    {heatmapRows.map((row) => (
-                      <Box key={row.city} sx={{ display: "contents" }}>
-                        <Typography
-                          sx={{ color: tokens.strongText, fontSize: 12 }}
-                        >
-                          {row.city}
-                        </Typography>
-                        {row.values.map((value, index) => (
-                          <HeatCell
-                            key={`${row.city}-${index}`}
-                            value={value}
-                          />
-                        ))}
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              </Stack>
-            </Panel>
-          </Grid>
-        </Grid>
+                    <td
+                      style={{
+                        padding: "8px 12px",
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditItem(row);
+                          setFormData({ ...row });
+                          setShowForm(true);
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          color: C.blue,
+                          borderRadius: 5,
+                          padding: "2px 9px",
+                          cursor: "pointer",
+                          fontSize: 8,
+                          marginRight: 5,
+                          fontWeight: 600,
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenInEditor}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid rgba(240,80,80,0.3)",
+                          color: "#f87171",
+                          borderRadius: 5,
+                          padding: "2px 9px",
+                          cursor: "pointer",
+                          fontSize: 8,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {row.status === "active" ? "Disable" : "Enable"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={cols.length + 1}
+                      style={{
+                        padding: 30,
+                        textAlign: "center",
+                        color: C.muted,
+                        fontSize: 10,
+                      }}
+                    >
+                      No records found{searchQ ? ` for "${searchQ}"` : ""}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </Box>
     </Layout>
   );

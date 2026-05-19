@@ -445,7 +445,7 @@ export default function Themes({ role = "admin" }) {
           </Typography>
 
           <Box sx={{ width: "100%", overflowX: "auto" }}>
-            <Box sx={{ height: 560, width: "max-content", minWidth: "100%" }}>
+            <Box sx={{ height: 560, width: "100%" }}>
               <DataGrid
                 rows={items}
                 columns={columns}

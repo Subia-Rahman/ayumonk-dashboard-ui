@@ -1,8 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../../store/authSlice";
+import { fetchDepartments } from "../../store/departmentSlice";
+import { fetchLocations } from "../../store/locationSlice";
+import { fetchUsers } from "../../store/userSlice";
+import api from "../../services/api";
+import { API_URLS } from "../../services/apiUrls";
+import { getCompanyId } from "../../utils/roleHelper";
 import { formatDateIST } from "../../utils/dateTime";
+import AyuLogo from "../../components/AyuLogo";
+
+const FORM_GENDERS = ["male", "female", "other"];
+const FORM_AGE_BANDS = ["20-25", "26-30", "31-35", "36-40", "41-50", "50+"];
 
 const C = {
   bg: "#0b160c",
@@ -135,26 +145,6 @@ function BarChart({ data, color = "#6db33f", h = 80 }) {
   );
 }
 
-function AyuLogo({ size = 32 }) {
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        background: `linear-gradient(135deg,${C.g1},${C.g3})`,
-        display: "grid",
-        placeItems: "center",
-        fontWeight: 900,
-        color: "#fff",
-        fontSize: size * 0.42,
-        boxShadow: "0 4px 14px rgba(45,95,45,0.45)",
-      }}
-    >
-      A
-    </div>
-  );
-}
 
 function Sel({ label, value, onChange, opts }) {
   return (
@@ -230,12 +220,61 @@ function Toggle({ options, value, onChange, colors }) {
 }
 
 function HRDashboardContent() {
+  const dispatch = useDispatch();
   const [fD, setFD] = useState("All");
   const [fL, setFL] = useState("All");
   const [fA, setFA] = useState("All");
   const [fG, setFG] = useState("All");
   const [cxo, setCxo] = useState("productivity");
   const [well, setWell] = useState("wellnessIndex");
+  const [companyMe, setCompanyMe] = useState(null);
+
+  const companyId = getCompanyId();
+  const { items: departmentItems } = useSelector((state) => state.department);
+  const { items: locationItems } = useSelector((state) => state.location);
+  const { users: employeeUsers } = useSelector((state) => state.user);
+
+  useEffect(() => {
+    if (companyId) {
+      dispatch(fetchDepartments({ companyId, isActive: true }));
+      dispatch(fetchUsers({ companyId, isActive: true, limit: 1000 }));
+    }
+    dispatch(fetchLocations({ isActive: true, limit: 500 }));
+
+    let cancelled = false;
+    api
+      .get(API_URLS.companyMe)
+      .then((response) => {
+        const payload = response?.data;
+        if (!cancelled && payload?.success) setCompanyMe(payload.data || null);
+      })
+      .catch(() => {
+        // Non-fatal: location dropdown will simply have no options if the
+        // company record can't be loaded.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, companyId]);
+
+  const departmentOpts = useMemo(
+    () => departmentItems.filter((d) => d.is_active).map((d) => d.name),
+    [departmentItems],
+  );
+
+  // Users carry no location_id of their own; their location is inherited from
+  // their company. So "locations for which an employee exists" resolves, for
+  // a single-company admin, to the company's one location — and only when at
+  // least one employee belongs to it.
+  const locationOpts = useMemo(() => {
+    if (!employeeUsers.length) return [];
+    const companyLocationId = companyMe?.location_id;
+    if (!companyLocationId) return [];
+    const match = locationItems.find(
+      (l) => String(l.id) === String(companyLocationId),
+    );
+    return match ? [match.name] : [];
+  }, [companyMe, locationItems, employeeUsers.length]);
 
   const filtered = useMemo(
     () =>
@@ -290,10 +329,10 @@ function HRDashboardContent() {
           alignItems: "flex-end",
         }}
       >
-        <Sel label="Department" value={fD} onChange={setFD} opts={DEPTS} />
-        <Sel label="Location" value={fL} onChange={setFL} opts={LOCATIONS} />
-        <Sel label="Age Band" value={fA} onChange={setFA} opts={AGE_BANDS} />
-        <Sel label="Gender" value={fG} onChange={setFG} opts={GENDERS} />
+        <Sel label="Department" value={fD} onChange={setFD} opts={departmentOpts} />
+        <Sel label="Location" value={fL} onChange={setFL} opts={locationOpts} />
+        <Sel label="Age Band" value={fA} onChange={setFA} opts={FORM_AGE_BANDS} />
+        <Sel label="Gender" value={fG} onChange={setFG} opts={FORM_GENDERS} />
         <div style={{ marginLeft: "auto", fontSize: 11, color: C.muted }}>
           <span style={{ color: C.g3, fontWeight: 700, fontSize: 16 }}>
             {filtered.length}
@@ -766,22 +805,6 @@ export default function HrAnalyticsDashboard() {
               {displayRole}
             </span>
           </div>
-          <button
-            onClick={() => navigate("/profile")}
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "rgba(255,255,255,0.7)",
-              borderRadius: 9,
-              padding: "6px 12px",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            Profile
-          </button>
           <button
             onClick={handleLogout}
             style={{

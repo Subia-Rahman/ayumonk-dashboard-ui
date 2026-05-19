@@ -991,7 +991,7 @@ export default function RoleAssignment() {
             }}
           >
             <TextField
-              label="Tenant"
+              label="Company"
               select
               value={tenantId}
               onChange={(event) => handleTenantChange(event.target.value)}

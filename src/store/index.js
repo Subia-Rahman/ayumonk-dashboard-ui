@@ -24,6 +24,7 @@ import locationReducer from "./locationSlice";
 import tenantContextReducer from "./tenantContextSlice";
 import reminderSettingsReducer from "./reminderSettingsSlice";
 import notificationsReducer from "./notificationsSlice";
+import rbacMatrixReducer from "./rbacMatrixSlice";
 import rbacInvalidationMiddleware from "./middleware/rbacInvalidation";
 
 const store = configureStore({
@@ -53,6 +54,7 @@ const store = configureStore({
     tenantContext: tenantContextReducer,
     reminderSettings: reminderSettingsReducer,
     notifications: notificationsReducer,
+    rbacMatrix: rbacMatrixReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(rbacInvalidationMiddleware),

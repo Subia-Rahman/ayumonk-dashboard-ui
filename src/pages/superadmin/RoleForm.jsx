@@ -227,7 +227,7 @@ export default function RoleForm({ mode = "add" }) {
               fullWidth
             />
             <TextField
-              label="Tenant"
+              label="Company"
               select
               value={formValues.tenant_id}
               onChange={(event) => handleChange("tenant_id", event.target.value)}

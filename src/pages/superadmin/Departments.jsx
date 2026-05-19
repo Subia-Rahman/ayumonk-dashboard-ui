@@ -482,7 +482,7 @@ export default function Departments() {
               </Typography>
               <Box sx={{ width: "100%", overflowX: "auto" }}>
                 <Box
-                  sx={{ height: 560, width: "max-content", minWidth: "100%" }}
+                  sx={{ height: 560, width: "100%" }}
                 >
                   <DataGrid
                     rows={items}

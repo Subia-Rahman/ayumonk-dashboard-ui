@@ -9,6 +9,11 @@ import { ThemeModeContext } from "./context/ThemeModeContext";
 import "./index.css";
 import { createAppTheme, getStoredThemeMode, THEME_MODE_KEY } from "./theme";
 import store from "./store";
+import { initPWAInstallListener } from "./utils/pwaInstall";
+
+// Capture beforeinstallprompt before React mounts — the browser fires it once,
+// very early, and missing it leaves the in-app install button permanently disabled.
+initPWAInstallListener();
 
 function Root() {
   const [mode, setMode] = useState(() => getStoredThemeMode());

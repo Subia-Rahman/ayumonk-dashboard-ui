@@ -103,7 +103,7 @@ export default function PolicyForm() {
       return;
     }
     if (!formValues.tenant_id) {
-      setFormError("Tenant is required.");
+      setFormError("Company is required.");
       return;
     }
 
@@ -205,7 +205,7 @@ export default function PolicyForm() {
               fullWidth
             />
             <TextField
-              label="Tenant"
+              label="Company"
               select
               value={formValues.tenant_id}
               onChange={(event) => handleChange("tenant_id", event.target.value)}

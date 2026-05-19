@@ -296,8 +296,7 @@ export default function CompanyData() {
                 color="text.secondary"
                 sx={{ mt: 0.75, maxWidth: 720 }}
               >
-                Super admin company management with API-backed create, update,
-                delete, and company admin assignment.
+                Company management.
               </Typography>
             </Box>
 
@@ -439,7 +438,7 @@ export default function CompanyData() {
           </Box>
 
           <Box sx={{ width: "100%", overflowX: "auto" }}>
-            <Box sx={{ height: 560, width: "max-content", minWidth: "100%" }}>
+            <Box sx={{ height: 560, width: "100%" }}>
               <DataGrid
                 rows={companies}
                 columns={columns}

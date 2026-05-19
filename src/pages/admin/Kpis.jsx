@@ -472,25 +472,21 @@ export default function Kpis({ role = "admin" }) {
               <MenuItem value="active">Active</MenuItem>
               <MenuItem value="inactive">Inactive</MenuItem>
             </TextField>
-            {role === "superadmin" && (
-              <>
-                <Button
-                  variant="outlined"
-                  onClick={handleApplyFilters}
-                  disabled={listLoading}
-                  sx={{ minHeight: 56, px: 3, whiteSpace: "nowrap" }}
-                >
-                  Apply Filters
-                </Button>
-                <Button
-                  variant="text"
-                  onClick={handleResetFilters}
-                  sx={{ minHeight: 56, px: 2, whiteSpace: "nowrap" }}
-                >
-                  Reset
-                </Button>
-              </>
-            )}
+            <Button
+              variant="outlined"
+              onClick={handleApplyFilters}
+              disabled={listLoading}
+              sx={{ minHeight: 56, px: 3, whiteSpace: "nowrap" }}
+            >
+              Apply Filters
+            </Button>
+            <Button
+              variant="text"
+              onClick={handleResetFilters}
+              sx={{ minHeight: 56, px: 2, whiteSpace: "nowrap" }}
+            >
+              Reset
+            </Button>
           </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -498,7 +494,7 @@ export default function Kpis({ role = "admin" }) {
           </Typography>
 
           <Box sx={{ width: "100%", overflowX: "auto" }}>
-            <Box sx={{ height: 560, width: "max-content", minWidth: "100%" }}>
+            <Box sx={{ height: 560, width: "100%" }}>
               <DataGrid
                 rows={items}
                 columns={columns}

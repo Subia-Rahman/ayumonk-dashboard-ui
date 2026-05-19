@@ -197,7 +197,7 @@ export default function PolicyView() {
                 }}
               >
                 <Typography variant="caption" color="text.secondary">
-                  Tenant ID
+                  Company ID
                 </Typography>
                 <Typography sx={{ mt: 0.8, fontWeight: 600 }}>
                   {policy.tenant_id || "-"}

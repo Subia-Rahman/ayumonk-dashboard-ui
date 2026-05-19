@@ -54,7 +54,7 @@ import Departments from "../pages/superadmin/Departments";
 import ClientPage from "../pages/hidden/ClientPage";
 import AccessDenied from "../pages/common/AccessDenied";
 import RouteGuard from "./RouteGuard";
-import { getHomePath } from "../utils/roleHelper";
+import { getHomePath, isPathAllowedForRole } from "../utils/roleHelper";
 
 // Spec §3: every CRUD route is gated on `<resource>:read` so direct
 // navigation / deep links fail-safe via <AccessDenied /> instead of
@@ -73,8 +73,16 @@ function ProtectedRoute({ children, codename, bypass }) {
 function LoginRoute({ fallback }) {
   const location = useLocation();
   const authenticated = useSelector((state) => state.auth.isAuthenticated);
-  const redirectTarget = location.state?.from?.pathname
-    ? `${location.state.from.pathname}${location.state.from.search || ""}${location.state.from.hash || ""}`
+  const role = useSelector((state) => state.auth.role);
+  const isPlatformAdmin = useSelector((state) => state.auth.isPlatformAdmin);
+  const fromPath = location.state?.from?.pathname;
+  // Only honor `from` redirects when the current user can actually access
+  // that path — otherwise a stale `from` left over from a previous role's
+  // session would bounce the new user into a route they don't belong on.
+  const honorFrom =
+    fromPath && isPathAllowedForRole(fromPath, { role, isPlatformAdmin });
+  const redirectTarget = honorFrom
+    ? `${fromPath}${location.state.from.search || ""}${location.state.from.hash || ""}`
     : fallback;
 
   return authenticated ? <Navigate to={redirectTarget} replace /> : <Login />;
@@ -82,9 +90,10 @@ function LoginRoute({ fallback }) {
 
 export default function AppRoutes() {
   const role = useSelector((state) => state.auth.role);
+  const rawRole = useSelector((state) => state.auth.rawRole);
   const isPlatformAdmin = useSelector((state) => state.auth.isPlatformAdmin);
   const authenticated = useSelector((state) => state.auth.isAuthenticated);
-  const fallback = getHomePath({ isPlatformAdmin, role });
+  const fallback = getHomePath({ isPlatformAdmin, role, rawRole });
 
   return (
     <Routes>

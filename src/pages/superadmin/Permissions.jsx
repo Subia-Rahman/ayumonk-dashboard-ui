@@ -19,7 +19,6 @@ import {
 import { alpha } from "@mui/material/styles";
 import { DataGrid } from "@mui/x-data-grid";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import PreviewRoundedIcon from "@mui/icons-material/PreviewRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import Layout from "../../layouts/commonLayout/Layout";
@@ -66,9 +65,8 @@ export default function Permissions() {
     (state) => state.permissionMaster,
   );
   // "permissions" slug → "platform" resource (per audit's resource map).
-  const { canCreate, canEdit } = usePermissions();
+  const { canCreate } = usePermissions();
   const canCreatePermissions = canCreate("permissions");
-  const canEditPermissions = canEdit("permissions");
 
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
@@ -244,24 +242,12 @@ export default function Permissions() {
                   <PreviewRoundedIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-              {canEditPermissions && (
-                <Tooltip title="Edit">
-                  <IconButton
-                    size="small"
-                    onClick={() =>
-                      navigate(`/super-admin/permissions/${row.id}/edit`)
-                    }
-                  >
-                    <EditRoundedIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              )}
             </Stack>
           </Box>
         ),
       },
     ],
-    [canEditPermissions, navigate, theme.palette.primary.main],
+    [navigate, theme.palette.primary.main],
   );
 
   return (
@@ -380,7 +366,7 @@ export default function Permissions() {
             </Typography>
 
             <Box sx={{ width: "100%", overflowX: "auto" }}>
-              <Box sx={{ height: 560, width: "max-content", minWidth: "100%" }}>
+              <Box sx={{ height: 560, width: "100%" }}>
                 <DataGrid
                   rows={filteredRows}
                   columns={columns}

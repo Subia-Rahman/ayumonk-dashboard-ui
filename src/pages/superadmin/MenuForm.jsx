@@ -273,6 +273,7 @@ export default function MenuForm({ mode = "add" }) {
               value={formValues.name}
               onChange={(event) => handleChange("name", event.target.value)}
               fullWidth
+              disabled={isEdit}
             />
             <TextField
               label="Slug"
@@ -298,6 +299,7 @@ export default function MenuForm({ mode = "add" }) {
               value={formValues.parent_id}
               onChange={(event) => handleChange("parent_id", event.target.value)}
               fullWidth
+              disabled={isEdit}
               helperText={
                 parentOptions.length === 0
                   ? "No parent menus available"

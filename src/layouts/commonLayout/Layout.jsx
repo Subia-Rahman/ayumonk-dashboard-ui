@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   AppBar,
   Avatar,
   Box,
+  Button,
   Chip,
   Drawer,
   ListItemIcon,
@@ -13,6 +14,7 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  Stack,
   Toolbar,
   Tooltip,
   Typography,
@@ -27,6 +29,7 @@ import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../store/authSlice";
+import AyuLogo from "../../components/AyuLogo";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import BusinessIcon from "@mui/icons-material/Business";
 import PeopleIcon from "@mui/icons-material/People";
@@ -59,6 +62,38 @@ import TenantSwitcher from "../../components/TenantSwitcher";
 const drawerWidth = 260;
 const collapsedDrawerWidth = 88;
 const SIDEBAR_COLLAPSED_KEY = "sidebarCollapsed";
+
+const USER_NAV_BG = "#0b160c";
+const USER_NAV_ACCENT = "#6DB33F";
+const USER_NAV_ACCENT_DARK = "#2C5F2D";
+const USER_NAV_MUTED = "#6B8F60";
+
+
+const USER_TOP_TABS = [
+  {
+    key: "wellness",
+    label: "My Wellness",
+    icon: "🌿",
+    to: "/user/dashboard?tab=wellness",
+    isActive: ({ pathname, tab }) =>
+      pathname === "/user/dashboard" && tab !== "challenges",
+  },
+  {
+    key: "challenges",
+    label: "Challenges",
+    icon: "🎯",
+    to: "/user/dashboard?tab=challenges",
+    isActive: ({ pathname, tab }) =>
+      pathname === "/user/dashboard" && tab === "challenges",
+  },
+  {
+    key: "responses",
+    label: "My Responses",
+    icon: "📋",
+    to: "/user/submissions",
+    isActive: ({ pathname }) => pathname.startsWith("/user/submissions"),
+  },
+];
 
 const ICON_BY_SLUG = {
   dashboard: <DashboardIcon />,
@@ -178,6 +213,7 @@ export default function Layout({ children, role, title }) {
   const [menuAnchor, setMenuAnchor] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const user = useSelector((state) => state.auth.user);
   const stateRole = useSelector((state) => state.auth.role);
   const isPlatformAdmin = useSelector(
@@ -185,6 +221,22 @@ export default function Layout({ children, role, title }) {
   );
   const profile = user || null;
   const effectiveRole = stateRole || role || "admin";
+  const isUserLayout = effectiveRole === "user";
+  const isDarkMode = theme.palette.mode === "dark";
+  // Light-mode counterpart for the brand-dark user surface — keeps the
+  // wellness-product feel without making the page unreadable when the user
+  // toggles the theme switcher.
+  // Mirrors LIGHT_PALETTE.bg in src/utils/clientPalette.js — a medium-dark
+  // sage-slate that lets the existing white-text components remain readable
+  // even when the user toggles out of full dark mode.
+  const userSurfaceBg = isDarkMode ? USER_NAV_BG : "#34433a";
+
+  const activeUserTab = useMemo(() => {
+    const tabParam = searchParams.get("tab") || "";
+    return USER_TOP_TABS.find((t) =>
+      t.isActive({ pathname: location.pathname, tab: tabParam }),
+    );
+  }, [location.pathname, searchParams]);
 
   const { menus, loaded: permissionsLoaded } = usePermissions();
 
@@ -252,7 +304,11 @@ export default function Layout({ children, role, title }) {
   const handleLogout = () => {
     dispatch(logout());
     handleMenuClose();
-    navigate("/login", { replace: true });
+    // Pass state: null explicitly so any prior history-state (including a
+    // `from` redirect set by RouteGuard while logout is propagating) cannot
+    // leak into the next login attempt and bounce the next user into the
+    // previous role's URL.
+    navigate("/login", { replace: true, state: null });
   };
 
   const handleSidebarAction = () => {
@@ -263,9 +319,11 @@ export default function Layout({ children, role, title }) {
     setSidebarCollapsed((prev) => !prev);
   };
 
-  const activeDrawerWidth = sidebarCollapsed
-    ? collapsedDrawerWidth
-    : drawerWidth;
+  const activeDrawerWidth = isUserLayout
+    ? 0
+    : sidebarCollapsed
+      ? collapsedDrawerWidth
+      : drawerWidth;
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
@@ -287,7 +345,7 @@ export default function Layout({ children, role, title }) {
             variant="h6"
             sx={{ fontWeight: 800, whiteSpace: "nowrap" }}
           >
-            Google Dashboard
+            Ayumonk
           </Typography>
         )}
 
@@ -368,17 +426,36 @@ export default function Layout({ children, role, title }) {
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "transparent" }}>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: isUserLayout ? userSurfaceBg : "transparent",
+      }}
+    >
       <AppBar
         color="transparent"
         elevation={0}
         sx={{
-          width: { md: `calc(100% - ${activeDrawerWidth}px)` },
-          ml: { md: `${activeDrawerWidth}px` },
+          width: isUserLayout
+            ? "100%"
+            : { md: `calc(100% - ${activeDrawerWidth}px)` },
+          ml: isUserLayout ? 0 : { md: `${activeDrawerWidth}px` },
           borderBottom: "1px solid",
-          borderColor: "divider",
+          borderColor: isUserLayout
+            ? isDarkMode
+              ? "rgba(255,255,255,0.06)"
+              : "rgba(15,23,42,0.08)"
+            : "divider",
           backdropFilter: "blur(8px)",
-          bgcolor: alpha(theme.palette.background.default, 0.8),
+          bgcolor: isUserLayout
+            ? userSurfaceBg
+            : alpha(theme.palette.background.default, 0.8),
+          color: isUserLayout
+            ? isDarkMode
+              ? "#fff"
+              : theme.palette.text.primary
+            : "inherit",
           transition: (theme) =>
             theme.transitions.create(["width", "margin-left"], {
               easing: theme.transitions.easing.sharp,
@@ -386,28 +463,142 @@ export default function Layout({ children, role, title }) {
             }),
         }}
       >
-        <Toolbar sx={{ minHeight: { xs: 64, sm: 72 } }}>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleSidebarAction}
-            sx={{ mr: 2 }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            {title || "Google Dashboard"}
-          </Typography>
+        <Toolbar
+          sx={{
+            minHeight: { xs: 64, sm: 72 },
+            gap: 1.5,
+            flexWrap: { xs: "wrap", md: "nowrap" },
+          }}
+        >
+          {!isUserLayout && (
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={handleSidebarAction}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+
+          {isUserLayout ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mr: 1 }}>
+              <AyuLogo size={28} />
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 800,
+                    color: USER_NAV_ACCENT,
+                    fontSize: 16,
+                    lineHeight: 1.1,
+                    letterSpacing: 1,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Ayumonk
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: 9,
+                    color: USER_NAV_MUTED,
+                    letterSpacing: 1.5,
+                    textTransform: "uppercase",
+                    fontWeight: 700,
+                  }}
+                >
+                  Wellness Intelligence Platform
+                </Typography>
+              </Box>
+            </Box>
+          ) : (
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {title || "Ayumonk"}
+            </Typography>
+          )}
+
+          {isUserLayout && (
+            <Box
+              sx={{
+                display: "flex",
+                flexGrow: 1,
+                justifyContent: { xs: "flex-start", md: "center" },
+                order: { xs: 3, md: 0 },
+                width: { xs: "100%", md: "auto" },
+                mx: { xs: 0, md: 2 },
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: "4px",
+                  background: "rgba(0,0,0,0.4)",
+                  borderRadius: "12px",
+                  padding: "4px",
+                }}
+              >
+                {USER_TOP_TABS.map((tab) => {
+                  const active = activeUserTab?.key === tab.key;
+                  return (
+                    <Button
+                      key={tab.key}
+                      component={Link}
+                      to={tab.to}
+                      disableRipple
+                      startIcon={
+                        <Box component="span" sx={{ fontSize: 13, lineHeight: 1 }}>
+                          {tab.icon}
+                        </Box>
+                      }
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 600,
+                        borderRadius: "9px",
+                        px: "16px",
+                        py: "7px",
+                        minHeight: 0,
+                        minWidth: 0,
+                        fontSize: 11,
+                        lineHeight: 1,
+                        color: active ? "#fff" : "rgba(255,255,255,0.38)",
+                        background: active
+                          ? `linear-gradient(135deg, ${USER_NAV_ACCENT_DARK}, ${USER_NAV_ACCENT})`
+                          : "transparent",
+                        boxShadow: "none",
+                        transition: "all 0.25s",
+                        "&:hover": {
+                          background: active
+                            ? `linear-gradient(135deg, ${USER_NAV_ACCENT_DARK}, ${USER_NAV_ACCENT})`
+                            : "transparent",
+                          color: active ? "#fff" : "rgba(255,255,255,0.7)",
+                        },
+                        "& .MuiButton-startIcon": { mr: "6px", ml: 0 },
+                      }}
+                    >
+                      {tab.label}
+                    </Button>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
 
           <Box
-            sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1.2 }}
+            sx={{
+              ml: isUserLayout ? 0 : "auto",
+              display: "flex",
+              alignItems: "center",
+              gap: 1.2,
+            }}
           >
-            {!isPlatformAdmin && <TenantSwitcher />}
+            {!isPlatformAdmin && !isUserLayout && <TenantSwitcher />}
             {effectiveRole === "user" && <NotificationBell />}
             <Tooltip
               title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             >
-              <IconButton onClick={toggleColorMode} color="inherit">
+              <IconButton
+                onClick={toggleColorMode}
+                sx={{ color: isUserLayout ? "rgba(255,255,255,0.75)" : "inherit" }}
+              >
                 {mode === "dark" ? (
                   <LightModeRoundedIcon />
                 ) : (
@@ -420,13 +611,21 @@ export default function Layout({ children, role, title }) {
               label={displayRole}
               sx={{
                 display: { xs: "none", sm: "inline-flex" },
-                bgcolor: alpha(theme.palette.primary.main, 0.16),
-                color: "primary.main",
+                bgcolor: isUserLayout
+                  ? alpha(USER_NAV_ACCENT, 0.18)
+                  : alpha(theme.palette.primary.main, 0.16),
+                color: isUserLayout ? USER_NAV_ACCENT : "primary.main",
                 fontWeight: 700,
               }}
             />
             <IconButton onClick={handleMenuOpen} sx={{ p: 0.4 }}>
-              <Avatar sx={{ bgcolor: "primary.main", width: 38, height: 38 }}>
+              <Avatar
+                sx={{
+                  bgcolor: isUserLayout ? USER_NAV_ACCENT : "primary.main",
+                  width: 38,
+                  height: 38,
+                }}
+              >
                 {displayName.charAt(0).toUpperCase()}
               </Avatar>
             </IconButton>
@@ -461,50 +660,74 @@ export default function Layout({ children, role, title }) {
         </Toolbar>
       </AppBar>
 
-      <Box
-        component="nav"
-        sx={{ width: { md: activeDrawerWidth }, flexShrink: { md: 0 } }}
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: "block", md: "none" },
-            "& .MuiDrawer-paper": {
-              width: drawerWidth,
-              boxSizing: "border-box",
-            },
-          }}
+      {!isUserLayout && (
+        <Box
+          component="nav"
+          sx={{ width: { md: activeDrawerWidth }, flexShrink: { md: 0 } }}
         >
-          {drawer}
-        </Drawer>
+          <Drawer
+            variant="temporary"
+            open={mobileOpen}
+            onClose={() => setMobileOpen(false)}
+            ModalProps={{ keepMounted: true }}
+            sx={{
+              display: { xs: "block", md: "none" },
+              "& .MuiDrawer-paper": {
+                width: drawerWidth,
+                boxSizing: "border-box",
+                scrollbarWidth: "thin",
+                scrollbarColor: `${alpha(theme.palette.text.primary, 0.18)} transparent`,
+                "&::-webkit-scrollbar": { width: 6 },
+                "&::-webkit-scrollbar-track": { background: "transparent" },
+                "&::-webkit-scrollbar-thumb": {
+                  background: alpha(theme.palette.text.primary, 0.18),
+                  borderRadius: 999,
+                },
+                "&::-webkit-scrollbar-thumb:hover": {
+                  background: alpha(theme.palette.text.primary, 0.32),
+                },
+              },
+            }}
+          >
+            {drawer}
+          </Drawer>
 
-        <Drawer
-          variant="permanent"
-          open
-          sx={{
-            display: { xs: "none", md: "block" },
-            "& .MuiDrawer-paper": {
-              width: activeDrawerWidth,
-              boxSizing: "border-box",
-              borderRight: "1px solid",
-              borderColor: "divider",
-              bgcolor: alpha(theme.palette.background.paper, 0.78),
-              backdropFilter: "blur(8px)",
-              overflowX: "hidden",
-              transition: (theme) =>
-                theme.transitions.create("width", {
-                  easing: theme.transitions.easing.sharp,
-                  duration: theme.transitions.duration.shorter,
-                }),
-            },
-          }}
-        >
-          {drawer}
-        </Drawer>
-      </Box>
+          <Drawer
+            variant="permanent"
+            open
+            sx={{
+              display: { xs: "none", md: "block" },
+              "& .MuiDrawer-paper": {
+                width: activeDrawerWidth,
+                boxSizing: "border-box",
+                borderRight: "1px solid",
+                borderColor: "divider",
+                bgcolor: alpha(theme.palette.background.paper, 0.78),
+                backdropFilter: "blur(8px)",
+                overflowX: "hidden",
+                transition: (theme) =>
+                  theme.transitions.create("width", {
+                    easing: theme.transitions.easing.sharp,
+                    duration: theme.transitions.duration.shorter,
+                  }),
+                scrollbarWidth: "thin",
+                scrollbarColor: `${alpha(theme.palette.text.primary, 0.18)} transparent`,
+                "&::-webkit-scrollbar": { width: 6 },
+                "&::-webkit-scrollbar-track": { background: "transparent" },
+                "&::-webkit-scrollbar-thumb": {
+                  background: alpha(theme.palette.text.primary, 0.18),
+                  borderRadius: 999,
+                },
+                "&::-webkit-scrollbar-thumb:hover": {
+                  background: alpha(theme.palette.text.primary, 0.32),
+                },
+              },
+            }}
+          >
+            {drawer}
+          </Drawer>
+        </Box>
+      )}
 
       <Box
         component="main"
@@ -512,10 +735,23 @@ export default function Layout({ children, role, title }) {
           flexGrow: 1,
           minWidth: 0,
           p: { xs: 2, sm: 3 },
-          mt: { xs: 8, sm: 9 },
+          mt: { xs: isUserLayout ? 10 : 8, sm: isUserLayout ? 11 : 9 },
+          ...(isUserLayout
+            ? {
+                bgcolor: userSurfaceBg,
+                color: isDarkMode ? "#fff" : theme.palette.text.primary,
+                colorScheme: isDarkMode ? "dark" : "light",
+                minHeight: {
+                  xs: "calc(100vh - 80px)",
+                  sm: "calc(100vh - 88px)",
+                },
+              }
+            : {}),
         }}
       >
-        {effectiveRole === "user" && <PWAInstallBanner />}
+        {effectiveRole === "user" && (
+          <PWAInstallBanner darkSurface={isDarkMode} />
+        )}
         {children}
       </Box>
     </Box>

@@ -11,6 +11,13 @@ import {
 import { alpha } from "@mui/material/styles";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import InstallMobileRoundedIcon from "@mui/icons-material/InstallMobileRounded";
+import {
+  consumeDeferredPrompt,
+  getDeferredPrompt,
+  isAppInstalled,
+  markInstalled,
+  subscribePWAInstall,
+} from "../utils/pwaInstall";
 
 const DISMISS_KEY = "pwa_install_dismissed";
 
@@ -48,14 +55,31 @@ const persistDismissal = () => {
   }
 };
 
-export default function PWAInstallBanner() {
+export default function PWAInstallBanner({ darkSurface = false } = {}) {
   const theme = useTheme();
-  const accent = theme.palette.primary.main;
+  const accent = darkSurface ? "#6DB33F" : theme.palette.primary.main;
+  const surfaceBg = darkSurface
+    ? "rgba(107,179,63,0.06)"
+    : alpha(accent, 0.06);
+  const surfaceBorder = darkSurface
+    ? "rgba(107,179,63,0.28)"
+    : alpha(accent, 0.35);
+  const bodyTextColor = darkSurface
+    ? "rgba(255,255,255,0.6)"
+    : "text.secondary";
+  const tipTextColor = darkSurface
+    ? "rgba(255,255,255,0.45)"
+    : "text.secondary";
+  const closeIconColor = darkSurface ? "rgba(255,255,255,0.55)" : undefined;
+  const laterBtnColor = darkSurface
+    ? "rgba(255,255,255,0.75)"
+    : "text.secondary";
+  const laterBtnBorder = darkSurface ? "rgba(255,255,255,0.18)" : "divider";
   const [ios] = useState(isIOSDevice);
   const [standalone] = useState(isStandaloneMode);
   const [dismissed, setDismissed] = useState(wasDismissedThisSession);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [installed, setInstalled] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(() => getDeferredPrompt());
+  const [installed, setInstalled] = useState(() => isAppInstalled());
   const [iosStep, setIosStep] = useState(1);
 
   useEffect(() => {
@@ -67,20 +91,13 @@ export default function PWAInstallBanner() {
       // ignore
     }
 
-    const onPrompt = (event) => {
-      event.preventDefault();
-      setDeferredPrompt(event);
-    };
-    const onInstalled = () => {
-      setInstalled(true);
-      setDeferredPrompt(null);
-    };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
+    // The actual beforeinstallprompt listener lives in src/utils/pwaInstall.js
+    // (initialized in main.jsx before React renders) because the event fires
+    // once, very early in page load — well before this component mounts.
+    return subscribePWAInstall(() => {
+      setDeferredPrompt(getDeferredPrompt());
+      setInstalled(isAppInstalled());
+    });
   }, []);
 
   if (standalone || dismissed) return null;
@@ -96,12 +113,14 @@ export default function PWAInstallBanner() {
       deferredPrompt.prompt();
       const choice = await deferredPrompt.userChoice;
       if (choice?.outcome === "accepted") {
-        setInstalled(true);
+        markInstalled();
+      } else {
+        consumeDeferredPrompt();
       }
     } catch {
-      // Browser declined — leave banner up so user can retry.
-    } finally {
-      setDeferredPrompt(null);
+      // Browser declined — clear the prompt; banner stays up so user can retry
+      // via the browser menu.
+      consumeDeferredPrompt();
     }
   };
 
@@ -115,22 +134,26 @@ export default function PWAInstallBanner() {
           py: 1.25,
           borderRadius: 2.5,
           border: "1px solid",
-          borderColor: alpha("#16a34a", 0.4),
-          bgcolor: alpha("#16a34a", 0.1),
+          borderColor: darkSurface
+            ? "rgba(22,163,74,0.4)"
+            : alpha("#16a34a", 0.4),
+          bgcolor: darkSurface
+            ? "rgba(22,163,74,0.1)"
+            : alpha("#16a34a", 0.1),
         }}
       >
         <Stack direction="row" spacing={1.25} alignItems="center">
           <Typography sx={{ fontSize: 22 }}>✅</Typography>
           <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontWeight: 700, color: "#15803d", fontSize: 13 }}>
+            <Typography sx={{ fontWeight: 700, color: darkSurface ? "#4ade80" : "#15803d", fontSize: 13 }}>
               AyuMonk installed!
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" sx={{ color: bodyTextColor }}>
               Open from your home screen for the best experience and
               notifications.
             </Typography>
           </Box>
-          <IconButton size="small" onClick={handleDismiss}>
+          <IconButton size="small" onClick={handleDismiss} sx={{ color: closeIconColor }}>
             <CloseRoundedIcon fontSize="small" />
           </IconButton>
         </Stack>
@@ -168,8 +191,8 @@ export default function PWAInstallBanner() {
           py: 1.5,
           borderRadius: 2.5,
           border: "1px solid",
-          borderColor: alpha(accent, 0.35),
-          bgcolor: alpha(accent, 0.06),
+          borderColor: surfaceBorder,
+          bgcolor: surfaceBg,
         }}
       >
         <Stack
@@ -186,12 +209,12 @@ export default function PWAInstallBanner() {
               >
                 Install AyuMonk on your iPhone
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ color: bodyTextColor }}>
                 3 steps · Takes 15 seconds · Enables push notifications
               </Typography>
             </Box>
           </Stack>
-          <IconButton size="small" onClick={handleDismiss}>
+          <IconButton size="small" onClick={handleDismiss} sx={{ color: closeIconColor }}>
             <CloseRoundedIcon fontSize="small" />
           </IconButton>
         </Stack>
@@ -254,8 +277,8 @@ export default function PWAInstallBanner() {
         py: 1.25,
         borderRadius: 2.5,
         border: "1px solid",
-        borderColor: alpha(accent, 0.35),
-        bgcolor: alpha(accent, 0.06),
+        borderColor: surfaceBorder,
+        bgcolor: surfaceBg,
       }}
     >
       <Stack
@@ -270,7 +293,7 @@ export default function PWAInstallBanner() {
             borderRadius: 2,
             display: "grid",
             placeItems: "center",
-            bgcolor: alpha(accent, 0.12),
+            bgcolor: darkSurface ? "rgba(107,179,63,0.14)" : alpha(accent, 0.12),
             color: accent,
             flexShrink: 0,
           }}
@@ -281,7 +304,7 @@ export default function PWAInstallBanner() {
           <Typography sx={{ fontWeight: 700, color: accent, fontSize: 13 }}>
             Install AyuMonk on your device
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{ color: bodyTextColor }}>
             Add to home screen for daily reminders, offline access, and an
             app-like experience. No App Store required.
           </Typography>
@@ -292,7 +315,22 @@ export default function PWAInstallBanner() {
             size="small"
             onClick={handleAndroidInstall}
             disabled={!deferredPrompt}
-            sx={{ textTransform: "none", fontWeight: 700, px: 2 }}
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              px: 2,
+              ...(darkSurface
+                ? {
+                    bgcolor: accent,
+                    color: "#fff",
+                    "&:hover": { bgcolor: "#5ea033" },
+                    "&.Mui-disabled": {
+                      bgcolor: "rgba(107,179,63,0.18)",
+                      color: "rgba(255,255,255,0.45)",
+                    },
+                  }
+                : {}),
+            }}
           >
             Install Now
           </Button>
@@ -303,8 +341,11 @@ export default function PWAInstallBanner() {
             sx={{
               textTransform: "none",
               fontWeight: 600,
-              color: "text.secondary",
-              borderColor: "divider",
+              color: laterBtnColor,
+              borderColor: laterBtnBorder,
+              "&:hover": darkSurface
+                ? { borderColor: "rgba(255,255,255,0.35)", bgcolor: "rgba(255,255,255,0.04)" }
+                : undefined,
             }}
           >
             Later
@@ -314,8 +355,7 @@ export default function PWAInstallBanner() {
       {!deferredPrompt && (
         <Typography
           variant="caption"
-          color="text.secondary"
-          sx={{ display: "block", mt: 0.75 }}
+          sx={{ display: "block", mt: 0.75, color: tipTextColor }}
         >
           Tip: open your browser menu and choose &quot;Install app&quot; or
           &quot;Add to Home Screen&quot; if the install prompt isn&apos;t

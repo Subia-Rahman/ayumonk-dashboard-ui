@@ -16,13 +16,13 @@ export function getRaisedGradient(theme, accent = theme.palette.primary.main) {
 }
 
 export function getStoredThemeMode() {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
 
   const storedMode = window.localStorage.getItem(THEME_MODE_KEY);
-  return storedMode === "dark" ? "dark" : "light";
+  return storedMode === "light" ? "light" : "dark";
 }
 
-export function createAppTheme(mode = "light") {
+export function createAppTheme(mode = "dark") {
   const isDark = mode === "dark";
 
   return createTheme({
@@ -71,6 +71,31 @@ export function createAppTheme(mode = "light") {
                   "linear-gradient(165deg, #fcfbf8 0%, #f5efe5 100%)",
                 ].join(", "),
           },
+          // Thin scrollbar for the document scroll only. We deliberately
+          // DON'T target every element via `*` — doing so makes the browser
+          // recompute scrollbar metrics for every overflow container on
+          // every reflow, which on data-heavy pages (DataGrid mounting,
+          // virtual scrollers measuring) produces a visible "drift" on the
+          // horizontal scrollbar during initial paint. Sidebar drawer and
+          // DataGrid get their own targeted overrides below / in Layout.jsx.
+          html: {
+            scrollbarWidth: "thin",
+            scrollbarColor: `${alpha(isDark ? "#f3f4f6" : "#1f2937", 0.22)} transparent`,
+          },
+          "html::-webkit-scrollbar, body::-webkit-scrollbar": {
+            width: 6,
+            height: 6,
+          },
+          "html::-webkit-scrollbar-track, body::-webkit-scrollbar-track": {
+            background: "transparent",
+          },
+          "html::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb": {
+            background: alpha(isDark ? "#f3f4f6" : "#1f2937", 0.22),
+            borderRadius: 999,
+          },
+          "html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover": {
+            background: alpha(isDark ? "#f3f4f6" : "#1f2937", 0.38),
+          },
         },
       },
       MuiPaper: {
@@ -99,6 +124,24 @@ export function createAppTheme(mode = "light") {
             backgroundColor: isDark
               ? alpha("#081512", 0.68)
               : alpha("#ffffff", 0.72),
+            "& .MuiDataGrid-virtualScroller": {
+              scrollbarWidth: "thin",
+              scrollbarColor: `${alpha(isDark ? "#f3f4f6" : "#1f2937", 0.22)} transparent`,
+            },
+            "& .MuiDataGrid-virtualScroller::-webkit-scrollbar": {
+              width: 6,
+              height: 6,
+            },
+            "& .MuiDataGrid-virtualScroller::-webkit-scrollbar-track": {
+              background: "transparent",
+            },
+            "& .MuiDataGrid-virtualScroller::-webkit-scrollbar-thumb": {
+              background: alpha(isDark ? "#f3f4f6" : "#1f2937", 0.22),
+              borderRadius: 999,
+            },
+            "& .MuiDataGrid-virtualScroller::-webkit-scrollbar-thumb:hover": {
+              background: alpha(isDark ? "#f3f4f6" : "#1f2937", 0.38),
+            },
           },
           columnHeaders: {
             backgroundColor: isDark
