@@ -207,6 +207,16 @@ export default function CompanyDataForm({ mode, role = "superadmin" }) {
       is_active: Boolean(source.is_active),
     });
 
+    const buildCreateCompanyPayload = (source) => ({
+      company_name: trimSafe(source.company_name),
+      industry: trimSafe(source.industry),
+      size_bucket: source.size_bucket || "",
+      email: trimSafe(source.email),
+      phone: trimSafe(source.phone),
+      location: trimSafe(source.location_name),
+      no_of_employees: Number(source.no_of_employees) || 0,
+    });
+
     try {
       if (role === "admin") {
         await dispatch(
@@ -250,7 +260,8 @@ export default function CompanyDataForm({ mode, role = "superadmin" }) {
 
       await dispatch(
         createCompany({
-          company: buildCompanyPayload(companyForm),
+          company: buildCreateCompanyPayload(companyForm),
+          admin: null,
         }),
       ).unwrap();
 
