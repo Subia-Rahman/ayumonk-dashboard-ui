@@ -16,8 +16,11 @@ const sizes = [
   { name: "favicon-16x16.png", size: 16, maskable: false },
 ];
 
+// Maskable icons get cropped by the OS into circles, squircles, etc., so we
+// extend the brand background across the full bleed area and shrink the logo
+// to the safe zone. Background matches icon-source.svg's gradient start.
 const maskableSvgWrap = (innerSvg) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#0f766e"/>
+  <rect width="512" height="512" fill="#0b160c"/>
   <g transform="translate(64 64) scale(0.75)">
     ${innerSvg}
   </g>
