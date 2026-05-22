@@ -68,6 +68,7 @@ const ADMIN_SECTIONS = [
   { id: "challenges", icon: "🎯", label: "Challenges", desc: "Create and configure daily challenges per KPI", color: "#f97316", route: "/super-admin/challenges" },
   { id: "suggestions", icon: "🌿", label: "Suggestion Master", desc: "Manage Aahar / Vihar / Aushadh suggestion library", color: "#22c55e", route: "/super-admin/suggestion-master" },
   { id: "sessions", icon: "📅", label: "Sessions / KPI Windows", desc: "Schedule KPI programs per company (start + end dates)", color: "#38bdf8", route: "/super-admin/sessions" },
+  { id: "cxo_metrics", icon: "📊", label: "CXO Metrics", desc: "Configure Productivity / Engagement / Absenteeism mappings per company", color: "#0ea5e9", route: "/super-admin/cxo-metrics" },
 ];
 
 const COLS = {

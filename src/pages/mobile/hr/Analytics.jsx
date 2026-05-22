@@ -40,20 +40,20 @@ const BY_GENDER = [
 export default function HrAnalytics() {
   const [metric, setMetric] = useState("wellness");
   return (
-    <div>
+    <div style={{ background: C.bg, minHeight: "100%" }}>
       <div
         style={{
-          padding: "12px 16px 10px",
+          padding: "8px 16px 10px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
             📊 Analytics
           </div>
-          <div style={{ fontSize: 9, color: C.muted }}>
+          <div style={{ fontSize: 8.5, color: C.muted }}>
             Population health · CXO metrics
           </div>
         </div>

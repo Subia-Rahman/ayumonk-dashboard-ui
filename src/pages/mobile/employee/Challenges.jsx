@@ -2,43 +2,47 @@ import { useState } from "react";
 import { C } from "../../../components/mobile/palette";
 import { Pill } from "../../../components/mobile/primitives";
 
-// Five interactive daily challenges from the design. Local state for now —
-// the backend has `postDashboardChallengeAction` available but the design's
-// challenge ids ("water", "steps", "breath", "sleep", "mood") don't match
-// the dynamic challenge_key list from the KPI feed. When the API exposes a
-// matching set we can swap each handler for a dispatch.
+// Five interactive challenges from the design. Local state for now —
+// dashboardSlice.postDashboardChallengeAction exists but the design's fixed
+// challenge ids don't map onto the dynamic challenge_key list from the KPI
+// feed, so persistence stays local until the API exposes a matching set.
 export default function Challenges() {
   const [water, setWater] = useState(4);
   const [sleep, setSleep] = useState(false);
   const [breath, setBreath] = useState(false);
   const [moodDone, setMoodDone] = useState(false);
 
-  const done = [water >= 8, sleep, breath, moodDone, false].filter(Boolean).length;
+  const done =
+    [water >= 8, sleep, breath, moodDone, false].filter(Boolean).length;
   const xp = done * 25 + water * 3;
+  const dateLabel = new Date().toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 
   return (
-    <div>
+    <div style={{ background: C.bg, minHeight: "100%" }}>
       <div
         style={{
-          padding: "12px 16px 8px",
+          padding: "8px 16px 8px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
             🎯 Challenges
           </div>
-          <div style={{ fontSize: 9, color: C.muted }}>
-            {new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Tap to complete
+          <div style={{ fontSize: 8.5, color: C.muted }}>
+            {dateLabel} · Tap to complete
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: C.gold }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: C.gold }}>
             {xp} XP
           </div>
-          <div style={{ fontSize: 8, color: C.muted }}>earned today</div>
+          <div style={{ fontSize: 7.5, color: C.muted }}>earned today</div>
         </div>
       </div>
 
@@ -52,13 +56,27 @@ export default function Challenges() {
           border: `1px solid ${C.border}`,
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-          <span style={{ fontSize: 9, color: C.muted, fontWeight: 600 }}>TODAY</span>
-          <span style={{ fontSize: 9, fontWeight: 700, color: "#fff" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginBottom: 5,
+          }}
+        >
+          <span style={{ fontSize: 8.5, color: C.muted, fontWeight: 600 }}>
+            TODAY
+          </span>
+          <span style={{ fontSize: 8.5, fontWeight: 700, color: "#fff" }}>
             {done}/5 done
           </span>
         </div>
-        <div style={{ height: 5, background: "rgba(255,255,255,.05)", borderRadius: 3 }}>
+        <div
+          style={{
+            height: 5,
+            background: "rgba(255,255,255,.05)",
+            borderRadius: 3,
+          }}
+        >
           <div
             style={{
               height: "100%",
@@ -69,13 +87,28 @@ export default function Challenges() {
             }}
           />
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: 5,
+          }}
+        >
           <span style={{ fontSize: 8, color: C.muted }}>🔥 7-day streak</span>
-          <span style={{ fontSize: 8, color: C.g3 }}>Level 3 · 125 XP to Level 4</span>
+          <span style={{ fontSize: 8, color: C.g3 }}>
+            Level 3 · 125 XP to Level 4
+          </span>
         </div>
       </div>
 
-      <div style={{ padding: "0 12px", display: "flex", flexDirection: "column", gap: 9 }}>
+      <div
+        style={{
+          padding: "0 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 9,
+        }}
+      >
         {/* Hydration */}
         <div
           style={{
@@ -112,10 +145,14 @@ export default function Challenges() {
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>
                   Hydration Mission
                 </div>
-                <div style={{ fontSize: 9, color: C.muted }}>Hydration · 20 XP</div>
+                <div style={{ fontSize: 8.5, color: C.muted }}>
+                  Hydration · 20 XP
+                </div>
               </div>
             </div>
-            <span style={{ fontSize: 14, fontWeight: 800, color: "#38bdf8" }}>
+            <span
+              style={{ fontSize: 14, fontWeight: 800, color: "#38bdf8" }}
+            >
               {water}/8
             </span>
           </div>
@@ -188,7 +225,7 @@ export default function Challenges() {
           )}
         </div>
 
-        {/* Steps */}
+        {/* Auto-tracked steps */}
         <div
           style={{
             background: C.card,
@@ -226,7 +263,13 @@ export default function Challenges() {
                 </div>
                 <div style={{ display: "flex", gap: 4, marginTop: 2 }}>
                   <Pill label="⚡ Auto-tracked" color={C.g3} />
-                  <span style={{ fontSize: 8, color: C.muted, alignSelf: "center" }}>
+                  <span
+                    style={{
+                      fontSize: 8,
+                      color: C.muted,
+                      alignSelf: "center",
+                    }}
+                  >
                     Google Health
                   </span>
                 </div>
@@ -239,7 +282,13 @@ export default function Challenges() {
               <div style={{ fontSize: 8, color: C.muted }}>/ 8,000</div>
             </div>
           </div>
-          <div style={{ height: 5, background: "rgba(255,255,255,.05)", borderRadius: 3 }}>
+          <div
+            style={{
+              height: 5,
+              background: "rgba(255,255,255,.05)",
+              borderRadius: 3,
+            }}
+          >
             <div
               style={{
                 height: "100%",
@@ -249,7 +298,14 @@ export default function Challenges() {
               }}
             />
           </div>
-          <div style={{ fontSize: 8, color: C.muted, marginTop: 5, textAlign: "center" }}>
+          <div
+            style={{
+              fontSize: 8,
+              color: C.muted,
+              marginTop: 5,
+              textAlign: "center",
+            }}
+          >
             1,760 steps to go · auto-confirms at midnight
           </div>
         </div>
@@ -290,7 +346,9 @@ export default function Challenges() {
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>
                   4-7-8 Breathing
                 </div>
-                <div style={{ fontSize: 9, color: C.muted }}>Stress · 25 XP</div>
+                <div style={{ fontSize: 8.5, color: C.muted }}>
+                  Stress · 25 XP
+                </div>
               </div>
             </div>
             {breath && <Pill label="✓ Done +25XP" color="#4ade80" />}
@@ -311,7 +369,7 @@ export default function Challenges() {
                 cursor: "pointer",
               }}
             >
-              ▶ Start 2-Min Session
+              ▶ Start 2-Min Session (🎤 Voice + Tone)
             </button>
           ) : (
             <div
@@ -327,7 +385,7 @@ export default function Challenges() {
           )}
         </div>
 
-        {/* Sleep */}
+        {/* Sleep toggle */}
         <div
           style={{
             background: C.card,
@@ -358,7 +416,7 @@ export default function Challenges() {
               <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>
                 Sleep Before 10:30 PM
               </div>
-              <div style={{ fontSize: 9, color: C.muted }}>Sleep · 30 XP</div>
+              <div style={{ fontSize: 8.5, color: C.muted }}>Sleep · 30 XP</div>
             </div>
           </div>
           <button
@@ -390,7 +448,14 @@ export default function Challenges() {
             border: "1px solid #34d39933",
           }}
         >
-          <div style={{ display: "flex", gap: 9, alignItems: "center", marginBottom: 9 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 9,
+              alignItems: "center",
+              marginBottom: 9,
+            }}
+          >
             <div
               style={{
                 width: 38,
@@ -409,7 +474,9 @@ export default function Challenges() {
               <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>
                 Daily Mood Check
               </div>
-              <div style={{ fontSize: 9, color: C.muted }}>Emotional · 10 XP</div>
+              <div style={{ fontSize: 8.5, color: C.muted }}>
+                Emotional · 10 XP
+              </div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
@@ -424,7 +491,7 @@ export default function Challenges() {
                   borderRadius: 10,
                   border: "1px solid rgba(255,255,255,.06)",
                   background: "rgba(255,255,255,.04)",
-                  fontSize: 18,
+                  fontSize: 17,
                   cursor: "pointer",
                 }}
               >

@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import EmployeeApp from "../pages/mobile/employee/EmployeeApp";
 import HrApp from "../pages/mobile/hr/HrApp";
 import SuperAdminApp from "../pages/mobile/superadmin/SuperAdminApp";
+import AdminDashboard from "../pages/admin/Dashboard";
 import Login from "../pages/auth/Login";
 import Profile from "../pages/common/Profile";
 import SessionForm from "../pages/common/SessionForm";
@@ -71,11 +72,15 @@ export default function MobileRoutes() {
       />
 
       {/* HR / Company Admin — Home / Analytics / People / Programs */}
+      {/* /admin/dashboard renders the same Admin Panel (RBAC matrix + section
+          cards) as desktop; the Layout shell + MUI breakpoints already adapt
+          to narrow viewports, so we deliberately bypass the HrApp surface
+          here. The other /admin/* routes still flow into HrApp's tabs. */}
       <Route
         path="/admin/dashboard"
         element={
           <Protected>
-            <HrApp defaultTab="home" />
+            <AdminDashboard />
           </Protected>
         }
       />

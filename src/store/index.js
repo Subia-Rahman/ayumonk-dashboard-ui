@@ -25,6 +25,7 @@ import tenantContextReducer from "./tenantContextSlice";
 import reminderSettingsReducer from "./reminderSettingsSlice";
 import notificationsReducer from "./notificationsSlice";
 import rbacMatrixReducer from "./rbacMatrixSlice";
+import cxoMetricsReducer from "./cxoMetricsSlice";
 import rbacInvalidationMiddleware from "./middleware/rbacInvalidation";
 
 const store = configureStore({
@@ -55,6 +56,7 @@ const store = configureStore({
     reminderSettings: reminderSettingsReducer,
     notifications: notificationsReducer,
     rbacMatrix: rbacMatrixReducer,
+    cxoMetrics: cxoMetricsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(rbacInvalidationMiddleware),

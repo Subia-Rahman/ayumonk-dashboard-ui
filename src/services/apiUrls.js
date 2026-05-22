@@ -153,4 +153,24 @@ export const API_URLS = {
   notificationDismiss: (id) => `/config/api/v1/notifications/${id}/dismiss`,
   notificationSnooze: (id) => `/config/api/v1/notifications/${id}/snooze`,
   notificationAction: (id) => `/config/api/v1/notifications/${id}/action`,
+
+  // CXO Metrics configuration — how Productivity / Engagement / Absenteeism
+  // are derived from wellness KPIs and signals, per company. All routed via
+  // the gateway under the existing /config/api/v1 namespace.
+  //   GET    /config/api/v1/admin/cxo-metrics                                          → metrics master
+  //   GET    /config/api/v1/admin/cxo-metrics/{metric_code}?company_id={uuid}          → one metric's definition for one company
+  //   PUT    /config/api/v1/admin/cxo-metrics/{metric_code}                            → partial update (only sent keys are applied)
+  //   DELETE /config/api/v1/admin/cxo-metrics/{metric_code}?company_id={uuid}          → delete the company-scoped metric
+  //   GET    /config/api/v1/admin/cxo-metrics/{metric_code}/mapping?company_id={uuid}  → one metric's mapping for one company
+  //   PUT    /config/api/v1/admin/cxo-metrics/{metric_code}/mapping                    → atomic replace
+  //   POST   /config/api/v1/admin/cxo-metrics/{metric_code}/reset                      → reset to platform default
+  //   GET    /config/api/v1/admin/cxo-metrics/options?company_id={uuid}                → available KPIs/signals
+  cxoMetricsMaster: "/config/api/v1/admin/cxo-metrics",
+  cxoMetricByCode: (metricCode) =>
+    `/config/api/v1/admin/cxo-metrics/${metricCode}`,
+  cxoMetricMapping: (metricCode) =>
+    `/config/api/v1/admin/cxo-metrics/${metricCode}/mapping`,
+  cxoMetricReset: (metricCode) =>
+    `/config/api/v1/admin/cxo-metrics/${metricCode}/reset`,
+  cxoMetricsOptions: "/config/api/v1/admin/cxo-metrics/options",
 };

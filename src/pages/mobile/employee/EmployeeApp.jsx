@@ -20,6 +20,8 @@ export default function EmployeeApp({ defaultTab = "wellness" }) {
       activeTab={tab}
       onNav={setTab}
       accent={C.g3}
+      roleLabel="WELLNESS PLATFORM"
+      badgeColor={C.orange}
     >
       <div key={tab} className="ayumonk-anim">
         {tab === "wellness" && <Wellness />}

@@ -24,6 +24,9 @@ export default function SuperAdminApp({ defaultTab = "home" }) {
       activeTab={tab}
       onNav={setTab}
       accent={C.purple}
+      roleLabel="SUPER ADMIN"
+      roleLabelColor={C.purple}
+      badgeColor={C.purple}
     >
       <div key={tab} className="ayumonk-anim">
         {tab === "home" && <Home />}

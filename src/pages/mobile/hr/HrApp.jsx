@@ -22,6 +22,9 @@ export default function HrApp({ defaultTab = "home" }) {
       activeTab={tab}
       onNav={setTab}
       accent={C.blue}
+      roleLabel="HR PORTAL"
+      roleLabelColor={C.blue}
+      badgeColor={C.red}
     >
       <div key={tab} className="ayumonk-anim">
         {tab === "home" && <Home />}

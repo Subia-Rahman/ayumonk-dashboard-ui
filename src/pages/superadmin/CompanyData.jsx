@@ -6,6 +6,11 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   MenuItem,
   IconButton,
   Paper,
@@ -54,6 +59,7 @@ export default function CompanyData() {
     search: "",
     status: "all",
   });
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const {
     companies,
     companiesLoading,
@@ -135,15 +141,25 @@ export default function CompanyData() {
     setAppliedFilters(defaultFilters);
   };
 
-  const handleDelete = useCallback(async (companyId, companyName) => {
-    if (!window.confirm(`Delete company "${companyName}"?`)) return;
+  const askDelete = useCallback((row) => {
+    setConfirmDelete({ id: row.id, name: row.company_name });
+  }, []);
 
+  const cancelDelete = useCallback(() => {
+    if (deleteLoading) return;
+    setConfirmDelete(null);
+  }, [deleteLoading]);
+
+  const confirmDeleteAction = useCallback(async () => {
+    if (!confirmDelete) return;
     try {
-      await dispatch(deleteCompany(companyId)).unwrap();
+      await dispatch(deleteCompany(confirmDelete.id)).unwrap();
+      setConfirmDelete(null);
     } catch {
-      // Redux state already stores the error.
+      // Redux state already stores the error; keep the dialog open so the
+      // user can see the failure inline and retry / cancel.
     }
-  }, [dispatch]);
+  }, [confirmDelete, dispatch]);
 
   const columns = useMemo(
     () => [
@@ -242,7 +258,7 @@ export default function CompanyData() {
                     size="small"
                     color="error"
                     disabled={deleteLoading}
-                    onClick={() => handleDelete(row.id, row.company_name)}
+                    onClick={() => askDelete(row)}
                   >
                     <DeleteOutlineRoundedIcon fontSize="small" />
                   </IconButton>
@@ -253,7 +269,7 @@ export default function CompanyData() {
         ),
       },
     ],
-    [canDeleteCompanies, canEditCompanies, deleteLoading, handleDelete, navigate],
+    [canDeleteCompanies, canEditCompanies, deleteLoading, askDelete, navigate],
   );
 
   return (
@@ -458,6 +474,44 @@ export default function CompanyData() {
           </Box>
         </Paper>
       </Stack>
+
+      <Dialog
+        open={Boolean(confirmDelete)}
+        onClose={cancelDelete}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Delete company</DialogTitle>
+        <DialogContent dividers>
+          <Typography>
+            Are you sure you want to delete{" "}
+            <Box component="span" sx={{ fontWeight: 700 }}>
+              {confirmDelete?.name || "this company"}
+            </Box>
+            ? This action cannot be undone.
+          </Typography>
+          {deleteError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelDelete} disabled={deleteLoading}>
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={confirmDeleteAction}
+            disabled={deleteLoading}
+            startIcon={deleteLoading ? <CircularProgress size={16} /> : null}
+            autoFocus
+          >
+            {deleteLoading ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Layout>
   );
 }

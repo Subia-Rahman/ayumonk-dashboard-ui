@@ -37,20 +37,20 @@ export default function SaSuggestions() {
   });
 
   return (
-    <div>
+    <div style={{ background: C.bg, minHeight: "100%" }}>
       <div
         style={{
-          padding: "12px 16px 10px",
+          padding: "8px 16px 10px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
             🌿 Suggestion Master
           </div>
-          <div style={{ fontSize: 9, color: C.muted }}>
+          <div style={{ fontSize: 8.5, color: C.muted }}>
             Aahar · Vihar · Aushadh per KPI
           </div>
         </div>
@@ -63,7 +63,7 @@ export default function SaSuggestions() {
             background: `linear-gradient(135deg,${C.g2},${C.g3})`,
             border: "none",
             color: "#fff",
-            fontSize: 10,
+            fontSize: 9.5,
             fontWeight: 700,
             cursor: "pointer",
           }}

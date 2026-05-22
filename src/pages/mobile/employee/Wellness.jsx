@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { C } from "../../../components/mobile/palette";
 import {
-  Logo,
   Spark,
   Donut,
   DoshaRing,
@@ -16,8 +15,9 @@ import {
 } from "../../../store/dashboardSlice";
 import { fetchMySubmissions } from "../../../store/sessionSlice";
 
-// Icon + accent per known KPI name. Falls back to neutral set when the
-// backend hands us a name we haven't styled yet.
+// Icon + accent per known KPI name. Mirrors the KPIS array in
+// pages/hidden/PwaMobile.jsx so the rendering matches the reference 1:1
+// even when the backend KPI list is shorter than the design's 8.
 const KPI_PRESETS = {
   sleep: { icon: "🌙", color: "#7c6af7", sf: "Mental Health" },
   stress: { icon: "🧘", color: C.orange, sf: "Role Emotional" },
@@ -31,25 +31,29 @@ const KPI_PRESETS = {
 };
 const DEFAULT_KPI = { icon: "🌿", color: C.g3, sf: "General Health" };
 
-function presetFor(name) {
+const presetFor = (name) => {
   const key = String(name || "").toLowerCase();
   return (
     Object.entries(KPI_PRESETS).find(([k]) => key.includes(k))?.[1] ||
     DEFAULT_KPI
   );
-}
+};
 
-function formatGreeting(name) {
-  const first = String(name || "").split(" ")[0] || "there";
-  const hour = new Date().getHours();
-  const tod = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  return { tod, first };
-}
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+};
+
+const formatTime = (date = new Date()) =>
+  date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 export default function Wellness() {
   const dispatch = useDispatch();
   const [selKpi, setSelKpi] = useState(null);
   const [mood, setMood] = useState(null);
+  const [now, setNow] = useState(() => new Date());
 
   const user = useSelector((state) => state.auth.user);
   const {
@@ -67,6 +71,13 @@ export default function Wellness() {
     dispatch(fetchMySubmissions());
   }, [dispatch]);
 
+  // Refresh the "auto-synced" timestamp display every minute so it doesn't
+  // get stuck on the initial render time.
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
   const latestSessionId = mySubmissions?.[0]?.session_id || "";
   useEffect(() => {
     if (latestSessionId) {
@@ -74,8 +85,6 @@ export default function Wellness() {
     }
   }, [dispatch, latestSessionId]);
 
-  // KPI tiles mapped from the slice — adds icon/color presets and a precomputed
-  // sparkline pulled from the matching trend series.
   const kpis = useMemo(() => {
     const sparkByName = {};
     (trends.series || []).forEach((s) => {
@@ -95,7 +104,7 @@ export default function Wellness() {
         id,
         label: String(it.kpi_name || "KPI").replace(/\bKPI\b/gi, "").trim(),
         score: Number(it.latest_score) || 0,
-        delta: Number(it.trend_percent) || 0,
+        delta: Math.round(Number(it.trend_percent) || 0),
         icon: preset.icon,
         color: preset.color,
         sf: preset.sf,
@@ -114,7 +123,7 @@ export default function Wellness() {
   const wellnessIndex = useMemo(() => {
     if (!kpis.length) return 0;
     const avg = kpis.reduce((s, k) => s + k.score, 0) / kpis.length;
-    return Math.round(avg * 20); // 0–5 → 0–100
+    return Math.round(avg * 20); // 0-5 → 0-100
   }, [kpis]);
 
   const overallSpark = useMemo(() => {
@@ -125,17 +134,15 @@ export default function Wellness() {
   const overallDelta = Math.round(trends.overall?.delta_percent || 0);
 
   const tipItems = useMemo(() => {
-    const items = (suggestions?.items || []).slice(0, 2);
-    if (items.length) {
-      return items.map((s) => ({
-        ic: String(s.suggestion_type || "").toLowerCase().includes("vihar")
-          ? "🌅"
-          : "🥗",
-        t:
-          String(s.suggestion_type || "").charAt(0).toUpperCase() +
-            String(s.suggestion_type || "").slice(1) || "Tip",
-        s: s.description || s.title || "",
-      }));
+    const sourceItems = (suggestions?.items || []).slice(0, 2);
+    if (sourceItems.length) {
+      return sourceItems.map((s) => {
+        const type = String(s.suggestion_type || "").toLowerCase();
+        const ic = type.includes("vihar") ? "🌅" : "🥗";
+        const t =
+          type.charAt(0).toUpperCase() + type.slice(1) || "Tip";
+        return { ic, t, s: s.description || s.title || "" };
+      });
     }
     return [
       {
@@ -152,66 +159,14 @@ export default function Wellness() {
   }, [suggestions]);
 
   const selectedKpi = kpis.find((k) => k.id === selKpi) || null;
-  const { tod, first } = formatGreeting(user?.name);
+  const firstName = String(user?.name || "").split(" ")[0] || "there";
 
   return (
-    <div style={{ position: "relative" }}>
-      {/* Header */}
-      <div
-        style={{
-          padding: "12px 16px 6px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Logo s={22} />
-          <div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 800,
-                background: "linear-gradient(90deg,#4a7c2f,#6db33f)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              AYUMONK
-            </div>
-            <div
-              style={{
-                fontSize: 7.5,
-                color: "rgba(255,255,255,.2)",
-                letterSpacing: 0.8,
-              }}
-            >
-              WELLNESS PLATFORM
-            </div>
-          </div>
-        </div>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            background: `linear-gradient(135deg,${C.g1},${C.g3})`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 12,
-            fontWeight: 800,
-            color: "#fff",
-          }}
-        >
-          {(first[0] || "U").toUpperCase()}
-        </div>
-      </div>
-
-      <div style={{ padding: "2px 16px 10px" }}>
-        <div style={{ fontSize: 9, color: C.muted }}>{tod},</div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>
-          {first} 👋
+    <div style={{ background: C.bg, minHeight: "100%", position: "relative" }}>
+      <div style={{ padding: "10px 16px 10px" }}>
+        <div style={{ fontSize: 8, color: C.muted }}>{greeting()},</div>
+        <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>
+          {firstName} 👋
         </div>
       </div>
 
@@ -231,7 +186,7 @@ export default function Wellness() {
         </div>
       )}
 
-      {/* Wellness Index hero */}
+      {/* Wellness Index Hero */}
       <div
         style={{
           margin: "0 12px 12px",
@@ -264,7 +219,7 @@ export default function Wellness() {
           <div>
             <div
               style={{
-                fontSize: 9,
+                fontSize: 8,
                 color: C.muted,
                 textTransform: "uppercase",
                 letterSpacing: 1,
@@ -292,7 +247,14 @@ export default function Wellness() {
                 /100
               </span>
             </div>
-            <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 5,
+                marginTop: 5,
+                flexWrap: "wrap",
+              }}
+            >
               {overallDelta !== 0 && (
                 <Pill
                   label={`${overallDelta >= 0 ? "▲" : "▼"} ${Math.abs(overallDelta)}% this week`}
@@ -328,13 +290,13 @@ export default function Wellness() {
               animation: "ayumonkPulse 2s infinite",
             }}
           />
-          <span style={{ fontSize: 9, color: C.muted }}>
-            Auto-synced · Google Health · {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          <span style={{ fontSize: 8, color: C.muted }}>
+            Auto-synced · Google Health · {formatTime(now)}
           </span>
         </div>
       </div>
 
-      {/* Mood + Dosha */}
+      {/* Mood + Dosha row */}
       <div
         style={{
           display: "grid",
@@ -347,13 +309,13 @@ export default function Wellness() {
           style={{
             background: C.card,
             borderRadius: 16,
-            padding: 12,
+            padding: "12px 12px",
             border: `1px solid ${C.border}`,
           }}
         >
           <div
             style={{
-              fontSize: 9,
+              fontSize: 8.5,
               fontWeight: 700,
               color: C.muted,
               textTransform: "uppercase",
@@ -361,9 +323,15 @@ export default function Wellness() {
               marginBottom: 8,
             }}
           >
-            Today's Mood
+            Today&apos;s Mood
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: 4,
+            }}
+          >
             {["😞", "😕", "😐", "🙂", "😄"].map((e, i) => (
               <button
                 key={e}
@@ -374,10 +342,12 @@ export default function Wellness() {
                   height: 34,
                   borderRadius: 9,
                   border:
-                    mood === i ? `2px solid ${C.g3}` : "2px solid transparent",
+                    mood === i
+                      ? `2px solid ${C.g3}`
+                      : "2px solid transparent",
                   background:
                     mood === i ? `${C.g3}18` : "rgba(255,255,255,.04)",
-                  fontSize: 18,
+                  fontSize: 17,
                   cursor: "pointer",
                   transition: "all .15s",
                   display: "flex",
@@ -390,9 +360,7 @@ export default function Wellness() {
             ))}
           </div>
           {mood !== null && (
-            <div
-              style={{ fontSize: 9, color: C.g3, textAlign: "center", marginTop: 4 }}
-            >
+            <div style={{ fontSize: 8, color: C.g3, textAlign: "center" }}>
               ✓ Mood logged
             </div>
           )}
@@ -402,7 +370,7 @@ export default function Wellness() {
           style={{
             background: C.card,
             borderRadius: 16,
-            padding: 10,
+            padding: "10px 10px",
             border: `1px solid ${C.border}`,
             display: "flex",
             flexDirection: "column",
@@ -411,7 +379,7 @@ export default function Wellness() {
         >
           <div
             style={{
-              fontSize: 9,
+              fontSize: 8.5,
               fontWeight: 700,
               color: C.muted,
               textTransform: "uppercase",
@@ -442,7 +410,7 @@ export default function Wellness() {
                   display: "flex",
                   alignItems: "center",
                   gap: 3,
-                  fontSize: 8,
+                  fontSize: 7.5,
                   color: "rgba(255,255,255,.45)",
                 }}
               >
@@ -459,6 +427,17 @@ export default function Wellness() {
               </div>
             ))}
           </div>
+          <div
+            style={{
+              fontSize: 7.5,
+              color: C.orange,
+              marginTop: 4,
+              fontWeight: 600,
+              textAlign: "center",
+            }}
+          >
+            🌿 Link Ayufinity →
+          </div>
         </div>
       </div>
 
@@ -472,10 +451,14 @@ export default function Wellness() {
             marginBottom: 8,
           }}
         >
-          <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.6)" }}>
+          <span
+            style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,.6)" }}
+          >
             KPI Overview
           </span>
-          <span style={{ fontSize: 9, color: C.g3 }}>Tap any tile →</span>
+          <span style={{ fontSize: 8.5, color: C.g3 }}>
+            Tap any tile to expand →
+          </span>
         </div>
 
         {loading && !kpis.length ? (
@@ -514,7 +497,7 @@ export default function Wellness() {
                 key={k.id}
                 onClick={() => setSelKpi(k.id)}
                 style={{
-                  minWidth: 76,
+                  minWidth: 72,
                   background: C.card,
                   borderRadius: 14,
                   padding: "10px 6px",
@@ -523,14 +506,15 @@ export default function Wellness() {
                   flexShrink: 0,
                   cursor: "pointer",
                   transition: "all .15s",
-                  boxShadow: selKpi === k.id ? `0 0 16px ${k.color}33` : "none",
+                  boxShadow:
+                    selKpi === k.id ? `0 0 16px ${k.color}33` : "none",
                   borderColor: selKpi === k.id ? k.color : `${k.color}33`,
                 }}
               >
-                <div style={{ fontSize: 19, marginBottom: 2 }}>{k.icon}</div>
+                <div style={{ fontSize: 18, marginBottom: 2 }}>{k.icon}</div>
                 <div
                   style={{
-                    fontSize: 8,
+                    fontSize: 7.5,
                     color: "rgba(255,255,255,.3)",
                     marginBottom: 1,
                     lineHeight: 1.2,
@@ -551,7 +535,7 @@ export default function Wellness() {
                 {k.delta !== 0 && (
                   <div
                     style={{
-                      fontSize: 9,
+                      fontSize: 8,
                       fontWeight: 700,
                       marginTop: 2,
                       color: k.delta > 0 ? "#4ade80" : "#f87171",
@@ -577,13 +561,20 @@ export default function Wellness() {
           border: "1px solid rgba(109,179,63,.12)",
         }}
       >
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.g3, marginBottom: 8 }}>
-          🌿 Today's Ayumonk Tips
+        <div
+          style={{ fontSize: 10, fontWeight: 700, color: C.g3, marginBottom: 8 }}
+        >
+          🌿 Today&apos;s Ayumonk Tips
         </div>
         {tipItems.map((s, i) => (
           <div
             key={`${s.t}-${i}`}
-            style={{ display: "flex", gap: 8, marginBottom: 7, alignItems: "flex-start" }}
+            style={{
+              display: "flex",
+              gap: 8,
+              marginBottom: 7,
+              alignItems: "flex-start",
+            }}
           >
             <div
               style={{
@@ -594,19 +585,19 @@ export default function Wellness() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 13,
+                fontSize: 12,
                 flexShrink: 0,
               }}
             >
               {s.ic}
             </div>
             <div>
-              <span style={{ fontSize: 9, fontWeight: 700, color: C.g3 }}>
+              <span style={{ fontSize: 8.5, fontWeight: 700, color: C.g3 }}>
                 {s.t} →{" "}
               </span>
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 8.5,
                   color: "rgba(255,255,255,.42)",
                   lineHeight: 1.4,
                 }}
@@ -618,7 +609,9 @@ export default function Wellness() {
         ))}
       </div>
 
-      {selKpi && <KpiSheet kpi={selectedKpi} onClose={() => setSelKpi(null)} />}
+      {selKpi && (
+        <KpiSheet kpi={selectedKpi} onClose={() => setSelKpi(null)} />
+      )}
     </div>
   );
 }

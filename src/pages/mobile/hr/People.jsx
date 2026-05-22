@@ -84,10 +84,10 @@ export default function HrPeople() {
   const role = useSelector((state) => state.auth.role);
 
   return (
-    <div>
-      <div style={{ padding: "12px 16px 10px" }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>👥 People</div>
-        <div style={{ fontSize: 9, color: C.muted }}>
+    <div style={{ background: C.bg, minHeight: "100%" }}>
+      <div style={{ padding: "8px 16px 10px" }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>👥 People</div>
+        <div style={{ fontSize: 8.5, color: C.muted }}>
           {(users?.length || 0)} employees · sorted by WI
         </div>
       </div>

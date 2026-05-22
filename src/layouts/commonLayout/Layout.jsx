@@ -52,12 +52,15 @@ import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import AnalyticsIcon from "@mui/icons-material/Analytics";
 import { useThemeMode } from "../../context/ThemeModeContext";
 import usePermissions from "../../hooks/usePermissions";
 import { resolveRouteForSlug } from "../../utils/permissions";
 import NotificationBell from "../../components/NotificationBell";
 import PWAInstallBanner from "../../components/PWAInstallBanner";
 import TenantSwitcher from "../../components/TenantSwitcher";
+import AdminTopLayout from "../adminLayout/AdminTopLayout";
 
 const drawerWidth = 260;
 const collapsedDrawerWidth = 88;
@@ -113,12 +116,48 @@ const ICON_BY_SLUG = {
   policies: <PolicyOutlinedIcon />,
   "role-assignments": <ManageAccountsOutlinedIcon />,
   menus: <MenuBookOutlinedIcon />,
+  "cxo-metrics": <InsightsOutlinedIcon />,
   "my-responses": <AssignmentTurnedInIcon />,
   submissions: <AssignmentTurnedInIcon />,
   profile: <PersonIcon />,
 };
 
-const iconForSlug = (slug) => ICON_BY_SLUG[slug] || <LabelOutlinedIcon />;
+export const iconForSlug = (slug) => ICON_BY_SLUG[slug] || <LabelOutlinedIcon />;
+
+// Backend-driven icon lookup. Values are MUI icon component names (without the
+// "Icon" suffix) stored in the `menus.icon` column. The lookup is case-insensitive
+// and tolerates a trailing "Icon" so a DB value of either "Dashboard" or
+// "DashboardIcon" resolves the same component.
+const ICON_BY_NAME = {
+  dashboard: <DashboardIcon />,
+  business: <BusinessIcon />,
+  people: <PeopleIcon />,
+  quiz: <QuizIcon />,
+  event: <EventIcon />,
+  person: <PersonIcon />,
+  category: <CategoryIcon />,
+  assessment: <AssessmentIcon />,
+  emojievents: <EmojiEventsIcon />,
+  tipsandupdatesrounded: <TipsAndUpdatesRoundedIcon />,
+  linkrounded: <LinkRoundedIcon />,
+  assignmentturnedin: <AssignmentTurnedInIcon />,
+  adminpanelsettings: <AdminPanelSettingsIcon />,
+  badgeoutlined: <BadgeOutlinedIcon />,
+  vpnkeyoutlined: <VpnKeyOutlinedIcon />,
+  policyoutlined: <PolicyOutlinedIcon />,
+  manageaccountsoutlined: <ManageAccountsOutlinedIcon />,
+  menubookoutlined: <MenuBookOutlinedIcon />,
+  accounttreeoutlined: <AccountTreeOutlinedIcon />,
+  insightsoutlined: <InsightsOutlinedIcon />,
+  analytics: <AnalyticsIcon />,
+  labeloutlined: <LabelOutlinedIcon />,
+};
+
+export const iconForName = (name) => {
+  if (!name || typeof name !== "string") return null;
+  const key = name.trim().toLowerCase().replace(/icon$/, "");
+  return ICON_BY_NAME[key] || null;
+};
 
 const adminItems = [
   { label: "Dashboard", to: "/admin/dashboard", icon: <DashboardIcon /> },
@@ -198,6 +237,11 @@ const superAdminItems = [
     to: "/super-admin/role-assignments",
     icon: <ManageAccountsOutlinedIcon />,
   },
+  {
+    label: "CXO Metrics",
+    to: "/super-admin/cxo-metrics",
+    icon: <InsightsOutlinedIcon />,
+  },
   { label: "Menus", to: "/super-admin/menus", icon: <MenuBookOutlinedIcon /> },
 ];
 
@@ -259,7 +303,10 @@ export default function Layout({ children, role, title }) {
     .map((menu) => ({
       label: menu.menu_name,
       to: resolveRouteForSlug(menu.slug, effectiveRole, { isPlatformAdmin }),
-      icon: iconForSlug(menu.slug),
+      // Prefer the backend-supplied icon name from the menus table; fall back
+      // to the slug-based map (and ultimately a label icon) so legacy menus
+      // without an `icon` value still render something sensible.
+      icon: iconForName(menu.icon) || iconForSlug(menu.slug),
       slug: menu.slug,
     }));
 
@@ -328,6 +375,15 @@ export default function Layout({ children, role, title }) {
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
+
+  // Company Admin / HR / CXO get the sidebar-free AdminTopLayout. Platform
+  // admins keep the existing super-admin sidebar because they still need the
+  // deeper RBAC / platform-config nav. Delegating here (after every hook is
+  // called) means every admin page that already wraps in `<Layout role="admin">`
+  // automatically picks up the new shell — no individual page edits required.
+  if (effectiveRole === "admin" && !isPlatformAdmin) {
+    return <AdminTopLayout title={title}>{children}</AdminTopLayout>;
+  }
 
   const drawer = (
     <Box sx={{ height: "100%", p: 2.5 }}>

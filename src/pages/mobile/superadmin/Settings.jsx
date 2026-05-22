@@ -30,12 +30,12 @@ export default function SaSettings() {
     );
 
   return (
-    <div>
-      <div style={{ padding: "12px 16px 12px" }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+    <div style={{ background: C.bg, minHeight: "100%" }}>
+      <div style={{ padding: "8px 16px 12px" }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
           ⚙️ Settings
         </div>
-        <div style={{ fontSize: 9, color: C.muted }}>
+        <div style={{ fontSize: 8.5, color: C.muted }}>
           Platform configuration · RBAC
         </div>
       </div>
