@@ -295,7 +295,8 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
             })),
           }),
         ).unwrap();
-        navigate("/admin/challenges", {
+        //navigate("/admin/challenges", {
+          navigate(role === "superadmin" ? "/super-admin/challenges" : "/admin/challenges", {
           replace: true,
           state: {
             feedback: {
@@ -324,7 +325,8 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
           })),
         }),
       ).unwrap();
-      navigate("/admin/challenges", {
+      //navigate("/admin/challenges", {
+      navigate(role === "superadmin" ? "/super-admin/challenges" : "/admin/challenges", {
         replace: true,
         state: {
           feedback: {
@@ -438,7 +440,9 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
             </Box>
             <Button
               startIcon={<ArrowBackRoundedIcon />}
-              onClick={() => navigate("/admin/challenges")}
+              onClick={() => 
+              //navigate("/admin/challenges")}
+              navigate(role === "superadmin" ? "/super-admin/challenges" : "/admin/challenges")}
             >
               Back to list
             </Button>
@@ -809,7 +813,10 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
                 {createLoading || updateLoading ? "Saving..." : "Save"}
               </Button>
             )}
-            <Button variant="outlined" onClick={() => navigate("/admin/challenges")}>
+            <Button variant="outlined" onClick={() => 
+            //navigate("/admin/challenges")}
+            navigate(role === "superadmin" ? "/super-admin/challenges" : "/admin/challenges")}
+            >
               Cancel
             </Button>
           </Stack>
