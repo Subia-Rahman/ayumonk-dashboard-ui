@@ -12,8 +12,6 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import LogoutIcon from "@mui/icons-material/Logout";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import AyuLogo from "../../components/AyuLogo";
 import NotificationBell from "../../components/NotificationBell";
 import TenantSwitcher from "../../components/TenantSwitcher";
@@ -108,7 +106,6 @@ export default function AdminTopLayout({ children }) {
   const location = useLocation();
   const { mode, toggleColorMode } = useThemeMode();
   const [menuAnchor, setMenuAnchor] = useState(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const user = useSelector((state) => state.auth.user);
   const rawRole = useSelector((state) => state.auth.rawRole);
@@ -358,16 +355,6 @@ export default function AdminTopLayout({ children }) {
               {initial}
             </div>
           </IconButton>
-          {/* Mobile hamburger — toggles a drop-down with the same top tabs */}
-          <IconButton
-            size="small"
-            onClick={() => setMobileMenuOpen((current) => !current)}
-            sx={{ color: "#fff", display: { xs: "inline-flex", md: "none" } }}
-            aria-label="Toggle navigation"
-          >
-            {mobileMenuOpen ? <CloseRoundedIcon /> : <MenuRoundedIcon />}
-          </IconButton>
-
           <Menu
             anchorEl={menuAnchor}
             open={Boolean(menuAnchor)}
@@ -443,54 +430,9 @@ export default function AdminTopLayout({ children }) {
         </div>
       </div>
 
-      {/* Mobile drop-down nav. Pure CSS doesn't help because the tab bar
-          overflows horizontally on narrow widths and becomes hard to scan —
-          a collapsible vertical list is more usable. */}
-      {mobileMenuOpen && (
-        <div
-          style={{
-            position: "sticky",
-            top: 56,
-            zIndex: 39,
-            background: "rgba(11,22,12,0.98)",
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
-            padding: "8px 16px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          {navItems.map((item) => {
-            const active = isItemActive(item);
-            return (
-              <Link
-                key={`m-${item.to}`}
-                to={item.to}
-                onClick={() => setMobileMenuOpen(false)}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background: active
-                    ? "linear-gradient(135deg,#2C5F2D,#6db33f)"
-                    : "rgba(255,255,255,0.04)",
-                  color: active ? "#fff" : "rgba(255,255,255,0.6)",
-                  textDecoration: "none",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                {renderNavIcon(item.icon)}
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
       {/* Main content */}
       <main
+        className="admin-main"
         style={{
           flex: 1,
           padding: "18px 22px",
@@ -499,6 +441,87 @@ export default function AdminTopLayout({ children }) {
       >
         {children}
       </main>
+
+      {/* Fixed bottom nav — mobile only. Mirrors the user/employee mobile
+          layout in BottomNav.jsx so admins on phones tap icons at the bottom
+          of the screen instead of unfolding a hamburger menu. */}
+      <nav
+        className="admin-bottom-nav"
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          display: "none",
+          background: "rgba(7,13,8,0.97)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          borderTop: "1px solid rgba(255,255,255,0.07)",
+          zIndex: 50,
+          paddingBottom: "env(safe-area-inset-bottom)",
+          overflowX: "auto",
+          scrollbarWidth: "none",
+        }}
+      >
+        {navItems.map((item) => {
+          const active = isItemActive(item);
+          return (
+            <Link
+              key={`bn-${item.to}`}
+              to={item.to}
+              style={{
+                flex: "1 0 auto",
+                minWidth: 72,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "9px 6px 8px",
+                textDecoration: "none",
+                color: active ? C.g3 : "rgba(255,255,255,0.35)",
+                position: "relative",
+                minHeight: 54,
+              }}
+            >
+              {active && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: "20%",
+                    right: "20%",
+                    height: 2,
+                    background: C.g3,
+                    borderRadius: "0 0 3px 3px",
+                  }}
+                />
+              )}
+              {isValidElement(item.icon) &&
+                cloneElement(item.icon, {
+                  sx: {
+                    fontSize: active ? 22 : 19,
+                    transition: "font-size .15s",
+                  },
+                })}
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: active ? 700 : 500,
+                  marginTop: 3,
+                  letterSpacing: 0.1,
+                  lineHeight: 1.1,
+                  whiteSpace: "nowrap",
+                  maxWidth: 80,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
 
       {/* Standards footer — matches ClientPage.jsx */}
       <footer
@@ -523,9 +546,12 @@ export default function AdminTopLayout({ children }) {
       {/* Hide horizontal scrollbar on the top tab bar */}
       <style>{`
         .admin-top-tabs::-webkit-scrollbar { display: none; }
+        .admin-bottom-nav::-webkit-scrollbar { display: none; }
         @media (max-width: 768px) {
           .admin-top-tabs { display: none !important; }
           .admin-role-chip { display: none !important; }
+          .admin-bottom-nav { display: flex !important; }
+          .admin-main { padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important; }
         }
       `}</style>
     </div>

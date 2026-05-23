@@ -531,7 +531,7 @@ export default function Layout({ children, role, title }) {
               color="inherit"
               edge="start"
               onClick={handleSidebarAction}
-              sx={{ mr: 2 }}
+              sx={{ mr: 2, display: { xs: "none", md: "inline-flex" } }}
             >
               <MenuIcon />
             </IconButton>
@@ -831,6 +831,14 @@ export default function Layout({ children, role, title }) {
           flexGrow: 1,
           minWidth: 0,
           p: { xs: 2, sm: 3 },
+          // Reserve room for the mobile bottom nav on small viewports so the
+          // last bit of content isn't hidden behind the fixed bar.
+          pb: !isUserLayout
+            ? {
+                xs: "calc(72px + env(safe-area-inset-bottom))",
+                md: 3,
+              }
+            : { xs: 2, sm: 3 },
           mt: { xs: isUserLayout ? 10 : 8, sm: isUserLayout ? 11 : 9 },
           ...(isUserLayout
             ? {
@@ -850,6 +858,96 @@ export default function Layout({ children, role, title }) {
         )}
         {children}
       </Box>
+
+      {/* Mobile bottom nav — only on xs/sm, only outside the user layout
+          (the user layout already has its own top-tab nav inside the AppBar).
+          Mirrors the same RBAC-filtered `navItems` the sidebar uses so the
+          two stay in sync; each tap is a Link, just like the desktop tabs in
+          AdminTopLayout. Items overflow horizontally for platform admins who
+          see 15+ menus. */}
+      {!isUserLayout && navItems.length > 0 && (
+        <Box
+          component="nav"
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            display: { xs: "flex", md: "none" },
+            zIndex: (t) => t.zIndex.drawer + 2,
+            background: "rgba(7,13,8,0.97)",
+            backdropFilter: "blur(18px)",
+            WebkitBackdropFilter: "blur(18px)",
+            borderTop: "1px solid rgba(255,255,255,0.07)",
+            paddingBottom: "env(safe-area-inset-bottom)",
+            overflowX: "auto",
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+          }}
+        >
+          {navItems.map((item) => {
+            const active =
+              location.pathname === item.to ||
+              location.pathname.startsWith(`${item.to}/`);
+            return (
+              <Box
+                key={`bn-${item.to}`}
+                component={Link}
+                to={item.to}
+                sx={{
+                  flex: "1 0 auto",
+                  minWidth: 72,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "9px 6px 8px",
+                  textDecoration: "none",
+                  color: active ? "#6DB33F" : "rgba(255,255,255,0.4)",
+                  position: "relative",
+                  minHeight: 54,
+                  "& svg": {
+                    fontSize: active ? 22 : 19,
+                    transition: "font-size .15s",
+                  },
+                }}
+              >
+                {active && (
+                  <Box
+                    component="span"
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: "20%",
+                      right: "20%",
+                      height: 2,
+                      background: "#6DB33F",
+                      borderRadius: "0 0 3px 3px",
+                    }}
+                  />
+                )}
+                {item.icon}
+                <Box
+                  component="span"
+                  sx={{
+                    fontSize: 10,
+                    fontWeight: active ? 700 : 500,
+                    marginTop: "3px",
+                    letterSpacing: 0.1,
+                    lineHeight: 1.1,
+                    whiteSpace: "nowrap",
+                    maxWidth: 80,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {item.label}
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
     </Box>
   );
 }

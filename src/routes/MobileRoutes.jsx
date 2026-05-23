@@ -2,13 +2,9 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 import EmployeeApp from "../pages/mobile/employee/EmployeeApp";
-import HrApp from "../pages/mobile/hr/HrApp";
-import SuperAdminApp from "../pages/mobile/superadmin/SuperAdminApp";
-import AdminDashboard from "../pages/admin/Dashboard";
 import Login from "../pages/auth/Login";
-import Profile from "../pages/common/Profile";
-import SessionForm from "../pages/common/SessionForm";
 import AccessDenied from "../pages/common/AccessDenied";
+import AppRoutes from "./AppRoutes";
 import RouteGuard from "./RouteGuard";
 import { getHomePath, isPathAllowedForRole } from "../utils/roleHelper";
 
@@ -34,10 +30,13 @@ function LoginRoute({ fallback }) {
   return authenticated ? <Navigate to={redirectTarget} replace /> : <Login />;
 }
 
-// Mobile route tree. URLs match the desktop tree where possible so the
-// authentication guards, RBAC, and deep links keep working — only the
-// rendered surface differs. Bottom-nav tab switching happens inside each
-// role's *App component without changing the URL.
+// Mobile route tree. The only paths handled here are the ones with a
+// hand-designed mobile UX (the employee Wellness/Challenges/Responses tabs)
+// and the login surface. Everything else falls through to <AppRoutes /> via
+// the wildcard route below, so admin and super-admin URLs render the same
+// desktop pages they do on a wide viewport — Layout / AdminTopLayout already
+// adapt to narrow viewports and include a mobile bottom nav driven by the
+// same /accessible-menus list the desktop sidebar uses.
 export default function MobileRoutes() {
   const role = useSelector((state) => state.auth.role);
   const rawRole = useSelector((state) => state.auth.rawRole);
@@ -53,7 +52,7 @@ export default function MobileRoutes() {
       />
       <Route path="/login" element={<LoginRoute fallback={fallback} />} />
 
-      {/* Employee — Wellness / Challenges / Responses */}
+      {/* Employee — Wellness / Challenges / Responses (mobile-specific UX). */}
       <Route
         path="/user/dashboard"
         element={
@@ -71,126 +70,17 @@ export default function MobileRoutes() {
         }
       />
 
-      {/* HR / Company Admin — Home / Analytics / People / Programs */}
-      {/* /admin/dashboard renders the same Admin Panel (RBAC matrix + section
-          cards) as desktop; the Layout shell + MUI breakpoints already adapt
-          to narrow viewports, so we deliberately bypass the HrApp surface
-          here. The other /admin/* routes still flow into HrApp's tabs. */}
-      <Route
-        path="/admin/dashboard"
-        element={
-          <Protected>
-            <AdminDashboard />
-          </Protected>
-        }
-      />
-      <Route
-        path="/admin/hr-dashboard"
-        element={
-          <Protected>
-            <HrApp defaultTab="analytics" />
-          </Protected>
-        }
-      />
-      <Route
-        path="/admin/company-users"
-        element={
-          <Protected codename="company_users:read">
-            <HrApp defaultTab="people" />
-          </Protected>
-        }
-      />
-      <Route
-        path="/admin/kpis"
-        element={
-          <Protected codename="kpis:read">
-            <HrApp defaultTab="programs" />
-          </Protected>
-        }
-      />
-      {/* Anything else under /admin/* routes back to the HR home; the desktop
-          surface owns the CRUD forms — the mobile design doesn't model them. */}
-      <Route
-        path="/admin/*"
-        element={
-          <Protected>
-            <HrApp defaultTab="home" />
-          </Protected>
-        }
-      />
-
-      {/* Super Admin — 5-tab workspace */}
-      <Route
-        path="/super-admin/dashboard"
-        element={
-          <Protected>
-            <SuperAdminApp defaultTab="home" />
-          </Protected>
-        }
-      />
-      <Route
-        path="/super-admin/company-data"
-        element={
-          <Protected codename="company_master:read">
-            <SuperAdminApp defaultTab="companies" />
-          </Protected>
-        }
-      />
-      <Route
-        path="/super-admin/kpis"
-        element={
-          <Protected codename="kpis:read">
-            <SuperAdminApp defaultTab="kpi" />
-          </Protected>
-        }
-      />
-      <Route
-        path="/super-admin/suggestion-master"
-        element={
-          <Protected codename="suggestion:read">
-            <SuperAdminApp defaultTab="suggest" />
-          </Protected>
-        }
-      />
-      <Route
-        path="/super-admin/roles"
-        element={
-          <Protected codename="platform:read">
-            <SuperAdminApp defaultTab="settings" />
-          </Protected>
-        }
-      />
-      <Route
-        path="/super-admin/*"
-        element={
-          <Protected>
-            <SuperAdminApp defaultTab="home" />
-          </Protected>
-        }
-      />
-
-      {/* Shared */}
-      <Route
-        path="/profile"
-        element={
-          <Protected>
-            <Profile />
-          </Protected>
-        }
-      />
-      <Route
-        path="/sessions/:id/form"
-        element={
-          <Protected bypass>
-            <SessionForm />
-          </Protected>
-        }
-      />
       <Route path="/access-denied" element={<AccessDenied />} />
 
+      {/* Anything else (every /admin/* and /super-admin/* path, /profile,
+          /sessions/:id/form, etc.) is routed by the regular AppRoutes — the
+          desktop components are already responsive and the layouts now render
+          a mobile bottom nav in place of the sidebar on narrow viewports. */}
       <Route
         path="*"
-        element={<Navigate to={authenticated ? fallback : "/login"} replace />}
+        element={
+          authenticated ? <AppRoutes /> : <Navigate to="/login" replace />
+        }
       />
     </Routes>
   );
