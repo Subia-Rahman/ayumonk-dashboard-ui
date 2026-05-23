@@ -1,15 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import { logout } from "../../store/authSlice";
 import { fetchDepartments } from "../../store/departmentSlice";
 import { fetchLocations } from "../../store/locationSlice";
-import { fetchUsers } from "../../store/userSlice";
 import api from "../../services/api";
 import { API_URLS } from "../../services/apiUrls";
 import { getCompanyId } from "../../utils/roleHelper";
-import { formatDateIST } from "../../utils/dateTime";
-import AyuLogo from "../../components/AyuLogo";
+import Layout from "../../layouts/commonLayout/Layout";
 
 const FORM_GENDERS = ["male", "female", "other"];
 const FORM_AGE_BANDS = ["20-25", "26-30", "31-35", "36-40", "41-50", "50+"];
@@ -172,9 +168,19 @@ function Sel({ label, value, onChange, opts }) {
           cursor: "pointer",
         }}
       >
-        <option value="All">All</option>
+        {/* Native <option> elements render in the OS dropdown chrome (white on
+            most platforms), so they inherit the parent <select>'s color:#fff
+            and become invisible. Pin each option to a dark bg + white text so
+            the labels stay legible inside the popup. */}
+        <option value="All" style={{ background: C.card, color: "#fff" }}>
+          All
+        </option>
         {opts.map((o) => (
-          <option key={o} value={o}>
+          <option
+            key={o}
+            value={o}
+            style={{ background: C.card, color: "#fff" }}
+          >
             {o}
           </option>
         ))}
@@ -229,16 +235,15 @@ function HRDashboardContent() {
   const [well, setWell] = useState("wellnessIndex");
   const [companyMe, setCompanyMe] = useState(null);
 
-  const companyId = getCompanyId();
   const { items: departmentItems } = useSelector((state) => state.department);
   const { items: locationItems } = useSelector((state) => state.location);
-  const { users: employeeUsers } = useSelector((state) => state.user);
 
+  // /companies/me is the authoritative source of the HR's company — the login
+  // payload (and therefore localStorage / getCompanyId()) is empty for some
+  // tenant users, so we resolve it lazily here and use it to drive both the
+  // department fetch (scoped to that company) and the location filter (which
+  // narrows the global location list to the company's own location).
   useEffect(() => {
-    if (companyId) {
-      dispatch(fetchDepartments({ companyId, isActive: true }));
-      dispatch(fetchUsers({ companyId, isActive: true, limit: 1000 }));
-    }
     dispatch(fetchLocations({ isActive: true, limit: 500 }));
 
     let cancelled = false;
@@ -255,26 +260,31 @@ function HRDashboardContent() {
     return () => {
       cancelled = true;
     };
-  }, [dispatch, companyId]);
+  }, [dispatch]);
+
+  const resolvedCompanyId =
+    companyMe?.id || companyMe?.company_id || getCompanyId() || "";
+
+  useEffect(() => {
+    if (!resolvedCompanyId) return;
+    dispatch(
+      fetchDepartments({ companyId: resolvedCompanyId, isActive: true }),
+    );
+  }, [dispatch, resolvedCompanyId]);
 
   const departmentOpts = useMemo(
     () => departmentItems.filter((d) => d.is_active).map((d) => d.name),
     [departmentItems],
   );
 
-  // Users carry no location_id of their own; their location is inherited from
-  // their company. So "locations for which an employee exists" resolves, for
-  // a single-company admin, to the company's one location — and only when at
-  // least one employee belongs to it.
   const locationOpts = useMemo(() => {
-    if (!employeeUsers.length) return [];
     const companyLocationId = companyMe?.location_id;
     if (!companyLocationId) return [];
     const match = locationItems.find(
       (l) => String(l.id) === String(companyLocationId),
     );
     return match ? [match.name] : [];
-  }, [companyMe, locationItems, employeeUsers.length]);
+  }, [companyMe, locationItems]);
 
   const filtered = useMemo(
     () =>
@@ -694,174 +704,22 @@ function HRDashboardContent() {
 }
 
 export default function HrAnalyticsDashboard() {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const profile = useSelector((state) => state.auth.user);
-  const displayName = profile?.name || "HR Lead";
-  const displayRole = (profile?.role || "hr").toUpperCase();
-
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate("/login", { replace: true });
-  };
-
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: C.bg,
-        fontFamily: "'Outfit','Nunito','Segoe UI',sans-serif",
-        color: "#fff",
-      }}
-    >
-      {/* HEADER */}
+    <Layout role="admin" title="HR Analytics">
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "11px 22px",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          background: "rgba(255,255,255,0.01)",
-          flexWrap: "wrap",
-          gap: 12,
+          fontSize: 10,
+          color: "rgba(255,255,255,0.28)",
+          marginBottom: 14,
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+          paddingBottom: 10,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <AyuLogo size={32} />
-          <div>
-            <div
-              style={{
-                fontWeight: 800,
-                fontSize: 14,
-                background: "linear-gradient(90deg,#4a7c2f,#6db33f)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                letterSpacing: 0.5,
-              }}
-            >
-              AYUMONK
-            </div>
-            <div
-              style={{
-                fontSize: 8,
-                color: "rgba(255,255,255,0.28)",
-                letterSpacing: 1,
-              }}
-            >
-              WELLNESS INTELLIGENCE PLATFORM
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            background: "rgba(0,0,0,0.4)",
-            borderRadius: 12,
-            padding: 4,
-          }}
-        >
-          <button
-            type="button"
-            style={{
-              padding: "7px 16px",
-              borderRadius: 9,
-              border: "none",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "default",
-              background: "linear-gradient(135deg,#2C5F2D,#6db33f)",
-              color: "#fff",
-              transition: "all 0.25s",
-            }}
-          >
-            👔 HR Analytics
-          </button>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              lineHeight: 1.2,
-            }}
-          >
-            <span
-              style={{ fontSize: 11, color: "#fff", fontWeight: 700 }}
-            >
-              {displayName}
-            </span>
-            <span
-              style={{
-                fontSize: 8,
-                color: C.muted,
-                letterSpacing: 0.6,
-              }}
-            >
-              {displayRole}
-            </span>
-          </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              background: "rgba(224,80,80,0.10)",
-              border: `1px solid ${C.red}66`,
-              color: C.red,
-              borderRadius: 9,
-              padding: "6px 12px",
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            Logout
-          </button>
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)" }}>
-            {formatDateIST(new Date())}
-          </div>
-        </div>
+        👔 HR Intelligence Centre — Population Health Analytics · CXO Metrics
+        · Location & Department Insights
       </div>
 
-      {/* CONTENT */}
-      <div style={{ padding: "18px 22px" }}>
-        <div
-          style={{
-            fontSize: 10,
-            color: "rgba(255,255,255,0.28)",
-            marginBottom: 14,
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
-            paddingBottom: 10,
-          }}
-        >
-          👔 HR Intelligence Centre — Population Health Analytics · CXO Metrics
-          · Location & Department Insights
-        </div>
-
-        <HRDashboardContent />
-      </div>
-
-      <div
-        style={{
-          padding: "10px 22px",
-          borderTop: "1px solid rgba(255,255,255,0.05)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ fontSize: 8, color: "rgba(255,255,255,0.16)" }}>
-          WHO MHW · SF-12 · Gallup Q12 · UN SDGs · SHRM · Ayurveda Tridosha ·
-          W3C PWA
-        </div>
-        <div style={{ fontSize: 8, color: "rgba(255,255,255,0.14)" }}>
-          ayumonk.com/corporate © 2025
-        </div>
-      </div>
-    </div>
+      <HRDashboardContent />
+    </Layout>
   );
 }
