@@ -168,9 +168,29 @@ export const API_URLS = {
   cxoMetricsMaster: "/config/api/v1/admin/cxo-metrics",
   cxoMetricByCode: (metricCode) =>
     `/config/api/v1/admin/cxo-metrics/${metricCode}`,
+  // Same path shape as cxoMetricByCode, but the path param is the metric_id
+  // (UUID). The new PUT / DELETE definition endpoints route by id rather
+  // than by code, and don't need a company_id (metric_id is globally unique).
+  cxoMetricById: (metricId) =>
+    `/config/api/v1/admin/cxo-metrics/${metricId}`,
   cxoMetricMapping: (metricCode) =>
     `/config/api/v1/admin/cxo-metrics/${metricCode}/mapping`,
   cxoMetricReset: (metricCode) =>
     `/config/api/v1/admin/cxo-metrics/${metricCode}/reset`,
-  cxoMetricsOptions: "/config/api/v1/admin/cxo-metrics/options",
+  cxoMetricsOptions: "/config/api/v1/admin/cxo-metrics",
+  // CXO ↔ KPI mapping (per-row granular). The collection endpoint accepts
+  // company_id + metric_id query params; per-row endpoints accept the row's
+  // mapping_id in the path and the company_id query for tenant scoping.
+  //   GET    /admin/cxo-kpi-mapping?company_id=&metric_id=&include_inactive= → list rows
+  //   POST   /admin/cxo-kpi-mapping                                          → create rows
+  //   GET    /admin/cxo-kpi-mapping/{mapping_id}?company_id=                 → one row
+  //   PUT    /admin/cxo-kpi-mapping/{mapping_id}?company_id=                 → update weight
+  //   PATCH  /admin/cxo-kpi-mapping/{mapping_id}/status?company_id=          → toggle is_active
+  //   DELETE /admin/cxo-kpi-mapping/{mapping_id}?company_id=                 → soft-delete one
+  //   DELETE /admin/cxo-kpi-mapping?company_id=&metric_id=                   → soft-delete all
+  cxoKpiMapping: "/config/api/v1/admin/cxo-kpi-mapping",
+  cxoKpiMappingById: (mappingId) =>
+    `/config/api/v1/admin/cxo-kpi-mapping/${mappingId}`,
+  cxoKpiMappingStatus: (mappingId) =>
+    `/config/api/v1/admin/cxo-kpi-mapping/${mappingId}/status`,
 };

@@ -1,14 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Alert,
   Autocomplete,
   Box,
   Button,
+  Chip,
   CircularProgress,
+  IconButton,
   Paper,
   Snackbar,
   Stack,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   TextField,
   Tooltip,
   Typography,
@@ -17,49 +25,38 @@ import {
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import RestartAltRoundedIcon from "@mui/icons-material/RestartAltRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
-import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
 import Layout from "../../layouts/commonLayout/Layout";
 import { fetchCompanies } from "../../store/companySlice";
 import {
   clearCxoCreateState,
-  clearCxoDeleteState,
-  clearCxoResetState,
-  clearCxoSaveState,
-  clearCxoUpdateState,
+  clearCxoDefinitionDeleteState,
+  clearCxoDefinitionUpdateState,
+  clearCxoKpiMappingMutationState,
+  clearCxoKpiMappingState,
+  createCxoKpiMapping,
   createCxoMetric,
-  deleteCxoMetric,
-  fetchCxoMapping,
-  fetchCxoMetric,
+  deleteCxoKpiMappingById,
+  deleteCxoMetricById,
+  fetchCxoKpiMappingList,
   fetchCxoMetricsMaster,
   fetchCxoOptions,
-  resetCxoMapping,
-  saveCxoMapping,
-  updateCxoMetric,
+  patchCxoKpiMappingStatus,
+  updateCxoKpiMappingWeight,
+  updateCxoMetricById,
 } from "../../store/cxoMetricsSlice";
 import { getSurfaceBackground } from "../../theme";
 import MetricTabs from "../../components/superadmin/cxoMetrics/MetricTabs";
-import MappingEditor from "../../components/superadmin/cxoMetrics/MappingEditor";
 import ConfirmDialog from "../../components/superadmin/cxoMetrics/ConfirmDialog";
 import CreateMetricDialog from "../../components/superadmin/cxoMetrics/CreateMetricDialog";
-import EditMetricDialog from "../../components/superadmin/cxoMetrics/EditMetricDialog";
-import {
-  sumWeights,
-  validateMapping,
-} from "../../components/superadmin/cxoMetrics/validation";
+import CxoMetricDefinitionDialog from "../../components/superadmin/cxoMetrics/CxoMetricDefinitionDialog";
+import CxoMetricDefinitionEditDialog from "../../components/superadmin/cxoMetrics/CxoMetricDefinitionEditDialog";
 import usePermissions from "../../hooks/usePermissions";
 
 const PREFERRED_DEFAULT_METRIC = "PRODUCTIVITY";
 
 const cacheKey = (companyId, metricCode) =>
   `${companyId || ""}::${metricCode || ""}`;
-
-const mappingsEqual = (a, b) => {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  return JSON.stringify(a) === JSON.stringify(b);
-};
 
 export default function CxoMetricsConfig() {
   const theme = useTheme();
@@ -71,25 +68,21 @@ export default function CxoMetricsConfig() {
     metricsMaster,
     metricsMasterLoading,
     metricsMasterError,
-    mappingsByKey,
-    mappingLoading,
-    mappingError,
-    mappingErrorStatus,
     optionsByCompany,
-    optionsLoading,
     optionsError,
-    saveLoading,
-    saveError,
-    resetLoading,
-    resetError,
     createLoading,
     createError,
-    createdMetricCode,
-    metricByKey,
-    updateLoading,
-    updateError,
-    deleteLoading,
-    deleteError,
+    definitionUpdateLoading,
+    definitionUpdateError,
+    definitionDeleteLoading,
+    kpiMappingLoading,
+    kpiMappingError,
+    kpiMappingListByKey,
+    kpiMappingListLoading,
+    kpiMappingListError,
+    kpiMappingUpdateLoading,
+    kpiMappingStatusLoading,
+    kpiMappingDeleteLoading,
   } = useSelector((state) => state.cxoMetrics);
 
   const { companies, companiesLoading } = useSelector((state) => state.company);
@@ -116,25 +109,20 @@ export default function CxoMetricsConfig() {
   const [pickedCompanyId, setPickedCompanyId] = useState("");
   const [pickedMetricCode, setPickedMetricCode] = useState("");
 
-  // Drafts are keyed by (company, metric). Absence of an entry means the user
-  // has not edited that mapping yet — the baseline (server) is rendered
-  // directly. This avoids syncing server data into local state via effects.
-  const [draftByKey, setDraftByKey] = useState({});
-
-  const [pendingSwitch, setPendingSwitch] = useState(null);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [definitionDialogOpen, setDefinitionDialogOpen] = useState(false);
+  const [definitionEditTarget, setDefinitionEditTarget] = useState(null);
+  const [definitionDeleteTarget, setDefinitionDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
 
   // Default selection:
-  //   - Platform admin: first visible company (allow overriding via picker).
-  //   - Company admin / other: locked to their own tenant — even if they
-  //     manage to type a different id into the picker, the backend would
-  //     403; mirroring that constraint up here avoids a confusing UX.
+  //   - Platform admin: starts empty — the picker shows the "Select a
+  //     company" placeholder until the user picks one. Per-company GETs
+  //     wait for that selection.
+  //   - Company admin / other: locked to their own tenant (the backend
+  //     would 403 anything else anyway).
   const selectedCompanyId = isPlatformAdmin
-    ? pickedCompanyId || (visibleCompanies.length > 0 ? visibleCompanies[0].id : "")
+    ? pickedCompanyId
     : ownTenantId || (visibleCompanies.length > 0 ? visibleCompanies[0].id : "");
 
   // Active metric is derived from the master list — prefer PRODUCTIVITY if
@@ -151,8 +139,10 @@ export default function CxoMetricsConfig() {
 
   const activeMetricCode = pickedMetricCode || defaultMetricCode;
 
+  // Bootstrap: load the company list so the picker can resolve a default.
+  // The per-company endpoints (metrics master, options, mapping) wait until
+  // a company is actually selected.
   useEffect(() => {
-    dispatch(fetchCxoMetricsMaster());
     dispatch(fetchCompanies());
   }, [dispatch]);
 
@@ -162,385 +152,249 @@ export default function CxoMetricsConfig() {
   );
 
   useEffect(() => {
-    // Only fetch a mapping for a metric the backend actually serves.
-    if (selectedCompanyId && activeMetric) {
+    // GET /admin/cxo-kpi-mapping is now the single source of truth for the
+    // editor below. The legacy per-(company,metric) summary endpoint
+    // (GET /admin/cxo-metrics/{code}/mapping) and per-metric override
+    // (GET /admin/cxo-metrics/{code}) were removed in the refactor — the
+    // master list returned by GET /admin/cxo-metrics?company_id=... already
+    // carries the metric definition, and per-row rows come from cxo-kpi-mapping.
+    if (selectedCompanyId && activeMetric?.id) {
       dispatch(
-        fetchCxoMapping({
-          metricCode: activeMetric.metric_code,
+        fetchCxoKpiMappingList({
           companyId: selectedCompanyId,
-        }),
-      );
-      dispatch(
-        fetchCxoMetric({
-          metricCode: activeMetric.metric_code,
-          companyId: selectedCompanyId,
+          metricId: activeMetric.id,
         }),
       );
     }
   }, [dispatch, selectedCompanyId, activeMetric]);
 
+  // Per-company endpoints — fetched only after a company is selected. The
+  // metric master is company-scoped on the backend, so the GET sends
+  // company_id alongside the older options endpoint.
   useEffect(() => {
-    if (selectedCompanyId && !optionsByCompany[selectedCompanyId]) {
+    if (!selectedCompanyId) return;
+    dispatch(fetchCxoMetricsMaster({ companyId: selectedCompanyId }));
+    if (!optionsByCompany[selectedCompanyId]) {
       dispatch(fetchCxoOptions({ companyId: selectedCompanyId }));
     }
   }, [dispatch, selectedCompanyId, optionsByCompany]);
 
-  const currentKey = cacheKey(selectedCompanyId, activeMetricCode);
-  const serverMapping = mappingsByKey[currentKey];
-  // Prefer the per-(company,metric) override returned by GET
-  // /admin/cxo-metrics/{code}?company_id=... over the platform master, so a
-  // PUT that changes display_name / baseline is reflected immediately.
-  const metricOverride = metricByKey[currentKey];
-  const effectiveMetric = useMemo(
-    () => (metricOverride ? { ...activeMetric, ...metricOverride } : activeMetric),
-    [activeMetric, metricOverride],
-  );
-  const baselineKpi = useMemo(
-    () => serverMapping?.kpi_mappings || [],
-    [serverMapping],
-  );
-  const baselineSignal = useMemo(
-    () => serverMapping?.signal_mappings || [],
-    [serverMapping],
-  );
-  const draftEntry = draftByKey[currentKey];
-  const draftKpi = draftEntry?.kpi ?? baselineKpi;
-  const draftSignal = draftEntry?.signal ?? baselineSignal;
-
-  const isDirty = Boolean(draftEntry) &&
-    (!mappingsEqual(draftKpi, baselineKpi) ||
-      !mappingsEqual(draftSignal, baselineSignal));
-
-  useEffect(() => {
-    if (!isDirty) return undefined;
-    const handler = (event) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
-
-  const formulaType = activeMetric?.formula_type;
-  const weightSum =
-    formulaType === "COMPOSITE" ? sumWeights(draftSignal) : sumWeights(draftKpi);
-
-  const validation = useMemo(
-    () =>
-      activeMetric
-        ? validateMapping({
-            formulaType,
-            kpiMappings: draftKpi,
-            signalMappings: draftSignal,
-          })
-        : { isValid: false, errors: [], weightSum: 0 },
-    [activeMetric, formulaType, draftKpi, draftSignal],
-  );
-
-  const updateDraft = useCallback(
-    (updater) => {
-      setDraftByKey((prev) => {
-        const existing = prev[currentKey] ?? {
-          kpi: baselineKpi,
-          signal: baselineSignal,
-        };
-        const next = updater(existing);
-        return { ...prev, [currentKey]: next };
-      });
-    },
-    [currentKey, baselineKpi, baselineSignal],
-  );
-
+  // Granular per-row list keyed by (company, metric_id). GET
+  // /admin/cxo-kpi-mapping is the single source of truth for the panel below.
+  const kpiMappingRows = useMemo(() => {
+    if (!activeMetric?.id || !selectedCompanyId) return [];
+    return kpiMappingListByKey[cacheKey(selectedCompanyId, activeMetric.id)] || [];
+  }, [kpiMappingListByKey, selectedCompanyId, activeMetric]);
   const handleSelectCompany = (newId) => {
     if (!newId || newId === selectedCompanyId) return;
-    if (isDirty) {
-      setPendingSwitch({ type: "company", value: newId });
-      return;
-    }
     setPickedCompanyId(newId);
   };
 
   const handleSelectMetric = (newCode) => {
     if (!newCode || newCode === activeMetricCode) return;
-    if (isDirty) {
-      setPendingSwitch({ type: "metric", value: newCode });
-      return;
-    }
     setPickedMetricCode(newCode);
   };
 
-  const applyPendingSwitch = () => {
-    if (!pendingSwitch) return;
-    // Discard the draft for the current (company,metric) before switching.
-    setDraftByKey((prev) => {
-      if (!prev[currentKey]) return prev;
-      const { [currentKey]: _, ...rest } = prev;
-      return rest;
-    });
-    if (pendingSwitch.type === "metric") {
-      setPickedMetricCode(pendingSwitch.value);
-    } else if (pendingSwitch.type === "company") {
-      setPickedCompanyId(pendingSwitch.value);
-    }
-    setPendingSwitch(null);
-  };
-
-  const handleDiscard = () => {
-    setDraftByKey((prev) => {
-      if (!prev[currentKey]) return prev;
-      const { [currentKey]: _, ...rest } = prev;
-      return rest;
-    });
-  };
-
-  const handleChangeKpiWeight = (kpiKey, value) => {
-    updateDraft((entry) => ({
-      ...entry,
-      kpi: entry.kpi.map((row) =>
-        row.kpi_key === kpiKey ? { ...row, weight: Number(value) || 0 } : row,
-      ),
-    }));
-  };
-
-  const handleChangeKpiThreshold = (kpiKey, value) => {
-    updateDraft((entry) => ({
-      ...entry,
-      kpi: entry.kpi.map((row) =>
-        row.kpi_key === kpiKey
-          ? {
-              ...row,
-              threshold: value === "" || value == null ? null : Number(value),
-            }
-          : row,
-      ),
-    }));
-  };
-
-  const handleRemoveKpi = (kpiKey) => {
-    updateDraft((entry) => ({
-      ...entry,
-      kpi: entry.kpi.filter((row) => row.kpi_key !== kpiKey),
-    }));
-  };
-
-  const handleAddKpi = (option) => {
-    if (!option?.kpi_key) return;
-    const isDeficit = formulaType === "DEFICIT_SUM";
-    updateDraft((entry) =>
-      entry.kpi.some((row) => row.kpi_key === option.kpi_key)
-        ? entry
-        : {
-            ...entry,
-            kpi: [
-              ...entry.kpi,
-              {
-                kpi_key: option.kpi_key,
-                kpi_name: option.display_name,
-                weight: 0,
-                threshold: isDeficit ? 3.0 : null,
-              },
-            ],
-          },
-    );
-  };
-
-  const handleChangeSignalWeight = (signalCode, value) => {
-    updateDraft((entry) => ({
-      ...entry,
-      signal: entry.signal.map((row) =>
-        row.signal_code === signalCode
-          ? { ...row, weight: Number(value) || 0 }
-          : row,
-      ),
-    }));
-  };
-
-  const handleRemoveSignal = (signalCode) => {
-    updateDraft((entry) => ({
-      ...entry,
-      signal: entry.signal.filter((row) => row.signal_code !== signalCode),
-    }));
-  };
-
-  const handleAddSignal = (option) => {
-    if (!option?.signal_code) return;
-    updateDraft((entry) =>
-      entry.signal.some((row) => row.signal_code === option.signal_code)
-        ? entry
-        : {
-            ...entry,
-            signal: [
-              ...entry.signal,
-              {
-                signal_code: option.signal_code,
-                signal_name: option.display_name,
-                weight: 0,
-              },
-            ],
-          },
-    );
-  };
-
-  const handleSave = async () => {
-    if (!activeMetric || !selectedCompanyId) return;
-    if (!validation.isValid) return;
-    try {
-      const payload = {
-        metricCode: activeMetric.metric_code,
-        companyId: selectedCompanyId,
-        kpi_mappings:
-          formulaType === "COMPOSITE"
-            ? []
-            : draftKpi.map((row) => ({
-                kpi_key: row.kpi_key,
-                weight: Number(row.weight) || 0,
-                threshold: row.threshold == null ? null : Number(row.threshold),
-              })),
-        signal_mappings:
-          formulaType === "COMPOSITE"
-            ? draftSignal.map((row) => ({
-                signal_code: row.signal_code,
-                weight: Number(row.weight) || 0,
-              }))
-            : [],
-      };
-      const result = await dispatch(saveCxoMapping(payload)).unwrap();
-      // Server response is now the new baseline; clear the local draft.
-      setDraftByKey((prev) => {
-        const { [currentKey]: _, ...rest } = prev;
-        return rest;
-      });
-      setToast({
-        severity: "success",
-        message: result.message || "Mapping saved.",
-      });
-    } catch (err) {
-      const message =
-        typeof err === "string" ? err : err?.message || "Failed to save.";
-      setToast({ severity: "error", message });
-    }
-  };
-
-  const handleResetConfirmed = async () => {
-    setConfirmReset(false);
-    if (!activeMetric || !selectedCompanyId) return;
+  const handleCreateMetricSubmit = async ({
+    companyId,
+    metricId,
+    metricCode,
+    kpi_mappings,
+  }) => {
     try {
       const result = await dispatch(
-        resetCxoMapping({
-          metricCode: activeMetric.metric_code,
-          companyId: selectedCompanyId,
-        }),
+        createCxoKpiMapping({ companyId, metricId, kpi_mappings }),
       ).unwrap();
-      setDraftByKey((prev) => {
-        const { [currentKey]: _, ...rest } = prev;
-        return rest;
-      });
-      dispatch(
-        fetchCxoMapping({
-          metricCode: activeMetric.metric_code,
-          companyId: selectedCompanyId,
-        }),
-      );
-      setToast({
-        severity: "success",
-        message: result.message || "Mapping reset to platform defaults.",
-      });
-    } catch (err) {
-      const message =
-        typeof err === "string" ? err : err?.message || "Failed to reset.";
-      setToast({ severity: "error", message });
-    }
-  };
-
-  const handleCreateMetricSubmit = async (payload) => {
-    try {
-      const result = await dispatch(createCxoMetric(payload)).unwrap();
       setCreateDialogOpen(false);
-      // Auto-select the freshly created metric tab — the slice already
-      // pushed it onto metricsMaster, so this just nudges activeMetricCode.
-      if (result?.metric?.metric_code) {
-        setPickedMetricCode(result.metric.metric_code);
+      // Switch the page over to the company/metric the user just configured
+      // so they land on the live mapping view.
+      if (companyId && isPlatformAdmin) setPickedCompanyId(companyId);
+      if (metricCode) setPickedMetricCode(metricCode);
+      // Refresh the per-row list so the editor below reflects what the new
+      // endpoint just persisted. Use metric_id from the result (POST returns
+      // the created rows; metricId was the input) — falls back to the current
+      // active metric.
+      const refreshMetricId = metricId || activeMetric?.id;
+      if (companyId && refreshMetricId) {
+        dispatch(
+          fetchCxoKpiMappingList({
+            companyId,
+            metricId: refreshMetricId,
+          }),
+        );
       }
       setToast({
         severity: "success",
-        message: result?.message || "Metric created successfully.",
+        message: result?.message || "KPI mapping saved.",
       });
     } catch (err) {
-      // Surface inside the dialog via state.createError — no toast here so
-      // we don't double-render the same failure.
-      void err;
+      const message =
+        typeof err === "string" ? err : err?.message || "Failed to save KPI mapping.";
+      setToast({ severity: "error", message });
     }
   };
 
   const handleCloseCreateDialog = () => {
     setCreateDialogOpen(false);
     dispatch(clearCxoCreateState());
+    dispatch(clearCxoKpiMappingState());
   };
 
-  const handleUpdateMetricSubmit = async (partial) => {
-    if (!activeMetric || !selectedCompanyId) return;
+  // POST /admin/cxo-metrics — create a CXO metric definition (master row).
+  const handleCreateDefinitionSubmit = async (payload) => {
     try {
-      const result = await dispatch(
-        updateCxoMetric({
-          metricCode: activeMetric.metric_code,
-          companyId: selectedCompanyId,
-          fields: partial,
-        }),
-      ).unwrap();
-      setEditDialogOpen(false);
+      const result = await dispatch(createCxoMetric(payload)).unwrap();
+      setDefinitionDialogOpen(false);
+      if (result?.metric?.metric_code) {
+        setPickedMetricCode(result.metric.metric_code);
+      }
       setToast({
         severity: "success",
-        message: result.message || "Metric updated.",
+        message: result?.message || "CXO metric created successfully.",
       });
     } catch (err) {
-      // Surfaced inside the dialog via state.updateError.
+      // Error surfaces inside the dialog via state.createError.
       void err;
     }
   };
 
-  const handleCloseEditDialog = () => {
-    setEditDialogOpen(false);
-    dispatch(clearCxoUpdateState());
+  const handleCloseDefinitionDialog = () => {
+    setDefinitionDialogOpen(false);
+    dispatch(clearCxoCreateState());
   };
 
-  const handleDeleteConfirmed = async () => {
-    setConfirmDelete(false);
-    if (!activeMetric || !selectedCompanyId) return;
+  // PUT /admin/cxo-metrics/{metric_id} — partial update. company_id and
+  // metric_code are immutable; the dialog only sends changed fields.
+  const handleDefinitionUpdateSubmit = async (partial) => {
+    if (!definitionEditTarget?.id) return;
     try {
       const result = await dispatch(
-        deleteCxoMetric({
-          metricCode: activeMetric.metric_code,
-          companyId: selectedCompanyId,
+        updateCxoMetricById({
+          metricId: definitionEditTarget.id,
+          fields: partial,
         }),
       ).unwrap();
-      // Drop the local draft for the deleted (company, metric) and let the
-      // tab selection fall back to the first remaining master entry.
-      setDraftByKey((prev) => {
-        if (!prev[currentKey]) return prev;
-        const { [currentKey]: _, ...rest } = prev;
-        return rest;
-      });
-      setPickedMetricCode("");
+      setDefinitionEditTarget(null);
       setToast({
         severity: "success",
-        message: result.message || "Metric deleted.",
+        message: result.message || "CXO metric updated.",
+      });
+    } catch (err) {
+      // Surfaced inside the dialog via state.definitionUpdateError.
+      void err;
+    }
+  };
+
+  const handleCloseDefinitionEditDialog = () => {
+    setDefinitionEditTarget(null);
+    dispatch(clearCxoDefinitionUpdateState());
+  };
+
+  // DELETE /admin/cxo-metrics/{metric_id} — soft-delete; cascade removes
+  // dependent cxo_metric_kpi_mapping rows. The server returns
+  // kpi_mappings_deleted which we surface in the toast.
+  const handleDefinitionDeleteConfirmed = async () => {
+    const target = definitionDeleteTarget;
+    setDefinitionDeleteTarget(null);
+    if (!target?.id) return;
+    try {
+      const result = await dispatch(
+        deleteCxoMetricById({ metricId: target.id }),
+      ).unwrap();
+      // If the deleted metric was the active tab, fall back to the default.
+      if (target.metric_code === activeMetricCode) {
+        setPickedMetricCode("");
+      }
+      setToast({
+        severity: "success",
+        message:
+          result.message ||
+          `Deleted. Cascade removed ${result.kpiMappingsDeleted} mapping row(s).`,
       });
     } catch (err) {
       const message =
-        typeof err === "string" ? err : err?.message || "Failed to delete.";
+        typeof err === "string"
+          ? err
+          : err?.message || "Failed to delete metric.";
       setToast({ severity: "error", message });
     }
   };
 
-  // When a brand-new metric is added the slice clears the per-(company,metric)
-  // mapping cache for the new code (no rows exist yet); the existing fetch
-  // effect will pull a fresh — and empty — mapping when the tab activates.
-  void createdMetricCode;
+  // PUT /admin/cxo-kpi-mapping/{mapping_id} — update one row's weight.
+  const handlePersistRowWeight = async (mappingId, weight) => {
+    if (!mappingId || !activeMetric?.id) return;
+    try {
+      const result = await dispatch(
+        updateCxoKpiMappingWeight({
+          mappingId,
+          companyId: selectedCompanyId,
+          metricId: activeMetric.id,
+          weight,
+        }),
+      ).unwrap();
+      setToast({
+        severity: "success",
+        message: result.message || "Weight updated.",
+      });
+    } catch (err) {
+      const message =
+        typeof err === "string" ? err : err?.message || "Failed to update weight.";
+      setToast({ severity: "error", message });
+    }
+  };
 
-  const options = optionsByCompany[selectedCompanyId];
+  // PATCH /admin/cxo-kpi-mapping/{mapping_id}/status — pause / re-activate.
+  const handleToggleRowStatus = async (row) => {
+    if (!row?.mapping_id || !activeMetric?.id) return;
+    try {
+      const result = await dispatch(
+        patchCxoKpiMappingStatus({
+          mappingId: row.mapping_id,
+          companyId: selectedCompanyId,
+          metricId: activeMetric.id,
+          isActive: !row.is_active,
+        }),
+      ).unwrap();
+      setToast({
+        severity: "success",
+        message:
+          result.message ||
+          (row.is_active ? "KPI paused." : "KPI re-activated."),
+      });
+    } catch (err) {
+      const message =
+        typeof err === "string" ? err : err?.message || "Failed to update status.";
+      setToast({ severity: "error", message });
+    }
+  };
+
+  // DELETE /admin/cxo-kpi-mapping/{mapping_id} — single-row soft-delete.
+  const handlePersistRowRemove = async (mappingId) => {
+    if (!mappingId || !activeMetric?.id) return;
+    try {
+      const result = await dispatch(
+        deleteCxoKpiMappingById({
+          mappingId,
+          companyId: selectedCompanyId,
+          metricId: activeMetric.id,
+        }),
+      ).unwrap();
+      setToast({
+        severity: "success",
+        message: result.message || "KPI mapping removed.",
+      });
+      // The slice already drops the row from kpiMappingListByKey on success,
+      // so no extra refetch is needed here — the editor will reflect the
+      // change on the next render.
+    } catch (err) {
+      const message =
+        typeof err === "string" ? err : err?.message || "Failed to remove KPI.";
+      setToast({ severity: "error", message });
+    }
+  };
+
   const isInitialLoading =
     (metricsMasterLoading && metricsMaster.length === 0) || companiesLoading;
-  const isMappingForbidden = mappingErrorStatus === 403;
 
   return (
     <Layout role="superadmin" title="CXO Metrics Configuration">
@@ -563,7 +417,7 @@ export default function CxoMetricsConfig() {
           >
             <Box>
               <Typography variant="h5" sx={{ fontWeight: 750 }}>
-                CXO Metrics Configuration
+                CXO Metrics Mapping
               </Typography>
               <Typography color="text.secondary" sx={{ mt: 0.75 }}>
                 Configure how Productivity, Engagement, and Absenteeism are
@@ -573,34 +427,13 @@ export default function CxoMetricsConfig() {
             {canEditConfig && (
               <Stack direction="row" spacing={1} flexWrap="wrap">
                 <Button
-                  variant="outlined"
-                  startIcon={<EditRoundedIcon />}
-                  onClick={() => setEditDialogOpen(true)}
-                  disabled={
-                    updateLoading || !activeMetric || !selectedCompanyId
-                  }
-                >
-                  Edit metric
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<DeleteOutlineRoundedIcon />}
-                  onClick={() => setConfirmDelete(true)}
-                  disabled={
-                    deleteLoading || !activeMetric || !selectedCompanyId
-                  }
-                >
-                  {deleteLoading ? "Deleting..." : "Delete metric"}
-                </Button>
-                <Button
                   variant="contained"
                   color="primary"
                   startIcon={<AddRoundedIcon />}
                   onClick={() => setCreateDialogOpen(true)}
-                  disabled={createLoading}
+                  disabled={kpiMappingLoading}
                 >
-                  Create metric
+                  Metric mapping
                 </Button>
               </Stack>
             )}
@@ -659,149 +492,256 @@ export default function CxoMetricsConfig() {
 
           {!metricsMasterLoading && metricsMaster.length === 0 ? (
             <Alert severity="info">
-              No CXO metrics have been configured in the platform master yet.
-              Once the backend seeds the metric definitions (Productivity,
-              Engagement, Absenteeism), they will appear here.
+              Select company to display metrics data
             </Alert>
-          ) : isMappingForbidden ? (
-            <Alert severity="error">
-              You don't have permission to configure this company.
-            </Alert>
-          ) : mappingError ? (
-            <Alert severity="error">{mappingError}</Alert>
-          ) : (
-            <MappingEditor
-              metric={effectiveMetric}
-              kpiMappings={draftKpi}
-              signalMappings={draftSignal}
-              weightSum={weightSum}
-              isLoading={mappingLoading && !serverMapping}
-              options={options}
-              optionsLoading={optionsLoading}
-              onChangeKpiWeight={canEditConfig ? handleChangeKpiWeight : undefined}
-              onChangeKpiThreshold={
-                canEditConfig ? handleChangeKpiThreshold : undefined
-              }
-              onRemoveKpi={canEditConfig ? handleRemoveKpi : undefined}
-              onAddKpi={canEditConfig ? handleAddKpi : undefined}
-              onChangeSignalWeight={
-                canEditConfig ? handleChangeSignalWeight : undefined
-              }
-              onRemoveSignal={canEditConfig ? handleRemoveSignal : undefined}
-              onAddSignal={canEditConfig ? handleAddSignal : undefined}
+          ) : kpiMappingListError ? (
+            <Alert severity="error">{kpiMappingListError}</Alert>
+          ) : null}
+
+          {canEditConfig && selectedCompanyId && activeMetric?.id && (
+            <PersistedKpiRowsPanel
+              rows={kpiMappingRows}
+              loading={kpiMappingListLoading}
+              error={kpiMappingListError}
+              updating={kpiMappingUpdateLoading}
+              toggling={kpiMappingStatusLoading}
+              deleting={kpiMappingDeleteLoading}
+              onSaveWeight={handlePersistRowWeight}
+              onToggleStatus={handleToggleRowStatus}
+              onDeleteRow={handlePersistRowRemove}
             />
           )}
 
-          {!validation.isValid && validation.errors.length > 0 && (
-            <Alert severity="warning" sx={{ whiteSpace: "pre-line" }}>
-              {validation.errors.join("\n")}
-            </Alert>
-          )}
-
-          {(saveError || resetError || deleteError) && (
-            <Alert severity="error">
-              {saveError || resetError || deleteError}
-            </Alert>
-          )}
-
-          {canEditConfig && (
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1.25}
-              justifyContent="flex-end"
-            >
-              <Button
-                variant="outlined"
-                color="warning"
-                startIcon={<RestartAltRoundedIcon />}
-                onClick={() => setConfirmReset(true)}
-                disabled={resetLoading || !activeMetric || !selectedCompanyId}
-              >
-                {resetLoading ? "Resetting..." : "Reset to platform defaults"}
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<UndoRoundedIcon />}
-                onClick={handleDiscard}
-                disabled={!isDirty}
-              >
-                Discard changes
-              </Button>
-              <Tooltip
-                title={
-                  !validation.isValid
-                    ? validation.errors[0] || "Fix validation errors before saving"
-                    : ""
-                }
-              >
-                <span>
-                  <Button
-                    variant="contained"
-                    startIcon={<SaveRoundedIcon />}
-                    onClick={handleSave}
-                    disabled={saveLoading || !validation.isValid}
-                  >
-                    {saveLoading ? "Saving..." : "Save"}
-                  </Button>
-                </span>
-              </Tooltip>
-            </Stack>
-          )}
         </Stack>
       </Paper>
 
-      <ConfirmDialog
-        open={Boolean(pendingSwitch)}
-        title="Discard unsaved changes?"
-        message="You have unsaved edits on this mapping. Switching will discard them."
-        confirmLabel="Discard & switch"
-        confirmColor="warning"
-        onConfirm={applyPendingSwitch}
-        onCancel={() => setPendingSwitch(null)}
-      />
+      <Paper
+        elevation={0}
+        sx={{
+          mt: 2.5,
+          p: { xs: 2, sm: 3 },
+          borderRadius: 3,
+          border: "1px solid",
+          borderColor: "divider",
+          bgcolor: getSurfaceBackground(theme),
+        }}
+      >
+        <Stack spacing={2}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+          >
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 750 }}>
+                CXO Metric Definitions
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 0.5 }}
+              >
+                Create and review the metric master rows backing the
+                configurations above. POST /admin/cxo-metrics.
+              </Typography>
+            </Box>
+            {canEditConfig && (
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<AddRoundedIcon />}
+                onClick={() => setDefinitionDialogOpen(true)}
+                disabled={createLoading}
+              >
+                {createLoading ? "Creating..." : "Create CXO metric"}
+              </Button>
+            )}
+          </Stack>
 
-      <ConfirmDialog
-        open={confirmReset}
-        title="Reset to platform defaults?"
-        message={`This will replace the current mapping with the AyuMonk default values for ${activeMetric?.display_name || "this metric"}. Continue?`}
-        confirmLabel="Reset"
-        confirmColor="warning"
-        onConfirm={handleResetConfirmed}
-        onCancel={() => setConfirmReset(false)}
-      />
-
-      <ConfirmDialog
-        open={confirmDelete}
-        title="Delete metric?"
-        message={`This will permanently delete "${effectiveMetric?.display_name || activeMetric?.metric_code || "this metric"}" for the selected company, including its mapping. This cannot be undone.`}
-        confirmLabel="Delete"
-        confirmColor="error"
-        onConfirm={handleDeleteConfirmed}
-        onCancel={() => setConfirmDelete(false)}
-      />
-
-      <EditMetricDialog
-        key={editDialogOpen ? "edit-open" : "edit-closed"}
-        open={editDialogOpen}
-        loading={updateLoading}
-        error={updateError}
-        metric={effectiveMetric}
-        onClose={handleCloseEditDialog}
-        onSubmit={handleUpdateMetricSubmit}
-      />
+          {metricsMasterLoading && metricsMaster.length === 0 ? (
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{ py: 2, color: "text.secondary" }}
+            >
+              <CircularProgress size={16} />
+              <Typography variant="body2">
+                Loading CXO metric definitions...
+              </Typography>
+            </Stack>
+          ) : metricsMaster.length === 0 ? (
+            <Alert severity="info">
+              Select company to display metrics data.
+              one.
+            </Alert>
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Metric code</TableCell>
+                  <TableCell>Display name</TableCell>
+                  <TableCell>Formula</TableCell>
+                  <TableCell>Baseline</TableCell>
+                  <TableCell>Status</TableCell>
+                  {canEditConfig && (
+                    <TableCell sx={{ width: 110, textAlign: "right" }}>
+                      Actions
+                    </TableCell>
+                  )}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {metricsMaster.map((m) => {
+                  const isActive =
+                    m.is_active == null ? true : Boolean(m.is_active);
+                  return (
+                    <TableRow key={m.metric_code} hover>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontFamily: "monospace" }}
+                        >
+                          {m.metric_code}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{m.display_name}</TableCell>
+                      <TableCell>
+                        {m.formula_type ? (
+                          <Chip
+                            size="small"
+                            label={m.formula_type}
+                            variant="outlined"
+                          />
+                        ) : (
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "text.secondary" }}
+                          >
+                            —
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {m.baseline != null ? (
+                          m.baseline
+                        ) : (
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "text.secondary" }}
+                          >
+                            —
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={isActive ? "Active" : "Inactive"}
+                          color={isActive ? "success" : "default"}
+                          variant={isActive ? "filled" : "outlined"}
+                          sx={{ height: 20, fontSize: 11 }}
+                        />
+                      </TableCell>
+                      {canEditConfig && (
+                        <TableCell sx={{ textAlign: "right" }}>
+                          <Tooltip title="Edit metric">
+                            <span>
+                              <IconButton
+                                size="small"
+                                disabled={
+                                  !m.id ||
+                                  definitionUpdateLoading ||
+                                  definitionDeleteLoading
+                                }
+                                onClick={() => setDefinitionEditTarget(m)}
+                                aria-label={`Edit ${m.metric_code}`}
+                              >
+                                <EditRoundedIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title="Delete metric (cascade removes mappings)">
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                disabled={
+                                  !m.id ||
+                                  definitionUpdateLoading ||
+                                  definitionDeleteLoading
+                                }
+                                onClick={() => setDefinitionDeleteTarget(m)}
+                                aria-label={`Delete ${m.metric_code}`}
+                              >
+                                <DeleteOutlineRoundedIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </Stack>
+      </Paper>
 
       {/* Keyed so the form state resets every time the dialog is reopened
           without needing setState-inside-useEffect (React 19 lint rule). */}
       <CreateMetricDialog
         key={createDialogOpen ? "create-open" : "create-closed"}
         open={createDialogOpen}
-        loading={createLoading}
-        error={createError}
+        loading={kpiMappingLoading}
+        error={kpiMappingError}
         onClose={handleCloseCreateDialog}
         onSubmit={handleCreateMetricSubmit}
         companies={visibleCompanies}
         companiesLoading={companiesLoading}
         defaultCompanyId={selectedCompanyId}
+        metrics={metricsMaster}
+        metricsLoading={metricsMasterLoading}
+        isPlatformAdmin={isPlatformAdmin}
+      />
+
+      <CxoMetricDefinitionDialog
+        key={definitionDialogOpen ? "definition-open" : "definition-closed"}
+        open={definitionDialogOpen}
+        loading={createLoading}
+        error={createError}
+        onClose={handleCloseDefinitionDialog}
+        onSubmit={handleCreateDefinitionSubmit}
+        companies={visibleCompanies}
+        companiesLoading={companiesLoading}
+        defaultCompanyId={selectedCompanyId}
+        isPlatformAdmin={isPlatformAdmin}
+      />
+
+      <CxoMetricDefinitionEditDialog
+        key={
+          definitionEditTarget
+            ? `definition-edit-${definitionEditTarget.id}`
+            : "definition-edit-closed"
+        }
+        open={Boolean(definitionEditTarget)}
+        loading={definitionUpdateLoading}
+        error={definitionUpdateError}
+        metric={definitionEditTarget}
+        onClose={handleCloseDefinitionEditDialog}
+        onSubmit={handleDefinitionUpdateSubmit}
+      />
+
+      <ConfirmDialog
+        open={Boolean(definitionDeleteTarget)}
+        title="Delete CXO metric definition?"
+        message={`Soft-deletes "${definitionDeleteTarget?.display_name || definitionDeleteTarget?.metric_code || "this metric"}" and cascade-removes every active KPI mapping that references it. The metric will no longer appear in configurations.`}
+        confirmLabel={definitionDeleteLoading ? "Deleting..." : "Delete"}
+        confirmColor="error"
+        onConfirm={handleDefinitionDeleteConfirmed}
+        onCancel={() => setDefinitionDeleteTarget(null)}
       />
 
 
@@ -810,11 +750,11 @@ export default function CxoMetricsConfig() {
         autoHideDuration={4000}
         onClose={() => {
           setToast(null);
-          dispatch(clearCxoSaveState());
-          dispatch(clearCxoResetState());
           dispatch(clearCxoCreateState());
-          dispatch(clearCxoUpdateState());
-          dispatch(clearCxoDeleteState());
+          dispatch(clearCxoKpiMappingState());
+          dispatch(clearCxoKpiMappingMutationState());
+          dispatch(clearCxoDefinitionUpdateState());
+          dispatch(clearCxoDefinitionDeleteState());
         }}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
@@ -830,5 +770,241 @@ export default function CxoMetricsConfig() {
         ) : undefined}
       </Snackbar>
     </Layout>
+  );
+}
+
+// Per-row controls for the granular cxo-kpi-mapping endpoints (PUT weight,
+// PATCH status, DELETE single). Sits below the draft editor and operates on
+// the persisted rows directly — no draft state, every action is immediate.
+function PersistedKpiRowsPanel({
+  rows,
+  loading,
+  error,
+  updating,
+  toggling,
+  deleting,
+  onSaveWeight,
+  onToggleStatus,
+  onDeleteRow,
+}) {
+  const [edits, setEdits] = useState({});
+
+  const handleChange = (mappingId, value) =>
+    setEdits((prev) => ({ ...prev, [mappingId]: value }));
+
+  return (
+    <Box
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        border: "1px dashed",
+        borderColor: "divider",
+      }}
+    >
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 1 }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+          CXO Metrics Mapping
+        </Typography>
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          Bound via GET /admin/cxo-kpi-mapping on page load.
+        </Typography>
+      </Stack>
+
+      {error && (
+        <Alert severity="warning" sx={{ mb: 1 }}>
+          {error}
+        </Alert>
+      )}
+
+      {loading && rows.length === 0 ? (
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ py: 2, color: "text.secondary" }}
+        >
+          <CircularProgress size={16} />
+          <Typography variant="body2">Loading mapping rows...</Typography>
+        </Stack>
+      ) : rows.length === 0 ? (
+        <Box
+          sx={{
+            py: 3,
+            textAlign: "center",
+            color: "text.secondary",
+          }}
+        >
+          <Typography variant="body2">
+            No persisted KPI mappings for this metric yet.
+          </Typography>
+          <Typography variant="caption">
+            Create a mapping from the "Create metric" dialog above.
+          </Typography>
+        </Box>
+      ) : (
+        <PersistedKpiRowsTable
+          rows={rows}
+          edits={edits}
+          updating={updating}
+          toggling={toggling}
+          deleting={deleting}
+          onChangeEdit={handleChange}
+          onClearEdit={(mappingId) =>
+            setEdits((prev) => {
+              const { [mappingId]: _, ...rest } = prev;
+              return rest;
+            })
+          }
+          onSaveWeight={onSaveWeight}
+          onToggleStatus={onToggleStatus}
+          onDeleteRow={onDeleteRow}
+        />
+      )}
+    </Box>
+  );
+}
+
+function PersistedKpiRowsTable({
+  rows,
+  edits,
+  updating,
+  toggling,
+  deleting,
+  onChangeEdit,
+  onClearEdit,
+  onSaveWeight,
+  onToggleStatus,
+  onDeleteRow,
+}) {
+  return (
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>KPI</TableCell>
+            <TableCell sx={{ width: 160 }}>Weight</TableCell>
+            <TableCell sx={{ width: 130 }}>Status</TableCell>
+            <TableCell sx={{ width: 80, textAlign: "right" }}>Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => {
+            const draftValue =
+              edits[row.mapping_id] != null ? edits[row.mapping_id] : row.weight;
+            const isDirty = Number(draftValue) !== Number(row.weight);
+            return (
+              <TableRow key={row.mapping_id} hover>
+                <TableCell>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    sx={{ minWidth: 0 }}
+                  >
+                    <Stack spacing={0} sx={{ minWidth: 0 }}>
+                      <Typography
+                        sx={{ fontSize: 13, fontWeight: 600 }}
+                        noWrap
+                      >
+                        {row.kpi_name || "Unnamed KPI"}
+                      </Typography>
+                      {row.kpi_key && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "text.secondary",
+                            fontFamily: "monospace",
+                            fontSize: 10,
+                          }}
+                          noWrap
+                        >
+                          {row.kpi_key}
+                        </Typography>
+                      )}
+                    </Stack>
+                    {!row.is_active && (
+                      <Chip
+                        size="small"
+                        label="paused"
+                        color="warning"
+                        variant="outlined"
+                        sx={{ height: 18, fontSize: 10 }}
+                      />
+                    )}
+                  </Stack>
+                </TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={draftValue}
+                      onChange={(event) =>
+                        onChangeEdit(row.mapping_id, event.target.value)
+                      }
+                      inputProps={{ step: 0.1, min: 0, max: 5 }}
+                      sx={{ width: 90 }}
+                      disabled={updating || !row.is_active}
+                    />
+                    <Tooltip
+                      title={isDirty ? "Save weight" : "No changes"}
+                    >
+                      <span>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          disabled={updating || !isDirty}
+                          onClick={() => {
+                            onSaveWeight(row.mapping_id, Number(draftValue));
+                            onClearEdit(row.mapping_id);
+                          }}
+                          aria-label={`Save weight for ${row.kpi_name || row.kpi_key}`}
+                        >
+                          <SaveRoundedIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </Stack>
+                </TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Switch
+                      size="small"
+                      checked={row.is_active}
+                      disabled={toggling}
+                      onChange={() => onToggleStatus(row)}
+                      inputProps={{
+                        "aria-label": `Toggle status for ${row.kpi_name || row.kpi_key}`,
+                      }}
+                    />
+                    <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                      {row.is_active ? "Active" : "Paused"}
+                    </Typography>
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ textAlign: "right" }}>
+                  <Tooltip title="Remove this KPI mapping">
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        disabled={deleting}
+                        onClick={() => onDeleteRow(row.mapping_id)}
+                        aria-label={`Delete ${row.kpi_name || row.kpi_key}`}
+                      >
+                        <DeleteOutlineRoundedIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
   );
 }

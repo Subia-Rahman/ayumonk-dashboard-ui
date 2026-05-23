@@ -1,106 +1,76 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Alert,
   Autocomplete,
   Box,
   Button,
+  Checkbox,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   MenuItem,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   TextField,
+  Tooltip,
   Typography,
+  useTheme,
 } from "@mui/material";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import { fetchKpis } from "../../../store/kpiSlice";
+import { fetchThemes } from "../../../store/themeSlice";
 
-// Mirrors the CxoMetricMasterCreate Pydantic schema on the backend.
-// Keep field constraints (lengths, decimal bounds) in sync with
-// config_service/app/schemas/cxo_metrics.py.
-const FORMULA_TYPES = [
-  {
-    value: "WEIGHTED_AVG",
-    label: "WEIGHTED_AVG — KPI weights sum to 1.0",
-  },
-  {
-    value: "DEFICIT_SUM",
-    label: "DEFICIT_SUM — KPI thresholds required",
-  },
-  {
-    value: "COMPOSITE",
-    label: "COMPOSITE — signal weights sum to 1.0",
-  },
-];
+const WEIGHT_MIN = 0.1;
+const WEIGHT_MAX = 5.0;
+const WEIGHT_STEP = 0.1;
+const DEFAULT_WEIGHT = 1.0;
 
-const DEFAULTS = Object.freeze({
-  company_id: "",
-  metric_code: "",
-  display_name: "",
-  unit: "percent",
-  scale_min: "0",
-  scale_max: "100",
-  baseline: "",
-  formula_type: "WEIGHTED_AVG",
-  description: "",
-  methodology_ref: "",
-});
-
-// Required-field check before we send to the server. Backend will reject
-// anything else (duplicate metric_code, invalid formula_type) and we surface
-// that via the `error` prop.
-const localValidate = (values) => {
-  const errors = [];
-  if (!values.company_id) errors.push("Company is required.");
-  if (!values.metric_code.trim()) errors.push("Metric code is required.");
-  else if (values.metric_code.length > 30)
-    errors.push("Metric code must be ≤ 30 characters.");
-  if (!values.display_name.trim()) errors.push("Display name is required.");
-  else if (values.display_name.length > 100)
-    errors.push("Display name must be ≤ 100 characters.");
-  if (!values.unit.trim()) errors.push("Unit is required.");
-  else if (values.unit.length > 20)
-    errors.push("Unit must be ≤ 20 characters.");
-  if (!values.formula_type) errors.push("Formula type is required.");
-
-  const numericOrNull = (v) =>
-    v === "" || v === null || v === undefined ? null : Number(v);
-  const scaleMin = numericOrNull(values.scale_min);
-  const scaleMax = numericOrNull(values.scale_max);
-  const baseline = numericOrNull(values.baseline);
-  if (scaleMin !== null && Number.isNaN(scaleMin))
-    errors.push("Scale min must be a number.");
-  if (scaleMax !== null && Number.isNaN(scaleMax))
-    errors.push("Scale max must be a number.");
-  if (baseline !== null && Number.isNaN(baseline))
-    errors.push("Baseline must be a number.");
-  if (
-    scaleMin !== null &&
-    scaleMax !== null &&
-    !Number.isNaN(scaleMin) &&
-    !Number.isNaN(scaleMax) &&
-    scaleMin > scaleMax
-  ) {
-    errors.push("Scale min must be ≤ scale max.");
-  }
-  return errors;
+const headerSx = {
+  fontSize: 10,
+  letterSpacing: 1,
+  textTransform: "uppercase",
+  color: "text.secondary",
+  fontWeight: 700,
 };
 
-const buildPayload = (values) => {
-  const numericOrNull = (v) =>
-    v === "" || v === null || v === undefined ? null : Number(v);
-  return {
-    company_id: values.company_id,
-    metric_code: values.metric_code.trim(),
-    display_name: values.display_name.trim(),
-    unit: values.unit.trim(),
-    scale_min: numericOrNull(values.scale_min) ?? 0,
-    scale_max: numericOrNull(values.scale_max) ?? 100,
-    baseline: numericOrNull(values.baseline),
-    formula_type: values.formula_type,
-    description: values.description.trim() || null,
-    methodology_ref: values.methodology_ref.trim() || null,
-  };
+const localValidate = ({ companyId, metricCode, themeKeys, kpiRows }) => {
+  const errors = [];
+  if (!companyId) errors.push("Company is required.");
+  if (!metricCode) errors.push("CXO metric is required.");
+  if (!themeKeys || themeKeys.length === 0) {
+    errors.push("At least one theme is required.");
+  }
+  if (!kpiRows || kpiRows.length === 0) {
+    errors.push("At least one KPI mapping is required.");
+  } else {
+    const seen = new Set();
+    kpiRows.forEach((row, idx) => {
+      if (!row.kpi_key) {
+        errors.push(`Row ${idx + 1}: select a KPI.`);
+      } else if (seen.has(row.kpi_key)) {
+        errors.push(`Row ${idx + 1}: KPI is duplicated.`);
+      } else {
+        seen.add(row.kpi_key);
+      }
+      const w = Number(row.weight);
+      if (Number.isNaN(w) || w < WEIGHT_MIN || w > WEIGHT_MAX) {
+        errors.push(
+          `Row ${idx + 1}: weight must be between ${WEIGHT_MIN} and ${WEIGHT_MAX}.`,
+        );
+      }
+    });
+  }
+  return errors;
 };
 
 export default function CreateMetricDialog({
@@ -112,63 +82,191 @@ export default function CreateMetricDialog({
   companies = [],
   companiesLoading = false,
   defaultCompanyId = "",
+  metrics = [],
+  metricsLoading = false,
+  isPlatformAdmin = false,
 }) {
-  const [values, setValues] = useState({
-    ...DEFAULTS,
-    company_id: defaultCompanyId || "",
-  });
+  const muiTheme = useTheme();
+  const dispatch = useDispatch();
+
+  const [companyId, setCompanyId] = useState(defaultCompanyId || "");
+  const [metricCode, setMetricCode] = useState("");
+  const [themeKeys, setThemeKeys] = useState([]);
+  const [kpiRows, setKpiRows] = useState([]);
   const [localErrors, setLocalErrors] = useState([]);
 
-  const handleChange = (field) => (event) => {
-    const value = event.target.value;
-    setValues((prev) => ({ ...prev, [field]: value }));
+  const {
+    items: themes,
+    listLoading: themesLoading,
+    listError: themesError,
+  } = useSelector((state) => state.theme);
+  const {
+    items: kpis,
+    listLoading: kpisLoading,
+    listError: kpisError,
+  } = useSelector((state) => state.kpi);
+
+  // Fetch themes scoped to the selected company.
+  useEffect(() => {
+    if (open && companyId) {
+      dispatch(fetchThemes({ companyId, isActive: true, limit: 200 }));
+    }
+  }, [dispatch, open, companyId]);
+
+  // Fetch all active KPIs for the company once; filtering by selected themes
+  // happens client-side so toggling themes doesn't trigger refetches.
+  useEffect(() => {
+    if (open && companyId) {
+      dispatch(fetchKpis({ companyId, isActive: true, limit: 500 }));
+    }
+  }, [dispatch, open, companyId]);
+
+  // When the user changes company, clear downstream selections — old theme /
+  // KPI rows would otherwise reference a different tenant.
+  const handleSelectCompany = (newId) => {
+    if (newId === companyId) return;
+    setCompanyId(newId);
+    setThemeKeys([]);
+    setKpiRows([]);
   };
+
+  // When themes change, only drop KPI rows whose theme is no longer selected —
+  // rows tied to still-selected themes are preserved.
+  const handleChangeThemes = (newThemes) => {
+    const newKeys = newThemes.map((t) => t.theme_key);
+    setThemeKeys(newKeys);
+    setKpiRows((prev) =>
+      prev.filter((row) => {
+        if (!row.kpi_key) return true; // empty row, let the user fill it
+        const k = kpis.find((x) => x.kpi_key === row.kpi_key);
+        return !k || newKeys.includes(k.theme_key);
+      }),
+    );
+  };
+
+  const themeKeySet = useMemo(() => new Set(themeKeys), [themeKeys]);
+
+  const activeKpiKeys = useMemo(
+    () => new Set(kpiRows.map((r) => r.kpi_key).filter(Boolean)),
+    [kpiRows],
+  );
+
+  const availableKpis = useMemo(
+    () =>
+      kpis.filter(
+        (k) => k.is_active && (themeKeySet.size === 0 || themeKeySet.has(k.theme_key)),
+      ),
+    [kpis, themeKeySet],
+  );
+
+  const selectedThemes = useMemo(
+    () => themes.filter((t) => themeKeySet.has(t.theme_key)),
+    [themes, themeKeySet],
+  );
+
+  const handleAddKpiRow = () => {
+    setKpiRows((prev) => [
+      ...prev,
+      { kpi_key: "", weight: DEFAULT_WEIGHT },
+    ]);
+  };
+
+  const handleChangeKpi = (idx, kpiKey) => {
+    setKpiRows((prev) =>
+      prev.map((row, i) => (i === idx ? { ...row, kpi_key: kpiKey } : row)),
+    );
+  };
+
+  const handleChangeWeight = (idx, value) => {
+    setKpiRows((prev) =>
+      prev.map((row, i) =>
+        i === idx ? { ...row, weight: value === "" ? "" : Number(value) } : row,
+      ),
+    );
+  };
+
+  const handleRemoveRow = (idx) => {
+    setKpiRows((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const totalWeight = useMemo(
+    () =>
+      kpiRows.reduce((acc, row) => acc + (Number(row.weight) || 0), 0),
+    [kpiRows],
+  );
+
+  const selectedMetric = useMemo(
+    () => metrics.find((m) => m.metric_code === metricCode) || null,
+    [metrics, metricCode],
+  );
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const errors = localValidate(values);
+    const errors = localValidate({ companyId, metricCode, themeKeys, kpiRows });
     setLocalErrors(errors);
-    if (errors.length === 0) {
-      onSubmit(buildPayload(values));
-    }
+    if (errors.length > 0) return;
+
+    onSubmit({
+      companyId,
+      metricId: selectedMetric?.id || "",
+      metricCode,
+      kpi_mappings: kpiRows.map((row) => ({
+        kpi_key: row.kpi_key,
+        weight: Number(row.weight) || 0,
+      })),
+    });
   };
+
+  const previewParts = useMemo(() => {
+    return kpiRows
+      .filter((row) => row.kpi_key)
+      .map((row) => {
+        const k = kpis.find((x) => x.kpi_key === row.kpi_key);
+        const name = k?.display_name || row.kpi_key;
+        const weight = Number(row.weight) || 0;
+        return `(Average of KPI Scores of employees obtained in ${name} × ${weight.toFixed(1)})`;
+      });
+  }, [kpiRows, kpis]);
 
   return (
     <Dialog
       open={open}
       onClose={loading ? undefined : onClose}
-      maxWidth="sm"
+      maxWidth="md"
       fullWidth
       PaperProps={{ component: "form", onSubmit: handleSubmit, noValidate: true }}
     >
       <DialogTitle>Create CXO metric</DialogTitle>
       <DialogContent dividers>
         <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
-          Defines a new platform-level metric (a row in{" "}
-          <code>cxo_metric_master</code>) that companies can then configure
-          mappings for.
+          Configure how a CXO metric is derived from theme-scoped KPIs for a
+          company. Each KPI contributes to the metric using its weight.
         </Typography>
 
-        <Stack spacing={2}>
+        <Stack spacing={2.25}>
           <Autocomplete
             options={companies}
             loading={companiesLoading}
             getOptionLabel={(option) => option?.company_name || ""}
             isOptionEqualToValue={(a, b) => a.id === b.id}
-            value={companies.find((c) => c.id === values.company_id) || null}
+            value={companies.find((c) => c.id === companyId) || null}
             onChange={(_event, newValue) =>
-              setValues((prev) => ({
-                ...prev,
-                company_id: newValue?.id || "",
-              }))
+              handleSelectCompany(newValue?.id || "")
             }
-            disabled={loading}
+            disabled={loading || !isPlatformAdmin}
             renderInput={(params) => (
               <TextField
                 {...params}
                 label="Company"
                 required
-                placeholder="Select a company"
+                placeholder={
+                  isPlatformAdmin ? "Select a company" : "Your company"
+                }
+                helperText={
+                  !isPlatformAdmin
+                    ? "Auto-populated from your account."
+                    : undefined
+                }
                 InputProps={{
                   ...params.InputProps,
                   endAdornment: (
@@ -184,110 +282,317 @@ export default function CreateMetricDialog({
             )}
           />
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              label="Metric code"
-              value={values.metric_code}
-              onChange={handleChange("metric_code")}
-              required
-              autoFocus
-              fullWidth
-              placeholder="PRODUCTIVITY"
-              helperText="Uppercase identifier, max 30 chars. Must be unique."
-              inputProps={{ maxLength: 30 }}
-              disabled={loading}
-            />
-            <TextField
-              label="Display name"
-              value={values.display_name}
-              onChange={handleChange("display_name")}
-              required
-              fullWidth
-              placeholder="Productivity"
-              inputProps={{ maxLength: 100 }}
-              disabled={loading}
-            />
-          </Stack>
+          <TextField
+            select
+            label="CXO metric"
+            value={metricCode}
+            onChange={(event) => setMetricCode(event.target.value)}
+            required
+            fullWidth
+            disabled={loading || !companyId || metricsLoading}
+            helperText={
+              !companyId
+                ? "Select a company first."
+                : metricsLoading
+                ? "Loading metrics..."
+                : metrics.length === 0
+                ? "No CXO metrics available."
+                : undefined
+            }
+          >
+            {metrics.map((m) => (
+              <MenuItem key={m.metric_code} value={m.metric_code}>
+                {m.display_name}
+                {m.formula_type ? ` — ${m.formula_type}` : ""}
+              </MenuItem>
+            ))}
+          </TextField>
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              label="Unit"
-              value={values.unit}
-              onChange={handleChange("unit")}
-              required
-              fullWidth
-              placeholder="percent, days_per_month, ..."
-              inputProps={{ maxLength: 20 }}
-              disabled={loading}
-            />
-            <TextField
-              select
-              label="Formula type"
-              value={values.formula_type}
-              onChange={handleChange("formula_type")}
-              required
-              fullWidth
-              disabled={loading}
+          <Autocomplete
+            multiple
+            disableCloseOnSelect
+            options={themes}
+            loading={themesLoading}
+            getOptionLabel={(option) => option?.theme_display_name || ""}
+            isOptionEqualToValue={(a, b) => a.theme_key === b.theme_key}
+            value={selectedThemes}
+            onChange={(_event, newValue) => handleChangeThemes(newValue)}
+            disabled={loading || !companyId}
+            renderOption={(props, option, { selected }) => (
+              <li {...props} key={option.theme_key}>
+                <Checkbox checked={selected} sx={{ mr: 1 }} />
+                {option.theme_display_name}
+              </li>
+            )}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  size="small"
+                  label={option.theme_display_name}
+                  {...getTagProps({ index })}
+                  key={option.theme_key}
+                />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Themes"
+                required
+                placeholder={
+                  selectedThemes.length === 0 ? "Select one or more themes" : ""
+                }
+                helperText={
+                  !companyId
+                    ? "Select a company first."
+                    : themesLoading
+                    ? "Loading themes..."
+                    : themes.length === 0
+                    ? "No themes for this company."
+                    : "KPIs below are filtered by the selected themes."
+                }
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {themesLoading ? (
+                        <CircularProgress size={18} sx={{ mr: 1 }} />
+                      ) : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+          />
+
+          {themesError && <Alert severity="warning">{themesError}</Alert>}
+
+          <Box>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ mb: 1 }}
             >
-              {FORMULA_TYPES.map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Stack>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                KPI Mappings
+              </Typography>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<AddRoundedIcon />}
+                onClick={handleAddKpiRow}
+                disabled={
+                  loading ||
+                  themeKeys.length === 0 ||
+                  kpisLoading ||
+                  availableKpis.length === 0 ||
+                  activeKpiKeys.size >= availableKpis.length
+                }
+              >
+                Add KPI
+              </Button>
+            </Stack>
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              label="Scale min"
-              type="number"
-              value={values.scale_min}
-              onChange={handleChange("scale_min")}
-              fullWidth
-              inputProps={{ step: 0.01 }}
-              disabled={loading}
-              helperText="Default 0"
-            />
-            <TextField
-              label="Scale max"
-              type="number"
-              value={values.scale_max}
-              onChange={handleChange("scale_max")}
-              fullWidth
-              inputProps={{ step: 0.01 }}
-              disabled={loading}
-              helperText="Default 100"
-            />
-            <TextField
-              label="Baseline"
-              type="number"
-              value={values.baseline}
-              onChange={handleChange("baseline")}
-              fullWidth
-              inputProps={{ step: 0.01 }}
-              disabled={loading}
-              helperText="DEFICIT_SUM only; blank = NULL"
-            />
-          </Stack>
+            {kpisError && (
+              <Alert severity="warning" sx={{ mb: 1 }}>
+                {kpisError}
+              </Alert>
+            )}
 
-          <TextField
-            label="Description"
-            value={values.description}
-            onChange={handleChange("description")}
-            multiline
-            minRows={2}
-            fullWidth
-            disabled={loading}
-          />
+            {themeKeys.length === 0 ? (
+              <Box
+                sx={{
+                  py: 3,
+                  textAlign: "center",
+                  color: "text.secondary",
+                  border: `1px dashed ${muiTheme.palette.divider}`,
+                  borderRadius: 2,
+                }}
+              >
+                <Typography variant="body2">
+                  Select one or more themes to load their KPIs.
+                </Typography>
+              </Box>
+            ) : kpisLoading && availableKpis.length === 0 ? (
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ py: 2, color: "text.secondary" }}
+              >
+                <CircularProgress size={16} />
+                <Typography variant="body2">Loading KPIs...</Typography>
+              </Stack>
+            ) : kpiRows.length === 0 ? (
+              <Box
+                sx={{
+                  py: 3,
+                  textAlign: "center",
+                  color: "text.secondary",
+                  border: `1px dashed ${muiTheme.palette.divider}`,
+                  borderRadius: 2,
+                }}
+              >
+                <Typography variant="body2">
+                  {availableKpis.length === 0
+                    ? "No active KPIs configured for the selected themes."
+                    : 'Click "Add KPI" to begin mapping.'}
+                </Typography>
+              </Box>
+            ) : (
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={headerSx}>KPI</TableCell>
+                    <TableCell sx={{ ...headerSx, width: 150 }}>
+                      Weight
+                    </TableCell>
+                    <TableCell
+                      sx={{ ...headerSx, width: 60, textAlign: "right" }}
+                    >
+                      Remove
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {kpiRows.map((row, idx) => {
+                    const optionsForRow = availableKpis.filter(
+                      (k) =>
+                        k.kpi_key === row.kpi_key ||
+                        !activeKpiKeys.has(k.kpi_key),
+                    );
+                    return (
+                      <TableRow key={`kpi-row-${idx}`} hover>
+                        <TableCell>
+                          <TextField
+                            select
+                            size="small"
+                            fullWidth
+                            value={row.kpi_key}
+                            onChange={(event) =>
+                              handleChangeKpi(idx, event.target.value)
+                            }
+                            disabled={loading}
+                            displayEmpty
+                          >
+                            <MenuItem value="" disabled>
+                              Select KPI
+                            </MenuItem>
+                            {optionsForRow.map((k) => {
+                              const t = themes.find(
+                                (x) => x.theme_key === k.theme_key,
+                              );
+                              const themeLabel = t?.theme_display_name;
+                              return (
+                                <MenuItem key={k.kpi_key} value={k.kpi_key}>
+                                  {k.display_name}
+                                  {themeLabel ? (
+                                    <Typography
+                                      component="span"
+                                      variant="caption"
+                                      sx={{ ml: 1, color: "text.secondary" }}
+                                    >
+                                      · {themeLabel}
+                                    </Typography>
+                                  ) : null}
+                                </MenuItem>
+                              );
+                            })}
+                          </TextField>
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            type="number"
+                            size="small"
+                            value={row.weight}
+                            onChange={(event) =>
+                              handleChangeWeight(idx, event.target.value)
+                            }
+                            disabled={loading}
+                            inputProps={{
+                              step: WEIGHT_STEP,
+                              min: WEIGHT_MIN,
+                              max: WEIGHT_MAX,
+                              "aria-label": `Weight for row ${idx + 1}`,
+                            }}
+                            sx={{ width: 130 }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ textAlign: "right" }}>
+                          <Tooltip title="Remove row">
+                            <span>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleRemoveRow(idx)}
+                                disabled={loading}
+                                aria-label={`Remove row ${idx + 1}`}
+                              >
+                                <DeleteOutlineRoundedIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
 
-          <TextField
-            label="Methodology reference"
-            value={values.methodology_ref}
-            onChange={handleChange("methodology_ref")}
-            fullWidth
-            placeholder="Methodology §4.1"
-            disabled={loading}
-          />
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", display: "block", mt: 1 }}
+            >
+              Weight range {WEIGHT_MIN}–{WEIGHT_MAX} (step {WEIGHT_STEP}),
+              default {DEFAULT_WEIGHT}. Allows one KPI to contribute more than
+              another to the metric.
+            </Typography>
+          </Box>
+
+          {selectedMetric && previewParts.length > 0 && (
+            <Box
+              sx={{
+                p: 1.75,
+                borderRadius: 2,
+                bgcolor: "action.hover",
+                fontFamily: "monospace",
+                fontSize: 13,
+                lineHeight: 1.7,
+              }}
+            >
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                Preview
+              </Typography>
+              <Box sx={{ mt: 0.75 }}>
+                {selectedMetric.display_name} ={" "}
+                {previewParts.map((part, idx) => (
+                  <Box key={idx} component="span">
+                    {idx > 0 ? "  +  " : ""}
+                    {part}
+                  </Box>
+                ))}
+                {totalWeight > 0 ? (
+                  <Box
+                    component="span"
+                    sx={{ color: "text.secondary", display: "block", mt: 0.5 }}
+                  >
+                    ────────────────────────────────
+                    <Box component="span" sx={{ display: "block" }}>
+                      {totalWeight.toFixed(1)} (sum of weights)
+                    </Box>
+                  </Box>
+                ) : null}
+                <Box
+                  component="span"
+                  sx={{ color: "text.secondary", display: "block", mt: 0.5 }}
+                >
+                  → converted to 0–100 scale
+                </Box>
+              </Box>
+            </Box>
+          )}
         </Stack>
 
         {localErrors.length > 0 && (
@@ -300,21 +605,13 @@ export default function CreateMetricDialog({
             {error}
           </Alert>
         )}
-
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="caption" sx={{ color: "text.secondary" }}>
-            Tip: typical platform metrics are PRODUCTIVITY (WEIGHTED_AVG),
-            ABSENTEEISM (DEFICIT_SUM, baseline 2.0) and ENGAGEMENT
-            (COMPOSITE).
-          </Typography>
-        </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={loading}>
           Cancel
         </Button>
         <Button type="submit" variant="contained" disabled={loading}>
-          {loading ? "Creating..." : "Create metric"}
+          {loading ? "Saving..." : "Save metric"}
         </Button>
       </DialogActions>
     </Dialog>
