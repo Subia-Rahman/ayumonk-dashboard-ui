@@ -105,6 +105,39 @@ export function createAppTheme(mode = "dark") {
           },
         },
       },
+      MuiButton: {
+        styleOverrides: {
+          // Brand green gradient for every primary "contained" CTA across
+          // the app — Add / Save / Apply / Publish / Sign In / etc. Buttons
+          // that explicitly set color="error" | "success" | "warning" | "info"
+          // hit different slots (containedError / containedSuccess / ...) and
+          // intentionally keep MUI's semantic colors so destructive intent
+          // and status differentiation stay visually distinct.
+          containedPrimary: {
+            background:
+              "linear-gradient(135deg, rgb(44, 95, 45), rgb(109, 179, 63))",
+            color: "#fff",
+            boxShadow: "none",
+            "&:hover": {
+              background:
+                "linear-gradient(135deg, rgb(35, 78, 37), rgb(90, 162, 51))",
+              boxShadow: "0 4px 12px rgba(44, 95, 45, 0.32)",
+            },
+            "&:active": {
+              background:
+                "linear-gradient(135deg, rgb(30, 68, 32), rgb(78, 145, 44))",
+            },
+            "&.Mui-disabled": {
+              background: isDark
+                ? alpha("#d1fae5", 0.08)
+                : alpha("#0f172a", 0.08),
+              color: isDark
+                ? alpha("#f3f4f6", 0.32)
+                : alpha("#0f172a", 0.32),
+            },
+          },
+        },
+      },
       MuiOutlinedInput: {
         styleOverrides: {
           root: {

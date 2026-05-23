@@ -1163,7 +1163,7 @@ function PendingList({ links, loading }) {
                   background: item.form_url
                     ? isOverdue
                       ? `linear-gradient(135deg, #991B1B, ${C.red})`
-                      : `linear-gradient(135deg, ${C.g1}, ${C.g2})`
+                      : `linear-gradient(135deg, ${C.g1}, ${C.g3})`
                     : "rgba(255,255,255,0.06)",
                   cursor: item.form_url ? "pointer" : "not-allowed",
                   pointerEvents: item.form_url ? "auto" : "none",

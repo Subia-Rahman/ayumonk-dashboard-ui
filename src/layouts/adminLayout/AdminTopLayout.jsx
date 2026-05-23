@@ -25,7 +25,6 @@ import { iconForName, iconForSlug } from "../commonLayout/Layout";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import BusinessIcon from "@mui/icons-material/Business";
 import PeopleIcon from "@mui/icons-material/People";
-import { formatDateIST } from "../../utils/dateTime";
 import { canonicaliseRawRole } from "../../utils/roleHelper";
 
 // Dark brand palette mirroring /client/dashboard (ClientPage.jsx) so admin
@@ -65,6 +64,39 @@ function roleChipLabel(rawRole) {
   if (HR_RAW_ROLES.has(canonical)) return "HR MANAGER";
   if (CXO_RAW_ROLES.has(canonical)) return "CXO";
   return "COMPANY ADMIN";
+}
+
+// Role-aware chip + avatar colors. Mirrors the in-page "COMPANY ADMIN" pill
+// in /admin/dashboard (Dashboard.jsx) and the ROLE_COLORS palette used across
+// the client/dashboard reference: admin = purple, HR = blue, CXO = gold.
+// Tints (chip background) sit at 0.14 alpha; the brighter `fg` is used for
+// chip text and as the second stop of the avatar gradient.
+function roleTheme(rawRole) {
+  const canonical = canonicaliseRawRole(rawRole);
+  if (HR_RAW_ROLES.has(canonical)) {
+    return {
+      chipBg: "rgba(74,144,196,0.14)",
+      chipFg: "#93c5fd",
+      avatarFrom: "#4A90C4",
+      avatarTo: "#93c5fd",
+    };
+  }
+  if (CXO_RAW_ROLES.has(canonical)) {
+    return {
+      chipBg: "rgba(212,168,67,0.14)",
+      chipFg: "#fbbf24",
+      avatarFrom: "#D4A843",
+      avatarTo: "#fbbf24",
+    };
+  }
+  // Default = Company Admin (purple), matching the pill rendered inside
+  // /admin/dashboard's Admin Panel header.
+  return {
+    chipBg: "rgba(139,111,203,0.14)",
+    chipFg: "#a78bfa",
+    avatarFrom: "#8B6FCB",
+    avatarTo: "#a78bfa",
+  };
 }
 
 // Top-only admin shell. Replaces the sidebar Layout for all `/admin/*` routes
@@ -124,6 +156,7 @@ export default function AdminTopLayout({ children }) {
   const displayEmail = user?.email || "";
   const initial = (displayName.charAt(0) || "A").toUpperCase();
   const chipLabel = roleChipLabel(rawRole);
+  const chipTheme = roleTheme(rawRole);
 
   const closeMenu = () => setMenuAnchor(null);
   const handleProfile = () => {
@@ -280,14 +313,18 @@ export default function AdminTopLayout({ children }) {
               )}
             </IconButton>
           </Tooltip>
+          {/* Role chip — matches the in-page "COMPANY ADMIN" pill rendered
+              inside /admin/dashboard's header (Dashboard.jsx) and the broader
+              ROLE_COLORS palette used across /client/dashboard: fontSize 8,
+              radius 5, tight padding, role-tinted background, brighter role
+              color for text, subtle letter-spacing. */}
           <span
             style={{
               fontSize: 8,
-              background: "rgba(240,80,80,0.12)",
-              color: "#f87171",
-              border: "1px solid rgba(240,80,80,0.25)",
-              borderRadius: 6,
-              padding: "3px 9px",
+              background: chipTheme.chipBg,
+              color: chipTheme.chipFg,
+              borderRadius: 5,
+              padding: "2px 8px",
               fontWeight: 700,
               letterSpacing: 0.4,
               whiteSpace: "nowrap",
@@ -301,16 +338,19 @@ export default function AdminTopLayout({ children }) {
             onClick={(event) => setMenuAnchor(event.currentTarget)}
             sx={{ p: 0.2 }}
           >
+            {/* Avatar — same role color the chip uses, rendered as a 135°
+                gradient from the base role color to its lighter variant so
+                the chip + avatar read as a single visual unit. */}
             <div
               style={{
-                width: 34,
-                height: 34,
+                width: 28,
+                height: 28,
                 borderRadius: "50%",
-                background: `linear-gradient(135deg,${C.g1},${C.g3})`,
+                background: `linear-gradient(135deg,${chipTheme.avatarFrom},${chipTheme.avatarTo})`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: 800,
                 color: "#fff",
               }}
@@ -318,17 +358,6 @@ export default function AdminTopLayout({ children }) {
               {initial}
             </div>
           </IconButton>
-          <div
-            style={{
-              fontSize: 9,
-              color: "rgba(255,255,255,0.22)",
-              whiteSpace: "nowrap",
-            }}
-            className="admin-header-date"
-          >
-            {formatDateIST(new Date())}
-          </div>
-
           {/* Mobile hamburger — toggles a drop-down with the same top tabs */}
           <IconButton
             size="small"
@@ -345,17 +374,55 @@ export default function AdminTopLayout({ children }) {
             onClose={closeMenu}
             anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
             transformOrigin={{ vertical: "top", horizontal: "right" }}
+            slotProps={{
+              paper: {
+                sx: {
+                  bgcolor: C.card,
+                  color: "#fff",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 2,
+                  mt: 1,
+                  minWidth: 220,
+                  boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+                  "& .MuiMenuItem-root": {
+                    color: "rgba(255,255,255,0.85)",
+                    fontSize: 13,
+                    py: 1.1,
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.05)" },
+                  },
+                  "& .MuiListItemIcon-root": {
+                    color: "rgba(255,255,255,0.75)",
+                    minWidth: 30,
+                  },
+                },
+              },
+            }}
           >
             <div
               style={{
-                padding: "10px 16px",
-                minWidth: 200,
-                borderBottom: "1px solid rgba(0,0,0,0.08)",
+                padding: "12px 16px",
+                minWidth: 220,
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
               }}
             >
-              <div style={{ fontWeight: 700, fontSize: 13 }}>{displayName}</div>
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: "#fff",
+                  letterSpacing: 0.3,
+                }}
+              >
+                {displayName}
+              </div>
               {displayEmail && (
-                <div style={{ fontSize: 11, color: "rgba(0,0,0,0.55)" }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#fff",
+                    marginTop: 2,
+                  }}
+                >
                   {displayEmail}
                 </div>
               )}
@@ -459,7 +526,6 @@ export default function AdminTopLayout({ children }) {
         @media (max-width: 768px) {
           .admin-top-tabs { display: none !important; }
           .admin-role-chip { display: none !important; }
-          .admin-header-date { display: none !important; }
         }
       `}</style>
     </div>

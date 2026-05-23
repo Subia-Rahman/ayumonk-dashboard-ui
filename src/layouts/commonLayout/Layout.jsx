@@ -693,10 +693,50 @@ export default function Layout({ children, role, title }) {
             onClose={handleMenuClose}
             anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
             transformOrigin={{ vertical: "top", horizontal: "right" }}
+            slotProps={{
+              paper: {
+                sx: {
+                  bgcolor: "#111e12",
+                  color: "#fff",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 2,
+                  mt: 1,
+                  minWidth: 220,
+                  boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+                  "& .MuiMenuItem-root": {
+                    color: "rgba(255,255,255,0.85)",
+                    fontSize: 13,
+                    py: 1.1,
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.05)" },
+                  },
+                  "& .MuiListItemIcon-root": {
+                    color: "rgba(255,255,255,0.75)",
+                    minWidth: 30,
+                  },
+                },
+              },
+            }}
           >
-            <Box sx={{ px: 2, py: 1.2 }}>
-              <Typography sx={{ fontWeight: 700 }}>{displayName}</Typography>
-              <Typography variant="body2" color="text.secondary">
+            <Box
+              sx={{
+                px: 2,
+                py: 1.4,
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: "#fff",
+                  letterSpacing: 0.3,
+                }}
+              >
+                {displayName}
+              </Typography>
+              <Typography
+                sx={{ fontSize: 11, color: "#fff", mt: 0.3 }}
+              >
                 {profile?.email || "No email"}
               </Typography>
             </Box>

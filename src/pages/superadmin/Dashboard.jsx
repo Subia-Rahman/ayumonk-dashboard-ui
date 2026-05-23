@@ -631,7 +631,7 @@ export default function Dashboard() {
                 style={{
                   padding: "6px 14px",
                   borderRadius: 8,
-                  background: `linear-gradient(135deg, ${C.g1}, ${C.g2})`,
+                  background: `linear-gradient(135deg, ${C.g1}, ${C.g3})`,
                   border: "none",
                   color: "#fff",
                   fontWeight: 700,
@@ -789,7 +789,7 @@ export default function Dashboard() {
                   style={{
                     padding: "7px 20px",
                     borderRadius: 8,
-                    background: `linear-gradient(135deg, ${C.g1}, ${C.g2})`,
+                    background: `linear-gradient(135deg, ${C.g1}, ${C.g3})`,
                     border: "none",
                     color: "#fff",
                     fontWeight: 700,

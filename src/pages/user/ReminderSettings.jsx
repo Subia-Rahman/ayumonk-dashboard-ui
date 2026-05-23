@@ -1016,8 +1016,8 @@ export default function ReminderSettings() {
                 fontWeight: 700,
                 fontSize: 12,
                 background: saved
-                  ? C.g2
-                  : `linear-gradient(135deg, ${C.g1}, ${C.g2})`,
+                  ? C.g3
+                  : `linear-gradient(135deg, ${C.g1}, ${C.g3})`,
                 color: "#fff",
                 transition: "all 0.2s",
               }}
