@@ -6,7 +6,11 @@ import Login from "../pages/auth/Login";
 import AccessDenied from "../pages/common/AccessDenied";
 import AppRoutes from "./AppRoutes";
 import RouteGuard from "./RouteGuard";
-import { getHomePath, isPathAllowedForRole } from "../utils/roleHelper";
+import {
+  getHomePath,
+  isOtherRoleHomePath,
+  isPathAllowedForRole,
+} from "../utils/roleHelper";
 
 function Protected({ children, codename, bypass }) {
   return (
@@ -21,9 +25,15 @@ function LoginRoute({ fallback }) {
   const authenticated = useSelector((state) => state.auth.isAuthenticated);
   const role = useSelector((state) => state.auth.role);
   const isPlatformAdmin = useSelector((state) => state.auth.isPlatformAdmin);
+  const rawRole = useSelector((state) => state.auth.rawRole);
   const fromPath = location.state?.from?.pathname;
+  // See Login.jsx for the same guard — `from` may be a stale URL pointing at
+  // a different role's home, in which case we anchor on the new user's own
+  // fallback instead of bouncing them onto the previous account's dashboard.
   const honorFrom =
-    fromPath && isPathAllowedForRole(fromPath, { role, isPlatformAdmin });
+    fromPath &&
+    isPathAllowedForRole(fromPath, { role, isPlatformAdmin }) &&
+    !isOtherRoleHomePath(fromPath, { isPlatformAdmin, role, rawRole });
   const redirectTarget = honorFrom
     ? `${fromPath}${location.state.from.search || ""}${location.state.from.hash || ""}`
     : fallback;

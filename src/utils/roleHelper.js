@@ -116,6 +116,27 @@ export const isPathAllowedForRole = (pathname, { role, isPlatformAdmin } = {}) =
   return false;
 };
 
+// Every role / rawRole combination that has a dedicated landing page. When a
+// stale `from` redirect happens to match one of these and isn't the new
+// user's *own* home, we treat it as session bleed-over from the previous
+// account and ignore it — Company Admin and HR Manager both have role
+// "admin" but different homes (/admin/dashboard vs /admin/hr-dashboard), and
+// isPathAllowedForRole can't tell them apart on URL alone.
+const ROLE_HOME_PATHS = new Set([
+  "/super-admin/dashboard",
+  "/admin/dashboard",
+  "/admin/hr-dashboard",
+  "/user/dashboard",
+]);
+
+export const isOtherRoleHomePath = (
+  fromPath,
+  { isPlatformAdmin, role, rawRole } = {},
+) => {
+  if (!fromPath || !ROLE_HOME_PATHS.has(fromPath)) return false;
+  return fromPath !== getHomePath({ isPlatformAdmin, role, rawRole });
+};
+
 // Back-compat shim used by older callers; prefer getHomePath above.
 export const getHomePathForRole = (role) =>
   getHomePath({ isPlatformAdmin: role === "superadmin", role });
