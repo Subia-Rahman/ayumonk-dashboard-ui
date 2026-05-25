@@ -55,6 +55,7 @@ function SectionCard({ children, sx }) {
   );
 }
 
+
 export default function Permissions() {
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -68,9 +69,12 @@ export default function Permissions() {
   const { canCreate } = usePermissions();
   const canCreatePermissions = canCreate("permissions");
 
-  const [search, setSearch] = useState("");
-  const [moduleFilter, setModuleFilter] = useState("");
-  const [actionFilter, setActionFilter] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [moduleFilterInput, setModuleFilterInput] = useState("");
+  const [appliedModuleFilter, setAppliedModuleFilter] = useState("");
+  const [actionFilterInput, setActionFilterInput] = useState("");
+  const [appliedActionFilter, setAppliedActionFilter] = useState("");
 
   useEffect(() => {
     dispatch(fetchPermissionsMaster());
@@ -97,25 +101,35 @@ export default function Permissions() {
     dispatch(fetchPermissionsMaster());
   };
 
+  const handleApplyFilters = () => {
+    setAppliedSearch(searchInput);
+    setAppliedModuleFilter(moduleFilterInput);
+    setAppliedActionFilter(actionFilterInput);
+  };
+
   const resetFilters = () => {
-    setSearch("");
-    setModuleFilter("");
-    setActionFilter("");
+    setSearchInput("");
+    setModuleFilterInput("");
+    setActionFilterInput("");
+    setAppliedSearch("");
+    setAppliedModuleFilter("");
+    setAppliedActionFilter("");
+    dispatch(clearPermissionMasterListState());
   };
 
   const filteredRows = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const term = appliedSearch.trim().toLowerCase();
     return items.filter((item) => {
       const matchesSearch =
         !term ||
         [item.name, item.codename, item.resource, item.module, item.action]
           .filter(Boolean)
           .some((value) => value.toLowerCase().includes(term));
-      const matchesModule = !moduleFilter || item.module === moduleFilter;
-      const matchesAction = !actionFilter || item.action === actionFilter;
+      const matchesModule = !appliedModuleFilter || item.module === appliedModuleFilter;
+      const matchesAction = !appliedActionFilter || item.action === appliedActionFilter;
       return matchesSearch && matchesModule && matchesAction;
     });
-  }, [actionFilter, items, moduleFilter, search]);
+  }, [appliedActionFilter, items, appliedModuleFilter, appliedSearch]);
 
   const columns = useMemo(
     () => [
@@ -308,16 +322,16 @@ export default function Permissions() {
             >
               <TextField
                 label="Search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
                 fullWidth
                 sx={filterFieldSx}
               />
               <TextField
                 label="Module"
                 select
-                value={moduleFilter}
-                onChange={(event) => setModuleFilter(event.target.value)}
+                value={moduleFilterInput}
+                onChange={(event) => setModuleFilterInput(event.target.value)}
                 fullWidth
                 sx={filterFieldSx}
               >
@@ -331,8 +345,8 @@ export default function Permissions() {
               <TextField
                 label="Action"
                 select
-                value={actionFilter}
-                onChange={(event) => setActionFilter(event.target.value)}
+                value={actionFilterInput}
+                onChange={(event) => setActionFilterInput(event.target.value)}
                 fullWidth
                 sx={filterFieldSx}
               >
@@ -345,7 +359,7 @@ export default function Permissions() {
               </TextField>
               <Button
                 variant="outlined"
-                onClick={refresh}
+                onClick={handleApplyFilters}
                 disabled={listLoading}
                 sx={{ minHeight: 56, px: 3, whiteSpace: "nowrap" }}
               >

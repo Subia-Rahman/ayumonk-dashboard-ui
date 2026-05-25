@@ -67,7 +67,6 @@ export default function KpiSuggestionMapping() {
   const { items: themeItems } = useSelector((state) => state.theme);
   const {
     items,
-    total,
     listLoading,
     listError,
     deleteLoading,
@@ -80,50 +79,63 @@ export default function KpiSuggestionMapping() {
   const canEditMappings = canEdit("kpi-suggestion-mapping");
   const canDeleteMappings = canDelete("kpi-suggestion-mapping");
 
-  const [filters, setFilters] = useState({
-    kpi_key: "",
-    question_key: "",
-    suggestion_id: "",
-    trigger_mode: "",
-    status: "all",
-  });
+  const defaultFilters = useMemo(
+    () => ({
+      kpi_key: "",
+      question_key: "",
+      suggestion_id: "",
+      trigger_mode: "",
+      status: "all",
+    }),
+    [],
+  );
 
-  const fetchList = useCallback(() => {
+  const [draftFilters, setDraftFilters] = useState(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
+
+  const buildListParams = useCallback((sourceFilters) => {
     const params = {
       skip: 0,
       limit: 50,
     };
 
-    if (filters.kpi_key.trim()) {
-      params.kpi_key = filters.kpi_key.trim();
+    if (sourceFilters.kpi_key.trim()) {
+      params.kpi_key = sourceFilters.kpi_key.trim();
     }
 
-    if (filters.suggestion_id.trim()) {
-      params.suggestion_id = filters.suggestion_id.trim();
+    if (sourceFilters.suggestion_id.trim()) {
+      params.suggestion_id = sourceFilters.suggestion_id.trim();
     }
 
-    if (filters.question_key.trim()) {
-      params.question_key = filters.question_key.trim();
+    if (sourceFilters.question_key.trim()) {
+      params.question_key = sourceFilters.question_key.trim();
     }
 
-    if (filters.trigger_mode.trim()) {
-      params.trigger_mode = filters.trigger_mode.trim();
+    if (sourceFilters.trigger_mode.trim()) {
+      params.trigger_mode = sourceFilters.trigger_mode.trim();
     }
 
-    if (filters.status !== "all") {
-      params.is_active = filters.status === "active";
+    if (sourceFilters.status !== "all") {
+      params.is_active = sourceFilters.status === "active";
     }
 
-    dispatch(fetchKpiSuggestionMappings(params));
-  }, [dispatch, filters]);
+    return params;
+  }, []);
+
+  const fetchList = useCallback(
+    (sourceFilters = appliedFilters) => {
+      dispatch(fetchKpiSuggestionMappings(buildListParams(sourceFilters)));
+    },
+    [appliedFilters, buildListParams, dispatch],
+  );
 
   useEffect(() => {
     dispatch(fetchThemes({ limit: 100, isActive: true }));
     dispatch(fetchKpis({ limit: 100, isActive: true }));
     dispatch(fetchQuestions({ limit: 100, isActive: true }));
     dispatch(fetchAdminSuggestions({ limit: 100, is_active: true }));
-    fetchList();
-  }, [dispatch, fetchList]);
+    dispatch(fetchKpiSuggestionMappings(buildListParams(defaultFilters)));
+  }, [buildListParams, defaultFilters, dispatch]);
 
   useEffect(() => {
     return () => {
@@ -142,16 +154,15 @@ export default function KpiSuggestionMapping() {
     }
   }, [dispatch]);
 
+  const applyFilters = () => {
+    setAppliedFilters(draftFilters);
+    fetchList(draftFilters);
+  };
+
   const resetFilters = () => {
-    const nextFilters = {
-      kpi_key: "",
-      question_key: "",
-      suggestion_id: "",
-      trigger_mode: "",
-      status: "all",
-    };
-    setFilters(nextFilters);
-    dispatch(fetchKpiSuggestionMappings({ skip: 0, limit: 50 }));
+    setDraftFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
+    dispatch(fetchKpiSuggestionMappings(buildListParams(defaultFilters)));
   };
 
   const columns = useMemo(
@@ -303,12 +314,50 @@ export default function KpiSuggestionMapping() {
   );
 
   const filteredQuestionItems = useMemo(() => {
-    if (!filters.kpi_key) {
+    if (!draftFilters.kpi_key) {
       return questionItems;
     }
 
-    return questionItems.filter((item) => item.kpi_key === filters.kpi_key);
-  }, [filters.kpi_key, questionItems]);
+    return questionItems.filter((item) => item.kpi_key === draftFilters.kpi_key);
+  }, [draftFilters.kpi_key, questionItems]);
+
+  const selectedAppliedQuestion = useMemo(
+    () =>
+      questionItems.find(
+        (item) => String(item.id) === String(appliedFilters.question_key),
+      ) || null,
+    [appliedFilters.question_key, questionItems],
+  );
+
+  const filteredRows = useMemo(() => {
+    return items.filter((item) => {
+      const matchesKpi =
+        !appliedFilters.kpi_key || item.kpi_key === appliedFilters.kpi_key;
+      const matchesSuggestion =
+        !appliedFilters.suggestion_id ||
+        String(item.suggestion_id) === String(appliedFilters.suggestion_id);
+      const matchesTriggerMode =
+        !appliedFilters.trigger_mode ||
+        item.trigger_mode === appliedFilters.trigger_mode;
+      const matchesStatus =
+        appliedFilters.status === "all" ||
+        (appliedFilters.status === "active" ? item.is_active : !item.is_active);
+
+      const matchesQuestion =
+        !appliedFilters.question_key ||
+        String(item.question_key) === String(appliedFilters.question_key) ||
+        String(item.question_code) === String(selectedAppliedQuestion?.question_code || "") ||
+        String(item.question_key) === String(selectedAppliedQuestion?.question_code || "");
+
+      return (
+        matchesKpi &&
+        matchesSuggestion &&
+        matchesTriggerMode &&
+        matchesStatus &&
+        matchesQuestion
+      );
+    });
+  }, [appliedFilters, items, selectedAppliedQuestion]);
 
   const themeNameByKey = useMemo(
     () =>
@@ -391,16 +440,16 @@ export default function KpiSuggestionMapping() {
             <TextField
               label="KPI"
               select
-              value={filters.kpi_key}
+              value={draftFilters.kpi_key}
               onChange={(event) =>
-                setFilters((current) => ({
+                setDraftFilters((current) => ({
                   ...current,
                   kpi_key: event.target.value,
                   question_key:
                     current.question_key &&
                     !questionItems.some(
                       (item) =>
-                        item.question_code === current.question_key &&
+                        String(item.id) === String(current.question_key) &&
                         item.kpi_key === event.target.value,
                     )
                       ? ""
@@ -420,9 +469,9 @@ export default function KpiSuggestionMapping() {
             <TextField
               label="Question"
               select
-              value={filters.question_key}
+              value={draftFilters.question_key}
               onChange={(event) =>
-                setFilters((current) => ({
+                setDraftFilters((current) => ({
                   ...current,
                   question_key: event.target.value,
                 }))
@@ -432,17 +481,17 @@ export default function KpiSuggestionMapping() {
             >
               <MenuItem value="">All Questions</MenuItem>
               {filteredQuestionItems.map((item) => (
-                <MenuItem key={item.id} value={item.question_code}>
-                  {item.question_code}
+                <MenuItem key={item.id} value={item.id}>
+                  {item.question_code || item.question_text || item.id}
                 </MenuItem>
               ))}
             </TextField>
             <TextField
               label="Suggestion"
               select
-              value={filters.suggestion_id}
+              value={draftFilters.suggestion_id}
               onChange={(event) =>
-                setFilters((current) => ({
+                setDraftFilters((current) => ({
                   ...current,
                   suggestion_id: event.target.value,
                 }))
@@ -460,9 +509,9 @@ export default function KpiSuggestionMapping() {
             <TextField
               label="Trigger Mode"
               select
-              value={filters.trigger_mode}
+              value={draftFilters.trigger_mode}
               onChange={(event) =>
-                setFilters((current) => ({
+                setDraftFilters((current) => ({
                   ...current,
                   trigger_mode: event.target.value,
                 }))
@@ -479,9 +528,9 @@ export default function KpiSuggestionMapping() {
             <TextField
               label="Status"
               select
-              value={filters.status}
+              value={draftFilters.status}
               onChange={(event) =>
-                setFilters((current) => ({ ...current, status: event.target.value }))
+                setDraftFilters((current) => ({ ...current, status: event.target.value }))
               }
               fullWidth
               sx={filterFieldSx}
@@ -494,7 +543,7 @@ export default function KpiSuggestionMapping() {
             </TextField>
             <Button
               variant="outlined"
-              onClick={fetchList}
+              onClick={applyFilters}
               disabled={listLoading}
               sx={{ minHeight: 56, px: 3, whiteSpace: "nowrap" }}
             >
@@ -510,13 +559,13 @@ export default function KpiSuggestionMapping() {
           </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Total mappings: {total || items.length}
+            Showing {filteredRows.length} mappings
           </Typography>
 
           <Box sx={{ width: "100%", overflowX: "auto" }}>
             <Box sx={{ height: 560, width: "100%" }}>
               <DataGrid
-                rows={items}
+                rows={filteredRows}
                 columns={columns}
                 loading={listLoading}
                 disableRowSelectionOnClick

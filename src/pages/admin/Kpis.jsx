@@ -88,6 +88,14 @@ export default function Kpis({ role = "admin" }) {
     [themeItems],
   );
 
+  const filteredThemeItems = useMemo(
+    () =>
+      filters.companyId
+        ? themeItems.filter((item) => item.company_id === filters.companyId)
+        : themeItems,
+    [filters.companyId, themeItems],
+  );
+
   const companyNameById = useMemo(
     () =>
       companies.reduce((accumulator, company) => {
@@ -102,13 +110,8 @@ export default function Kpis({ role = "admin" }) {
   }, [dispatch]);
 
   useEffect(() => {
-    dispatch(
-      fetchThemes({
-        isActive: true,
-        companyId: filters.companyId || undefined,
-      }),
-    );
-  }, [filters.companyId, dispatch]);
+    dispatch(fetchThemes({ limit: 500, isActive: true }));
+  }, [dispatch]);
 
   useEffect(() => {
     dispatch(
@@ -130,12 +133,7 @@ export default function Kpis({ role = "admin" }) {
 
   const handleRefresh = () => {
     dispatch(fetchCompanies());
-    dispatch(
-      fetchThemes({
-        isActive: true,
-        companyId: appliedFilters.companyId || undefined,
-      }),
-    );
+    dispatch(fetchThemes({ limit: 500, isActive: true }));
     dispatch(
       fetchKpis({
         search: appliedFilters.search.trim(),
@@ -437,7 +435,7 @@ export default function Kpis({ role = "admin" }) {
               sx={filterFieldSx}
             >
               <MenuItem value="">All Themes</MenuItem>
-              {themeItems.map((item) => (
+              {filteredThemeItems.map((item) => (
                 <MenuItem key={item.theme_key} value={item.theme_key}>
                   {item.theme_display_name}
                 </MenuItem>

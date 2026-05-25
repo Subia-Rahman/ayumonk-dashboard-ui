@@ -125,13 +125,18 @@ export default function SuggestionMaster() {
   const canEditSuggestions = canEdit("suggestion-master");
   const canDeleteSuggestions = canDelete("suggestion-master");
 
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [doshaFilter, setDoshaFilter] = useState("");
-  const [difficultyFilter, setDifficultyFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [typeFilterInput, setTypeFilterInput] = useState("");
+  const [appliedTypeFilter, setAppliedTypeFilter] = useState("");
+  const [doshaFilterInput, setDoshaFilterInput] = useState("");
+  const [appliedDoshaFilter, setAppliedDoshaFilter] = useState("");
+  const [difficultyFilterInput, setDifficultyFilterInput] = useState("");
+  const [appliedDifficultyFilter, setAppliedDifficultyFilter] = useState("");
+  const [statusFilterInput, setStatusFilterInput] = useState("all");
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState("all");
 
-  const fetchList = () => {
+  const fetchList = (search = appliedSearch, typeFilter = appliedTypeFilter, statusFilter = appliedStatusFilter) => {
     const params = {
       skip: 0,
       limit: 50,
@@ -152,6 +157,33 @@ export default function SuggestionMaster() {
     dispatch(fetchAdminSuggestions(params));
   };
 
+  const handleApplyFilters = () => {
+    setAppliedSearch(searchInput);
+    setAppliedTypeFilter(typeFilterInput);
+    setAppliedDoshaFilter(doshaFilterInput);
+    setAppliedDifficultyFilter(difficultyFilterInput);
+    setAppliedStatusFilter(statusFilterInput);
+    
+    const params = {
+      skip: 0,
+      limit: 50,
+    };
+
+    if (searchInput.trim()) {
+      params.search = searchInput.trim();
+    }
+
+    if (typeFilterInput) {
+      params.suggestion_type = typeFilterInput;
+    }
+
+    if (statusFilterInput !== "all") {
+      params.is_active = statusFilterInput === "active";
+    }
+
+    dispatch(fetchAdminSuggestions(params));
+  };
+
   useEffect(() => {
     fetchList();
   }, []);
@@ -164,7 +196,7 @@ export default function SuggestionMaster() {
   }, [dispatch]);
 
   const filteredRows = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const term = appliedSearch.trim().toLowerCase();
 
     return items.filter((item) => {
       const matchesSearch =
@@ -172,13 +204,13 @@ export default function SuggestionMaster() {
         [item.title, item.description, item.suggestion_type, item.dosha_type, item.url]
           .filter(Boolean)
           .some((value) => value.toLowerCase().includes(term));
-      const matchesType = !typeFilter || item.suggestion_type === typeFilter;
-      const matchesDosha = !doshaFilter || item.dosha_type === doshaFilter;
+      const matchesType = !appliedTypeFilter || item.suggestion_type === appliedTypeFilter;
+      const matchesDosha = !appliedDoshaFilter || item.dosha_type === appliedDoshaFilter;
       const matchesDifficulty =
-        !difficultyFilter || item.difficulty === difficultyFilter;
+        !appliedDifficultyFilter || item.difficulty === appliedDifficultyFilter;
       const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" ? item.is_active : !item.is_active);
+        appliedStatusFilter === "all" ||
+        (appliedStatusFilter === "active" ? item.is_active : !item.is_active);
 
       return (
         matchesSearch &&
@@ -188,7 +220,7 @@ export default function SuggestionMaster() {
         matchesStatus
       );
     });
-  }, [difficultyFilter, doshaFilter, items, search, statusFilter, typeFilter]);
+  }, [appliedDifficultyFilter, appliedDoshaFilter, items, appliedSearch, appliedStatusFilter, appliedTypeFilter]);
 
   const handleDelete = async (suggestionId, title) => {
     if (!window.confirm(`Delete suggestion "${title}"?`)) return;
@@ -201,11 +233,16 @@ export default function SuggestionMaster() {
   };
 
   const resetFilters = () => {
-    setSearch("");
-    setTypeFilter("");
-    setDoshaFilter("");
-    setDifficultyFilter("");
-    setStatusFilter("all");
+    setSearchInput("");
+    setTypeFilterInput("");
+    setDoshaFilterInput("");
+    setDifficultyFilterInput("");
+    setStatusFilterInput("all");
+    setAppliedSearch("");
+    setAppliedTypeFilter("");
+    setAppliedDoshaFilter("");
+    setAppliedDifficultyFilter("");
+    setAppliedStatusFilter("all");
     dispatch(
       fetchAdminSuggestions({
         skip: 0,
@@ -505,16 +542,16 @@ export default function SuggestionMaster() {
               >
                 <TextField
                   label="Search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
                   fullWidth
                   sx={filterFieldSx}
                 />
                 <TextField
                   label="Type"
                   select
-                  value={typeFilter}
-                  onChange={(event) => setTypeFilter(event.target.value)}
+                  value={typeFilterInput}
+                  onChange={(event) => setTypeFilterInput(event.target.value)}
                   fullWidth
                   sx={filterFieldSx}
                 >
@@ -528,8 +565,8 @@ export default function SuggestionMaster() {
                 <TextField
                   label="Dosha"
                   select
-                  value={doshaFilter}
-                  onChange={(event) => setDoshaFilter(event.target.value)}
+                  value={doshaFilterInput}
+                  onChange={(event) => setDoshaFilterInput(event.target.value)}
                   fullWidth
                   sx={filterFieldSx}
                 >
@@ -543,8 +580,8 @@ export default function SuggestionMaster() {
                 <TextField
                   label="Difficulty"
                   select
-                  value={difficultyFilter}
-                  onChange={(event) => setDifficultyFilter(event.target.value)}
+                  value={difficultyFilterInput}
+                  onChange={(event) => setDifficultyFilterInput(event.target.value)}
                   fullWidth
                   sx={filterFieldSx}
                 >
@@ -558,8 +595,8 @@ export default function SuggestionMaster() {
                 <TextField
                   label="Status"
                   select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
+                  value={statusFilterInput}
+                  onChange={(event) => setStatusFilterInput(event.target.value)}
                   fullWidth
                   sx={filterFieldSx}
                 >
@@ -569,7 +606,7 @@ export default function SuggestionMaster() {
                 </TextField>
                 <Button
                   variant="outlined"
-                  onClick={fetchList}
+                  onClick={handleApplyFilters}
                   disabled={listLoading}
                   sx={{ minHeight: 56, px: 3, whiteSpace: "nowrap" }}
                 >

@@ -258,8 +258,11 @@ export default function Roles() {
   const canDeleteRoles = canDelete("roles");
 
   const [tenantId, setTenantId] = useState(selectedTenantId || "");
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [statusFilterInput, setStatusFilterInput] = useState("all");
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState("all");
+  const [appliedTenantId, setAppliedTenantId] = useState("");
   const [detailDialog, setDetailDialog] = useState(null);
 
   useEffect(() => {
@@ -267,10 +270,10 @@ export default function Roles() {
   }, [dispatch]);
 
   useEffect(() => {
-    if (tenantId) {
-      dispatch(fetchRolesByTenant(tenantId));
+    if (appliedTenantId) {
+      dispatch(fetchRolesByTenant(appliedTenantId));
     }
-  }, [dispatch, tenantId]);
+  }, [dispatch, appliedTenantId]);
 
   useEffect(() => {
     return () => {
@@ -336,21 +339,32 @@ export default function Roles() {
     }
   };
 
+  const handleApplyFilters = () => {
+    setAppliedTenantId(tenantId);
+    setAppliedSearch(searchInput);
+    setAppliedStatusFilter(statusFilterInput);
+  };
+
   const resetFilters = () => {
-    setSearch("");
-    setStatusFilter("all");
+    setTenantId("");
+    setSearchInput("");
+    setStatusFilterInput("all");
+    setAppliedTenantId("");
+    setAppliedSearch("");
+    setAppliedStatusFilter("all");
+    dispatch(clearRoleListState());
   };
 
   const filteredRows = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const term = appliedSearch.trim().toLowerCase();
     return items.filter((item) => {
       const matchesSearch = !term || item.name.toLowerCase().includes(term);
       const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" ? item.is_active : !item.is_active);
+        appliedStatusFilter === "all" ||
+        (appliedStatusFilter === "active" ? item.is_active : !item.is_active);
       return matchesSearch && matchesStatus;
     });
-  }, [items, search, statusFilter]);
+  }, [items, appliedSearch, appliedStatusFilter]);
 
   const companyNameById = useMemo(() => {
     const map = new Map();
@@ -639,16 +653,16 @@ export default function Roles() {
               </TextField>
               <TextField
                 label="Search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
                 fullWidth
                 sx={filterFieldSx}
               />
               <TextField
                 label="Status"
                 select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
+                value={statusFilterInput}
+                onChange={(event) => setStatusFilterInput(event.target.value)}
                 fullWidth
                 sx={filterFieldSx}
               >
@@ -658,7 +672,7 @@ export default function Roles() {
               </TextField>
               <Button
                 variant="outlined"
-                onClick={refresh}
+                onClick={handleApplyFilters}
                 disabled={listLoading || !tenantId}
                 sx={{ minHeight: 56, px: 3, whiteSpace: "nowrap" }}
               >
@@ -674,9 +688,9 @@ export default function Roles() {
             </Box>
 
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {tenantId
+              {appliedTenantId
                 ? `Showing ${filteredRows.length} role${filteredRows.length === 1 ? "" : "s"}`
-                : "Select a tenant to load roles."}
+                : "Select a tenant and click 'Apply Filters' to load roles."}
             </Typography>
 
             <Box sx={{ width: "100%", overflowX: "auto" }}>
