@@ -193,4 +193,47 @@ export const API_URLS = {
     `/config/api/v1/admin/cxo-kpi-mapping/${mappingId}`,
   cxoKpiMappingStatus: (mappingId) =>
     `/config/api/v1/admin/cxo-kpi-mapping/${mappingId}/status`,
+
+  // Wellness Dimensions — platform-level dimension taxonomy plus KPI
+  // mappings beneath each dimension. Two modules, same /dimensions prefix:
+  //   GET    /dimensions                                        → list with kpi_count
+  //   POST   /dimensions                                        → create
+  //   PATCH  /dimensions/{id}                                   → update label / order / active
+  //   DELETE /dimensions/{id}                                   → hard delete (rejects if mappings)
+  //   GET    /dimensions/{id}/mappings                          → mappings (active + inactive)
+  //   POST   /dimensions/{id}/mappings                          → add KPI to dimension
+  //   PATCH  /dimensions/{id}/mappings/{mapping_id}             → update weight / order / active
+  //   DELETE /dimensions/{id}/mappings/{mapping_id}             → hard delete
+  dimensions: "/config/api/v1/dimensions",
+  dimensionById: (dimensionId) => `/config/api/v1/dimensions/${dimensionId}`,
+  dimensionMappings: (dimensionId) =>
+    `/config/api/v1/dimensions/${dimensionId}/mappings`,
+  dimensionMappingById: (dimensionId, mappingId) =>
+    `/config/api/v1/dimensions/${dimensionId}/mappings/${mappingId}`,
+
+  // HR-facing CXO metric read endpoints — used by the HR Analytics dashboard
+  // to render the Productivity / Engagement / Absenteeism chart. Tenant is
+  // derived from the JWT for company-tier callers (HR / admin / cxo); the
+  // `company_id` query param is only honoured for platform admins.
+  //   GET /config/api/v1/hr/cxo-metrics?metric=productivity        → by_department + by_age_band rows
+  //   GET /config/api/v1/hr/cxo-metrics/definitions                → tabs (metrics with an active mapping)
+  hrCxoMetrics: "/config/api/v1/hr/cxo-metrics",
+  hrCxoMetricsDefinitions: "/config/api/v1/hr/cxo-metrics/definitions",
+
+  // HR Analytics charts — three endpoints drive the "Wellness by Dimension"
+  // and "Gender-wise Wellness & Productivity" cards. company_id is derived
+  // from the JWT by the backend; the frontend never passes it.
+  //   GET /config/api/v1/hr/wellness-dimensions
+  //     → [{ key, label, order }, ...] with "wellnessindex" always first
+  //   GET /config/api/v1/hr/wellness-by-dimension?dimension=<key>
+  //     → { dimension, by_department: [...], by_location: [...] }
+  //   GET /config/api/v1/hr/gender-wellness
+  //     → [{ gender, wellness_score, productivity_score | null }, ...]
+  hrWellnessDimensions: "/config/api/v1/hr/wellness-dimensions",
+  hrWellnessByDimension: "/config/api/v1/hr/wellness-by-dimension",
+  hrGenderWellness: "/config/api/v1/hr/gender-wellness",
+  //   GET /config/api/v1/hr/heatmap/location-department
+  //     → 2D wellness scores. Accepts several response shapes; the slice
+  //       normalizes to { locations: [...], departments: [...], cells: [{location, department, value}] }
+  hrHeatmapLocationDept: "/config/api/v1/hr/heatmap/location-department",
 };

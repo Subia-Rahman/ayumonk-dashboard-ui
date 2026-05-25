@@ -242,6 +242,11 @@ const superAdminItems = [
     to: "/super-admin/cxo-metrics",
     icon: <InsightsOutlinedIcon />,
   },
+    {
+    label: "Wellness Dimensions",
+    to: "/super-admin/wellness-dimensions",
+    icon: <InsightsOutlinedIcon />,
+  },
   { label: "Menus", to: "/super-admin/menus", icon: <MenuBookOutlinedIcon /> },
 ];
 

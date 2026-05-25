@@ -810,9 +810,9 @@ function PersistedKpiRowsPanel({
         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
           CXO Metrics Mapping
         </Typography>
-        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+        {/* <Typography variant="caption" sx={{ color: "text.secondary" }}>
           Bound via GET /admin/cxo-kpi-mapping on page load.
-        </Typography>
+        </Typography> */}
       </Stack>
 
       {error && (
@@ -905,27 +905,12 @@ function PersistedKpiRowsTable({
                     alignItems="center"
                     sx={{ minWidth: 0 }}
                   >
-                    <Stack spacing={0} sx={{ minWidth: 0 }}>
-                      <Typography
-                        sx={{ fontSize: 13, fontWeight: 600 }}
-                        noWrap
-                      >
-                        {row.kpi_name || "Unnamed KPI"}
-                      </Typography>
-                      {row.kpi_key && (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: "text.secondary",
-                            fontFamily: "monospace",
-                            fontSize: 10,
-                          }}
-                          noWrap
-                        >
-                          {row.kpi_key}
-                        </Typography>
-                      )}
-                    </Stack>
+                    <Typography
+                      sx={{ fontSize: 13, fontWeight: 600 }}
+                      noWrap
+                    >
+                      {row.kpi_name || "Unnamed KPI"}
+                    </Typography>
                     {!row.is_active && (
                       <Chip
                         size="small"

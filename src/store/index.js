@@ -26,6 +26,8 @@ import reminderSettingsReducer from "./reminderSettingsSlice";
 import notificationsReducer from "./notificationsSlice";
 import rbacMatrixReducer from "./rbacMatrixSlice";
 import cxoMetricsReducer from "./cxoMetricsSlice";
+import wellnessDimensionsReducer from "./wellnessDimensionsSlice";
+import hrAnalyticsReducer from "./hrAnalyticsSlice";
 import rbacInvalidationMiddleware from "./middleware/rbacInvalidation";
 
 const store = configureStore({
@@ -57,6 +59,8 @@ const store = configureStore({
     notifications: notificationsReducer,
     rbacMatrix: rbacMatrixReducer,
     cxoMetrics: cxoMetricsReducer,
+    wellnessDimensions: wellnessDimensionsReducer,
+    hrAnalytics: hrAnalyticsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(rbacInvalidationMiddleware),

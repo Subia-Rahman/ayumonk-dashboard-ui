@@ -52,6 +52,7 @@ import MenuForm from "../pages/superadmin/MenuForm";
 import MenuView from "../pages/superadmin/MenuView";
 import Departments from "../pages/superadmin/Departments";
 import CxoMetricsConfig from "../pages/superadmin/CxoMetricsConfig";
+import WellnessDimensionsConfig from "../pages/superadmin/WellnessDimensionsConfig";
 import ClientPage from "../pages/hidden/ClientPage";
 import PwaMobile from "../pages/hidden/PwaMobile";
 import AccessDenied from "../pages/common/AccessDenied";
@@ -739,6 +740,14 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute codename="cxo_metrics:read">
             <CxoMetricsConfig />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/wellness-dimensions"
+        element={
+          <ProtectedRoute codename="wellness_dimensions:read">
+            <WellnessDimensionsConfig />
           </ProtectedRoute>
         }
       />
