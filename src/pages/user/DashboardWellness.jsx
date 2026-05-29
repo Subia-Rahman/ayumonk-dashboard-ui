@@ -317,8 +317,6 @@ function KpiTile({ item, sparkValues, selected = false, onClick }) {
     <div
       onClick={onClick}
       style={{
-        minWidth: 88,
-        flexShrink: 0,
         background: selected ? item.color + "22" : "rgba(255,255,255,0.03)",
         border: `1px solid ${selected ? item.color : item.color + "33"}`,
         borderRadius: 12,
@@ -533,13 +531,14 @@ export default function DashboardWellness() {
       {!dashboardError && !dashboardLoading && metrics.length > 0 && (
         <Box
           sx={{
-            display: "flex",
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "repeat(2, 1fr)",
+              sm: "repeat(3, 1fr)",
+              md: "repeat(4, 1fr)",
+            },
             gap: "8px",
-            overflowX: "auto",
-            pb: "8px",
             mb: "18px",
-            scrollbarWidth: "none",
-            "&::-webkit-scrollbar": { display: "none" },
           }}
         >
           {metrics.map((item) => (

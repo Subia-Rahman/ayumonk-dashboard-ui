@@ -8,10 +8,10 @@ const BACKGROUND_COLOR = "#f7f2e9";
 
 export default defineConfig({
   server: {
-    allowedHosts: [".ngrok-free.dev", ".ngrok-free.app", ".ngrok.io"],
+    allowedHosts: [".ngrok-free.dev", ".ngrok-free.app", ".ngrok.io", "dev.ayumonk.com"],
   },
   preview: {
-    allowedHosts: [".ngrok-free.dev", ".ngrok-free.app", ".ngrok.io"],
+    allowedHosts: [".ngrok-free.dev", ".ngrok-free.app", ".ngrok.io", "dev.ayumonk.com"],
   },
   plugins: [
     react(),
