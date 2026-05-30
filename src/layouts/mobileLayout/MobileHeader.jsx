@@ -2,26 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Logo } from "../../components/mobile/primitives";
-import { C } from "../../components/mobile/palette";
+import { useMobileTheme } from "../../components/mobile/palette";
 import { logout } from "../../store/authSlice";
-import {
-  fetchUnreadCount,
-} from "../../store/notificationsSlice";
+import { fetchUnreadCount } from "../../store/notificationsSlice";
 
-// Persistent brand header at the top of every mobile screen. Replaces the
-// per-screen headers that used to live inside Wellness / HR Home / SA Home,
-// so the logo, notification bell, and account avatar stay anchored as the
-// user switches bottom-nav tabs.
 export default function MobileHeader({
   roleLabel = "WELLNESS PLATFORM",
   roleLabelColor,
-  accent = C.g3,
-  badgeColor,
+  accent,
 }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const menuRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const { palette, isDark, toggle } = useMobileTheme();
+  const resolvedAccent = accent || palette.g3;
 
   const user = useSelector((state) => state.auth.user);
   const unread = useSelector((state) => state.notifications.unread);
@@ -30,13 +26,10 @@ export default function MobileHeader({
     dispatch(fetchUnreadCount()).catch(() => {});
   }, [dispatch]);
 
-  // Close the avatar menu on outside click.
   useEffect(() => {
     if (!menuOpen) return undefined;
-    const onClick = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setMenuOpen(false);
-      }
+    const onClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
     };
     document.addEventListener("mousedown", onClick);
     document.addEventListener("touchstart", onClick);
@@ -47,9 +40,7 @@ export default function MobileHeader({
   }, [menuOpen]);
 
   const initial = ((user?.name || "U").trim()[0] || "U").toUpperCase();
-  const badge = badgeColor || accent;
-  const labelColor = roleLabelColor || "rgba(255,255,255,.2)";
-
+  const labelColor = roleLabelColor || palette.muted;
   const closeMenu = () => setMenuOpen(false);
 
   const handleLogout = () => {
@@ -58,20 +49,25 @@ export default function MobileHeader({
     navigate("/login", { replace: true });
   };
 
+  // Icon button surface adapts to light/dark
+  const iconBtnBg     = isDark ? "rgba(255,255,255,.05)"  : "rgba(31,30,29,.05)";
+  const iconBtnBorder = isDark ? "rgba(255,255,255,.08)"  : "rgba(31,30,29,.09)";
+
   return (
     <div
       style={{
         position: "sticky",
         top: 0,
         zIndex: 40,
-        background: C.bg,
-        borderBottom: "1px solid rgba(255,255,255,.04)",
-        padding: "10px 16px 10px",
+        background: palette.bg,
+        borderBottom: `1px solid ${palette.border}`,
+        padding: "10px 16px",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
       }}
     >
+      {/* Brand */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <Logo s={22} />
         <div>
@@ -79,9 +75,7 @@ export default function MobileHeader({
             style={{
               fontSize: 12,
               fontWeight: 800,
-              background: "linear-gradient(90deg,#4a7c2f,#6db33f)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              color: palette.g3,
               lineHeight: 1,
             }}
           >
@@ -100,29 +94,45 @@ export default function MobileHeader({
         </div>
       </div>
 
+      {/* Right controls */}
       <div
         ref={menuRef}
-        style={{
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          position: "relative",
-        }}
+        style={{ display: "flex", gap: 6, alignItems: "center", position: "relative" }}
       >
+        {/* Dark-mode toggle */}
+        <button
+          type="button"
+          aria-label="Toggle theme"
+          onClick={toggle}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 10,
+            background: iconBtnBg,
+            border: `1px solid ${iconBtnBorder}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 14,
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          {isDark ? "☀️" : "🌙"}
+        </button>
+
+        {/* Notifications */}
         <button
           type="button"
           aria-label="Notifications"
-          onClick={() => {
-            closeMenu();
-            navigate("/profile");
-          }}
+          onClick={() => { closeMenu(); navigate("/profile"); }}
           style={{
             position: "relative",
             width: 32,
             height: 32,
             borderRadius: 10,
-            background: "rgba(255,255,255,.05)",
-            border: "1px solid rgba(255,255,255,.08)",
+            background: iconBtnBg,
+            border: `1px solid ${iconBtnBorder}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -142,8 +152,8 @@ export default function MobileHeader({
                 height: 14,
                 padding: "0 3px",
                 borderRadius: "50%",
-                background: badge,
-                border: `2px solid ${C.bg}`,
+                background: resolvedAccent,
+                border: `2px solid ${palette.bg}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -157,16 +167,17 @@ export default function MobileHeader({
           )}
         </button>
 
+        {/* Avatar */}
         <button
           type="button"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((current) => !current)}
+          onClick={() => setMenuOpen((v) => !v)}
           style={{
             width: 32,
             height: 32,
             borderRadius: 10,
-            background: `linear-gradient(135deg,${C.g1},${accent})`,
+            background: `linear-gradient(135deg, ${palette.g1}, ${resolvedAccent})`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -181,6 +192,7 @@ export default function MobileHeader({
           {initial}
         </button>
 
+        {/* Dropdown menu */}
         {menuOpen && (
           <div
             role="menu"
@@ -189,17 +201,21 @@ export default function MobileHeader({
               right: 0,
               top: "calc(100% + 6px)",
               minWidth: 180,
-              background: C.card2,
-              border: `1px solid ${C.border}`,
+              background: palette.card2,
+              border: `1px solid ${palette.border}`,
               borderRadius: 12,
               padding: 6,
-              boxShadow: "0 12px 32px rgba(0,0,0,.45)",
+              boxShadow: isDark
+                ? "0 12px 32px rgba(0,0,0,.45)"
+                : "0 8px 24px rgba(31,30,29,.12)",
+              zIndex: 100,
             }}
           >
+            {/* User info */}
             <div
               style={{
                 padding: "8px 10px 10px",
-                borderBottom: "1px solid rgba(255,255,255,.05)",
+                borderBottom: `1px solid ${palette.border}`,
                 marginBottom: 4,
               }}
             >
@@ -207,7 +223,7 @@ export default function MobileHeader({
                 style={{
                   fontSize: 11,
                   fontWeight: 700,
-                  color: "#fff",
+                  color: palette.text,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -219,7 +235,7 @@ export default function MobileHeader({
                 <div
                   style={{
                     fontSize: 9,
-                    color: C.muted,
+                    color: palette.muted,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -229,13 +245,11 @@ export default function MobileHeader({
                 </div>
               )}
             </div>
+
             <button
               type="button"
               role="menuitem"
-              onClick={() => {
-                closeMenu();
-                navigate("/profile");
-              }}
+              onClick={() => { closeMenu(); navigate("/profile"); }}
               style={{
                 display: "block",
                 width: "100%",
@@ -243,7 +257,7 @@ export default function MobileHeader({
                 padding: "8px 10px",
                 background: "transparent",
                 border: "none",
-                color: "rgba(255,255,255,.85)",
+                color: palette.text,
                 fontSize: 11,
                 cursor: "pointer",
                 borderRadius: 8,
@@ -262,7 +276,7 @@ export default function MobileHeader({
                 padding: "8px 10px",
                 background: "transparent",
                 border: "none",
-                color: "#f87171",
+                color: palette.red,
                 fontSize: 11,
                 cursor: "pointer",
                 borderRadius: 8,

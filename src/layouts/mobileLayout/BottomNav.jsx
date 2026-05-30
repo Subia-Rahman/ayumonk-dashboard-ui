@@ -1,9 +1,9 @@
-import { C } from "../../components/mobile/palette";
+import { useMobileTheme } from "../../components/mobile/palette";
 
-// Fixed bottom tab bar shared by every mobile screen. Tab switching is local
-// state on the role workspace (EmployeeApp / HrApp / SuperAdminApp) — no URL
-// change — so the bar feels native.
-export default function BottomNav({ items, active, onNav, accent = C.g3 }) {
+export default function BottomNav({ items, active, onNav, accent }) {
+  const { palette, isDark } = useMobileTheme();
+  const resolvedAccent = accent || palette.g3;
+
   return (
     <div
       style={{
@@ -12,16 +12,18 @@ export default function BottomNav({ items, active, onNav, accent = C.g3 }) {
         left: 0,
         right: 0,
         display: "flex",
-        background: "rgba(7,13,8,.97)",
+        background: palette.card,
         backdropFilter: "blur(18px)",
         WebkitBackdropFilter: "blur(18px)",
-        borderTop: "1px solid rgba(255,255,255,0.07)",
+        borderTop: `1px solid ${palette.border}`,
+        boxShadow: isDark ? "none" : "0 -2px 12px rgba(31,30,29,.06)",
         zIndex: 50,
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
       {items.map((t) => {
         const on = active === t.id;
+        const inactiveColor = isDark ? "rgba(255,255,255,.3)" : "rgba(31,30,29,.35)";
         return (
           <button
             key={t.id}
@@ -37,7 +39,7 @@ export default function BottomNav({ items, active, onNav, accent = C.g3 }) {
               alignItems: "center",
               justifyContent: "center",
               padding: "9px 2px 8px",
-              color: on ? accent : "rgba(255,255,255,0.3)",
+              color: on ? resolvedAccent : inactiveColor,
               transition: "color .15s",
               position: "relative",
               minHeight: 54,
@@ -51,7 +53,7 @@ export default function BottomNav({ items, active, onNav, accent = C.g3 }) {
                   left: "18%",
                   right: "18%",
                   height: 2,
-                  background: accent,
+                  background: resolvedAccent,
                   borderRadius: "0 0 3px 3px",
                 }}
               />

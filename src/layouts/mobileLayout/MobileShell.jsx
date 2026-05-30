@@ -1,12 +1,7 @@
-import { useEffect } from "react";
-import { C, MOBILE_GLOBAL_CSS } from "../../components/mobile/palette";
+import { useEffect, useState } from "react";
+import { DARK, LIGHT, MOBILE_GLOBAL_CSS, MobileThemeContext } from "../../components/mobile/palette";
 import BottomNav from "./BottomNav";
 import MobileHeader from "./MobileHeader";
-
-// Wraps every mobile screen with the dark background, font stack, persistent
-// brand header, and shared bottom nav. The phone-frame chrome from the
-// design mockup is intentionally dropped on real devices — that frame was
-// just preview art.
 
 let stylesInjected = false;
 function injectGlobalStyles() {
@@ -23,49 +18,67 @@ export default function MobileShell({
   navItems,
   activeTab,
   onNav,
-  accent = C.g3,
+  accent,
   roleLabel = "WELLNESS PLATFORM",
   roleLabelColor,
   badgeColor,
 }) {
+  const [isDark, setIsDark] = useState(
+    () => typeof localStorage !== "undefined" && localStorage.getItem("ayumonk-theme") === "dark",
+  );
+
+  const palette = isDark ? DARK : LIGHT;
+
+  const toggle = () => {
+    setIsDark((prev) => {
+      const next = !prev;
+      localStorage.setItem("ayumonk-theme", next ? "dark" : "light");
+      return next;
+    });
+  };
+
   useEffect(() => {
     injectGlobalStyles();
   }, []);
 
+  const resolvedAccent = accent || palette.g3;
+
   return (
-    <div
-      className="ayumonk-mobile"
-      style={{
-        minHeight: "100vh",
-        background: C.bg,
-        color: "#fff",
-        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-        WebkitTapHighlightColor: "transparent",
-      }}
-    >
+    <MobileThemeContext.Provider value={{ palette, isDark, toggle }}>
       <div
+        className="ayumonk-mobile"
         style={{
           minHeight: "100vh",
-          paddingBottom: 72,
-          paddingTop: "env(safe-area-inset-top)",
+          background: palette.bg,
+          color: palette.text,
+          fontFamily: "'Inter', system-ui, sans-serif",
+          WebkitTapHighlightColor: "transparent",
         }}
       >
-        <MobileHeader
-          roleLabel={roleLabel}
-          roleLabelColor={roleLabelColor}
-          accent={accent}
-          badgeColor={badgeColor}
-        />
-        {children}
+        <div
+          style={{
+            minHeight: "100vh",
+            paddingBottom: 72,
+            paddingTop: "env(safe-area-inset-top)",
+          }}
+        >
+          <MobileHeader
+            roleLabel={roleLabel}
+            roleLabelColor={roleLabelColor}
+            accent={resolvedAccent}
+            badgeColor={badgeColor}
+          />
+          {children}
+        </div>
+        {navItems && (
+          <BottomNav
+            items={navItems}
+            active={activeTab}
+            onNav={onNav}
+            accent={resolvedAccent}
+          />
+        )}
       </div>
-      {navItems && (
-        <BottomNav
-          items={navItems}
-          active={activeTab}
-          onNav={onNav}
-          accent={accent}
-        />
-      )}
-    </div>
+    </MobileThemeContext.Provider>
   );
 }
