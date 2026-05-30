@@ -228,6 +228,91 @@ function DonutChart({ slices, size = 130, cVal, cSub }) {
   );
 }
 
+function WellnessRing({ score = 0, color = "#6DB33F", size = 136 }) {
+  const strokeW = 11;
+  const r = (size - strokeW) / 2;
+  const cx = size / 2;
+  const cy = size / 2;
+  const circ = 2 * Math.PI * r;
+  const pct = Math.min(100, Math.max(0, score)) / 100;
+  return (
+    <svg width={size} height={size} style={{ display: "block" }}>
+      <circle cx={cx} cy={cy} r={r} fill="none"
+        stroke="rgba(255,255,255,0.06)" strokeWidth={strokeW} />
+      <circle cx={cx} cy={cy} r={r} fill="none"
+        stroke={color} strokeWidth={strokeW}
+        strokeLinecap="round"
+        strokeDasharray={circ}
+        strokeDashoffset={circ * (1 - pct)}
+        transform={`rotate(-90 ${cx} ${cy})`}
+        style={{ transition: "stroke-dashoffset 0.6s ease" }}
+      />
+    </svg>
+  );
+}
+
+function wellnessStatus(score) {
+  if (score >= 85) return { label: "Excellent",       color: "#4ade80" };
+  if (score >= 70) return { label: "Great",           color: "#86efac" };
+  if (score >= 55) return { label: "Good",            color: "#6DB33F" };
+  if (score >= 40) return { label: "Fair",            color: "#D4A843" };
+  return              { label: "Needs Attention", color: "#f87171" };
+}
+
+function TrendLine({ vals = [], labels = [], color = "#6DB33F", h = 100 }) {
+  if (vals.length < 2) {
+    return (
+      <div style={{ height: h, display: "grid", placeItems: "center",
+        color: C.muted, fontSize: 10,
+        border: "1px dashed rgba(255,255,255,0.08)", borderRadius: 8 }}>
+        No trend data yet
+      </div>
+    );
+  }
+  const W = 460, H = h;
+  const mn = Math.min(...vals), mx = Math.max(...vals);
+  const pad = (mx - mn) * 0.15 || 0.5;
+  const lo = mn - pad, hi = mx + pad;
+  const px = (i) => 16 + (i / (vals.length - 1)) * (W - 32);
+  const py = (v) => 8 + ((hi - v) / (hi - lo)) * (H - 18);
+  const pts = vals.map((v, i) => [px(i), py(v)]);
+  const line = pts.map(([x, y]) => `${x},${y}`).join(" ");
+  const area = `${pts[0][0]},${H} ${line} ${pts[pts.length - 1][0]},${H}`;
+  const baseY = py(vals[0]);
+  const step = Math.ceil(labels.length / 6) || 1;
+  return (
+    <svg width="100%" height={H + 14} viewBox={`0 0 ${W} ${H + 14}`}
+      preserveAspectRatio="none" style={{ overflow: "visible" }}>
+      <defs>
+        <linearGradient id="ayumonkTrendGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor={color} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.01" />
+        </linearGradient>
+      </defs>
+      <line x1={16} y1={baseY} x2={W - 16} y2={baseY}
+        stroke="rgba(255,255,255,0.18)" strokeWidth="1"
+        strokeDasharray="4 4" strokeLinecap="round" />
+      <polygon points={area} fill="url(#ayumonkTrendGrad)" />
+      <polyline points={line} fill="none"
+        stroke={color} strokeWidth="2.2"
+        strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]}
+        r="8" fill={color} opacity="0.15" />
+      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]}
+        r="3.5" fill={color} />
+      {labels
+        .map((l, i) => ({ l, i }))
+        .filter(({ i }) => i % step === 0)
+        .map(({ l, i }) => (
+          <text key={`lbl-${i}`} x={px(i)} y={H + 12}
+            fontSize="8" fill="rgba(255,255,255,0.25)" textAnchor="middle">
+            {l}
+          </text>
+        ))}
+    </svg>
+  );
+}
+
 function MultiLine({ series, labels, h = 90, highlighted = [] }) {
   if (!series || !series.length || !series[0].vals?.length) {
     return (
@@ -310,61 +395,86 @@ function MultiLine({ series, labels, h = 90, highlighted = [] }) {
   );
 }
 
-function KpiTile({ item, sparkValues, selected = false, onClick }) {
+function KpiTile({ item, sparkValues, onClick }) {
   const trend = item.change === "No trend" ? null : item.change;
   const trendPos = trend && trend.startsWith("+");
   return (
     <div
       onClick={onClick}
       style={{
-        background: selected ? item.color + "22" : "rgba(255,255,255,0.03)",
-        border: `1px solid ${selected ? item.color : item.color + "33"}`,
-        borderRadius: 12,
-        padding: "10px 8px",
+        background: "rgba(255,255,255,0.03)",
+        border: `1px solid ${item.color}33`,
+        borderRadius: 16,
+        padding: "13px 14px 11px",
         cursor: onClick ? "pointer" : "default",
         transition: "all 0.2s",
-        textAlign: "center",
       }}
     >
-      <div style={{ fontSize: 18, marginBottom: 3, color: item.color }}>
-        {item.icon}
+      {/* Header: icon pill + dimension name */}
+      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
+        <span
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 9,
+            background: item.color + "22",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 15,
+            color: item.color,
+            flexShrink: 0,
+          }}
+        >
+          {item.icon}
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.55)",
+            letterSpacing: 0.15,
+            lineHeight: 1.3,
+            overflow: "hidden",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+          }}
+          title={item.label}
+        >
+          {item.label}
+        </span>
       </div>
+      {/* Body: score + trend (left) | sparkline (right) */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: item.color, lineHeight: 1 }}>
+            {Number(item.score).toFixed(1)}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              marginTop: 5,
+              color: trend
+                ? trendPos ? "#4ade80" : "#f87171"
+                : "rgba(255,255,255,0.25)",
+            }}
+          >
+            {trend ? `${trendPos ? "▲" : "▼"} ${trend.replace(/^[+-]/, "")}` : "—"}
+          </div>
+        </div>
+        <Sparkline values={sparkValues} color={item.color} w={68} h={30} />
+      </div>
+      {/* Accent bar */}
       <div
         style={{
-          fontSize: 9,
-          color: "rgba(255,255,255,0.4)",
-          marginBottom: 3,
-          letterSpacing: 0.2,
-          height: 22,
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
+          marginTop: 10,
+          height: 2,
+          borderRadius: 2,
+          background: `linear-gradient(to right, ${item.color}66, transparent)`,
         }}
-        title={item.label}
-      >
-        {item.label}
-      </div>
-      <div
-        style={{ fontSize: 16, fontWeight: 800, color: item.color, lineHeight: 1 }}
-      >
-        {Number(item.score).toFixed(1)}
-      </div>
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          marginTop: 3,
-          color: trend ? (trendPos ? "#4ade80" : "#f87171") : "rgba(255,255,255,0.3)",
-        }}
-      >
-        {trend
-          ? `${trendPos ? "▲" : "▼"}${trend.replace(/^[+-]/, "")}`
-          : "—"}
-      </div>
-      <div style={{ marginTop: 4, display: "flex", justifyContent: "center" }}>
-        <Sparkline values={sparkValues} color={item.color} w={74} h={16} />
-      </div>
+      />
     </div>
   );
 }
@@ -534,10 +644,10 @@ export default function DashboardWellness() {
             display: "grid",
             gridTemplateColumns: {
               xs: "repeat(2, 1fr)",
-              sm: "repeat(3, 1fr)",
-              md: "repeat(4, 1fr)",
+              sm: "repeat(2, 1fr)",
+              md: "repeat(3, 1fr)",
             },
-            gap: "8px",
+            gap: "10px",
             mb: "18px",
           }}
         >
@@ -561,80 +671,58 @@ export default function DashboardWellness() {
       >
         {/* Wellness Index */}
         <ClientCard>
-          <div
-            style={{
-              fontSize: 9,
-              color: C.muted,
-              textTransform: "uppercase",
-              letterSpacing: 1,
-              marginBottom: 8,
-              textAlign: "center",
-            }}
-          >
+          <div style={{ fontSize: 9, color: C.muted, textTransform: "uppercase",
+            letterSpacing: 1, marginBottom: 12, textAlign: "center" }}>
             Wellness Index
           </div>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <DonutChart
-              slices={dynamicWellnessData.map((d) => ({
-                l: d.name,
-                v: d.value,
-                c: d.color,
-              }))}
-              size={130}
-              cVal={overallWellnessScore || "—"}
-              cSub="/ 100"
-            />
-          </div>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 3,
-              justifyContent: "center",
-              marginTop: 8,
-            }}
-          >
-            {dynamicWellnessData.map((s) => (
-              <div
-                key={s.name}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                  fontSize: 8,
-                  color: "rgba(255,255,255,0.38)",
-                }}
-              >
-                <span
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: 1,
-                    background: s.color,
-                    display: "inline-block",
-                  }}
-                />
-                {s.name}
+
+          {/* Progress ring with score overlay */}
+          <div style={{ position: "relative", display: "flex",
+            justifyContent: "center", alignItems: "center" }}>
+            <WellnessRing score={overallWellnessScore} color={C.g3} size={136} />
+            <div style={{ position: "absolute", textAlign: "center", pointerEvents: "none" }}>
+              <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", lineHeight: 1 }}>
+                {overallWellnessScore || "—"}
               </div>
-            ))}
+              <div style={{ fontSize: 9, color: C.muted, marginTop: 3, letterSpacing: 0.5 }}>
+                / 100
+              </div>
+            </div>
           </div>
-          {trends.overall?.delta_percent ? (
-            <div style={{ textAlign: "center", marginTop: 8 }}>
-              <span
-                style={{
-                  background: "#16a34a22",
-                  borderRadius: 8,
-                  padding: "3px 10px",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "#4ade80",
-                }}
-              >
-                {trends.overall.delta_percent >= 0 ? "▲" : "▼"}{" "}
-                {Math.abs(Math.round(trends.overall.delta_percent))}% from baseline
+
+          {/* Status label */}
+          {overallWellnessScore > 0 && (
+            <div style={{ textAlign: "center", marginTop: 10 }}>
+              <span style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: wellnessStatus(overallWellnessScore).color,
+                letterSpacing: 0.2,
+              }}>
+                {wellnessStatus(overallWellnessScore).label}
               </span>
             </div>
-          ) : null}
+          )}
+
+          {/* Delta pill */}
+          {trends.overall?.delta_percent != null && trends.overall.delta_percent !== 0 && (() => {
+            const pos = trends.overall.delta_percent > 0;
+            return (
+              <div style={{ textAlign: "center", marginTop: 8 }}>
+                <span style={{
+                  background: pos ? "#16a34a22" : "#f8717122",
+                  border: `1px solid ${pos ? "#4ade8033" : "#f8717133"}`,
+                  borderRadius: 20,
+                  padding: "4px 12px",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: pos ? "#4ade80" : "#f87171",
+                }}>
+                  {pos ? "▲" : "▼"} {Math.abs(Math.round(trends.overall.delta_percent))}% from baseline
+                </span>
+              </div>
+            );
+          })()}
         </ClientCard>
 
         {/* Wellness Trends */}
@@ -644,23 +732,19 @@ export default function DashboardWellness() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: 10,
+              marginBottom: 12,
               gap: 8,
               flexWrap: "wrap",
             }}
           >
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700 }}>Wellness Trends</div>
-              <div style={{ fontSize: 9, color: C.muted }}>
-                Bold lines = most improved recently
-              </div>
-            </div>
+            <div style={{ fontSize: 12, fontWeight: 700 }}>Wellness Trends</div>
             <div
               style={{
                 display: "flex",
                 gap: 3,
-                background: "rgba(0,0,0,0.3)",
-                borderRadius: 8,
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 20,
                 padding: 3,
               }}
             >
@@ -670,8 +754,8 @@ export default function DashboardWellness() {
                   type="button"
                   onClick={() => setTrendsPeriod(v)}
                   style={{
-                    padding: "4px 10px",
-                    borderRadius: 6,
+                    padding: "5px 12px",
+                    borderRadius: 20,
                     border: "none",
                     fontSize: 9,
                     fontWeight: 600,
@@ -679,6 +763,7 @@ export default function DashboardWellness() {
                     background: trendsPeriod === v ? C.g3 : "transparent",
                     color: trendsPeriod === v ? "#fff" : "rgba(255,255,255,0.4)",
                     textTransform: "capitalize",
+                    transition: "background 0.15s, color 0.15s",
                   }}
                 >
                   {v}
@@ -696,7 +781,7 @@ export default function DashboardWellness() {
           {trendsLoading && trendsMultiSeries.length === 0 ? (
             <div
               style={{
-                height: 96,
+                height: 100,
                 display: "grid",
                 placeItems: "center",
                 color: C.muted,
@@ -706,11 +791,18 @@ export default function DashboardWellness() {
               Loading wellness trends…
             </div>
           ) : (
-            <MultiLine
-              h={96}
+            <TrendLine
+              h={100}
               labels={trendsLabels}
-              series={trendsMultiSeries}
-              highlighted={topImprovementIds}
+              color={C.g3}
+              vals={
+                trendsMultiSeries.length
+                  ? trendsMultiSeries[0].vals.map((_, i) =>
+                      trendsMultiSeries.reduce((s, ser) => s + (ser.vals[i] ?? 0), 0) /
+                      trendsMultiSeries.length
+                    )
+                  : []
+              }
             />
           )}
 
