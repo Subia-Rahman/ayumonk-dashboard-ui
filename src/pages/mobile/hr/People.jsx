@@ -86,7 +86,7 @@ export default function HrPeople() {
   return (
     <div style={{ background: C.bg, minHeight: "100%" }}>
       <div style={{ padding: "8px 16px 10px" }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>👥 People</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>👥 People</div>
         <div style={{ fontSize: 8.5, color: C.muted }}>
           {(users?.length || 0)} employees · sorted by WI
         </div>
@@ -115,7 +115,7 @@ export default function HrPeople() {
             border: "none",
             background: "transparent",
             outline: "none",
-            color: "#fff",
+            color: "#1F1E1D",
             fontSize: 11,
           }}
         />
@@ -139,7 +139,7 @@ export default function HrPeople() {
               style={{
                 fontSize: 10,
                 background: on ? `${C.g3}20` : C.card,
-                color: on ? C.g3 : "rgba(255,255,255,.38)",
+                color: on ? C.g3 : "#6B7F5C",
                 borderRadius: 8,
                 padding: "5px 11px",
                 border: `1px solid ${on ? C.g3 + "44" : C.border}`,
@@ -210,7 +210,7 @@ export default function HrPeople() {
                   style={{
                     fontSize: 11,
                     fontWeight: 700,
-                    color: "#fff",
+                    color: "#1F1E1D",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",

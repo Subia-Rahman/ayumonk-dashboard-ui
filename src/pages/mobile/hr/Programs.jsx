@@ -62,7 +62,7 @@ export default function HrPrograms() {
   return (
     <div style={{ background: C.bg, minHeight: "100%" }}>
       <div style={{ padding: "8px 16px 12px" }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>
           📅 KPI Programs
         </div>
         <div style={{ fontSize: 8.5, color: C.muted }}>
@@ -125,7 +125,7 @@ export default function HrPrograms() {
                 </div>
                 <div>
                   <div
-                    style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}
+                    style={{ fontSize: 11, fontWeight: 700, color: "#1F1E1D" }}
                   >
                     {p.kpi} KPI
                   </div>
@@ -139,7 +139,7 @@ export default function HrPrograms() {
             <div
               style={{
                 height: 4,
-                background: "rgba(255,255,255,.04)",
+                background: "rgba(31,30,29,0.08)",
                 borderRadius: 3,
                 marginBottom: 5,
               }}
@@ -161,7 +161,7 @@ export default function HrPrograms() {
               }}
             >
               <span style={{ color: C.muted }}>{p.pct}% elapsed</span>
-              <span style={{ color: "rgba(255,255,255,.38)" }}>
+              <span style={{ color: "#5C5A57" }}>
                 {p.en} enrolled · {p.comp} completion
               </span>
             </div>

@@ -54,7 +54,7 @@ export default function HrHome() {
     <div style={{ background: C.bg, minHeight: "100%" }}>
       <div style={{ padding: "10px 16px 10px" }}>
         <div style={{ fontSize: 8.5, color: C.muted }}>{companyName}</div>
-        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>
           Company Dashboard
         </div>
       </div>
@@ -121,7 +121,7 @@ export default function HrHome() {
           }}
         >
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#1F1E1D" }}>
               Company Wellness Trend
             </div>
             <div style={{ fontSize: 8.5, color: C.muted }}>Last 8 weeks</div>
@@ -157,7 +157,7 @@ export default function HrHome() {
           style={{
             fontSize: 11,
             fontWeight: 700,
-            color: "#fff",
+            color: "#1F1E1D",
             marginBottom: 10,
           }}
         >
@@ -173,7 +173,7 @@ export default function HrHome() {
               }}
             >
               <span
-                style={{ fontSize: 9.5, color: "rgba(255,255,255,.55)" }}
+                style={{ fontSize: 9.5, color: "#5C5A57" }}
               >
                 {d.d}{" "}
                 <span style={{ fontSize: 8, color: C.muted }}>({d.n})</span>
@@ -185,7 +185,7 @@ export default function HrHome() {
             <div
               style={{
                 height: 4,
-                background: "rgba(255,255,255,.04)",
+                background: "rgba(31,30,29,0.08)",
                 borderRadius: 3,
               }}
             >
