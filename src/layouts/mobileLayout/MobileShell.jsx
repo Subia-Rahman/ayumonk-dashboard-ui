@@ -23,6 +23,8 @@ export default function MobileShell({
   roleLabelColor,
   badgeColor,
   onProfileShortcut,
+  notch = false,
+  centerBadge,
 }) {
   const [isDark, setIsDark] = useState(
     () => typeof localStorage !== "undefined" && localStorage.getItem("ayumonk-theme") === "dark",
@@ -78,6 +80,8 @@ export default function MobileShell({
             active={activeTab}
             onNav={onNav}
             accent={resolvedAccent}
+            notch={notch}
+            centerBadge={centerBadge}
           />
         )}
       </div>

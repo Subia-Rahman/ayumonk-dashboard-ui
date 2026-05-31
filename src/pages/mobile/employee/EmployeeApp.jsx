@@ -7,10 +7,13 @@ import Rewards from "./Rewards";
 import Responses from "./Responses";
 import Profile from "./Profile";
 
+// Wellness sits in the CENTRE so it becomes the fixed notch anchor.
+// centerBadge below is a demo streak — wire it to your real streak value
+// (dashboard / gamification slice) when available.
 const NAV = [
-  { id: "wellness", icon: "🌿", label: "Wellness" },
   { id: "challenges", icon: "🎯", label: "Challenges" },
   { id: "rewards", icon: "🏅", label: "Rewards" },
+  { id: "wellness", icon: "🌿", label: "Wellness" },
   { id: "responses", icon: "📝", label: "Responses" },
   { id: "profile", icon: "🧘", label: "Profile" },
 ];
@@ -27,6 +30,8 @@ export default function EmployeeApp({ defaultTab = "wellness" }) {
       roleLabel="WELLNESS PLATFORM"
       badgeColor={C.orange}
       onProfileShortcut={() => setTab("profile")}
+      notch
+      centerBadge={7}
     >
       <div key={tab} className="ayumonk-anim">
         {tab === "wellness" && <Wellness />}
