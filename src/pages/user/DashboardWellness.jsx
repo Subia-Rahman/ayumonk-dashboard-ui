@@ -52,24 +52,38 @@ const SUGGESTION_TYPE_COLORS = {
 };
 
 const C = {
-  bg: "#0b160c",
-  card: "#111e12",
-  border: "#1e3d20",
-  g1: "#2C5F2D",
-  g2: "#4A8C2A",
-  g3: "#6DB33F",
-  g4: "#97C95C",
-  white: "#FFFFFF",
-  cream: "#E8F0E0",
-  muted: "#6B8F60",
-  orange: "#E8924A",
-  blue: "#4A90C4",
-  purple: "#8B6FCB",
-  gold: "#D4A843",
-  teal: "#3AADA8",
-  red: "#E05050",
-  pink: "#f472b6",
+  bg:      "#FBF9F4",
+  card:    "#FBF9F4",
+  border:  "rgba(31,30,29,0.08)",
+  g1:      "#4F6048",
+  g2:      "#5E7350",
+  g3:      "#6B7F5C",
+  g4:      "#93A687",
+  white:   "#FFFFFF",
+  cream:   "#F5F2EB",
+  text:    "#1F1E1D",
+  textSub: "#5C5A57",
+  muted:   "#6B7F5C",
+  orange:  "#B96B47",
+  blue:    "#4A7F8C",
+  purple:  "#8B7FB0",
+  gold:    "#B57F4A",
+  teal:    "#5A9B96",
+  red:     "#B85A4A",
+  pink:    "#c4607a",
 };
+
+const DIMENSION_PILLS = {
+  nidra:  { bg: "#E8F0E4", color: "#3D5C35" },
+  manas:  { bg: "#EDE8F5", color: "#5B3D8A" },
+  aahar:  { bg: "#FFF3E0", color: "#8A5C00" },
+  vihara: { bg: "#E0F2F1", color: "#006064" },
+  charya: { bg: "#FBE9E7", color: "#8A2500" },
+  ojas:   { bg: "#F3E5F5", color: "#6A1B9A" },
+};
+
+const getDimensionPill = (label = "") =>
+  DIMENSION_PILLS[label.toLowerCase().trim().split(/\s+/)[0]] || null;
 
 const formatMetricLabel = (name = "") =>
   name.replace(/\bKPI\b/gi, "").replace(/\s+/g, " ").trim() || "Wellness KPI";
@@ -97,8 +111,8 @@ function ClientCard({ children, style = {}, borderColor, onClick }) {
     <div
       onClick={onClick}
       style={{
-        background: "rgba(255,255,255,0.03)",
-        border: `1px solid ${borderColor || "rgba(255,255,255,0.07)"}`,
+        background: "#FBF9F4",
+        border: `1px solid ${borderColor || "rgba(31,30,29,0.08)"}`,
         borderRadius: 14,
         padding: "14px 16px",
         position: "relative",
@@ -119,7 +133,7 @@ function ClientCard({ children, style = {}, borderColor, onClick }) {
         onClick
           ? (e) => {
               e.currentTarget.style.borderColor =
-                borderColor || "rgba(255,255,255,0.07)";
+                borderColor || "rgba(31,30,29,0.08)";
               e.currentTarget.style.transform = "";
             }
           : undefined
@@ -238,7 +252,7 @@ function WellnessRing({ score = 0, color = "#6DB33F", size = 136 }) {
   return (
     <svg width={size} height={size} style={{ display: "block" }}>
       <circle cx={cx} cy={cy} r={r} fill="none"
-        stroke="rgba(255,255,255,0.06)" strokeWidth={strokeW} />
+        stroke="rgba(107,127,92,0.18)" strokeWidth={strokeW} />
       <circle cx={cx} cy={cy} r={r} fill="none"
         stroke={color} strokeWidth={strokeW}
         strokeLinecap="round"
@@ -290,7 +304,7 @@ function TrendLine({ vals = [], labels = [], color = "#6DB33F", h = 100 }) {
         </linearGradient>
       </defs>
       <line x1={16} y1={baseY} x2={W - 16} y2={baseY}
-        stroke="rgba(255,255,255,0.18)" strokeWidth="1"
+        stroke="rgba(107,127,92,0.35)" strokeWidth="1"
         strokeDasharray="4 4" strokeLinecap="round" />
       <polygon points={area} fill="url(#ayumonkTrendGrad)" />
       <polyline points={line} fill="none"
@@ -305,7 +319,7 @@ function TrendLine({ vals = [], labels = [], color = "#6DB33F", h = 100 }) {
         .filter(({ i }) => i % step === 0)
         .map(({ l, i }) => (
           <text key={`lbl-${i}`} x={px(i)} y={H + 12}
-            fontSize="8" fill="rgba(255,255,255,0.25)" textAnchor="middle">
+            fontSize="8" fill="rgba(107,127,92,0.6)" textAnchor="middle">
             {l}
           </text>
         ))}
@@ -398,11 +412,12 @@ function MultiLine({ series, labels, h = 90, highlighted = [] }) {
 function KpiTile({ item, sparkValues, onClick }) {
   const trend = item.change === "No trend" ? null : item.change;
   const trendPos = trend && trend.startsWith("+");
+  const dimPill = getDimensionPill(item.label);
   return (
     <div
       onClick={onClick}
       style={{
-        background: "rgba(255,255,255,0.03)",
+        background: "#FBF9F4",
         border: `1px solid ${item.color}33`,
         borderRadius: 16,
         padding: "13px 14px 11px",
@@ -410,7 +425,7 @@ function KpiTile({ item, sparkValues, onClick }) {
         transition: "all 0.2s",
       }}
     >
-      {/* Header: icon pill + dimension name */}
+      {/* Header: icon pill + dimension name pill */}
       <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
         <span
           style={{
@@ -428,22 +443,40 @@ function KpiTile({ item, sparkValues, onClick }) {
         >
           {item.icon}
         </span>
-        <span
-          style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: "rgba(255,255,255,0.55)",
-            letterSpacing: 0.15,
-            lineHeight: 1.3,
-            overflow: "hidden",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-          }}
-          title={item.label}
-        >
-          {item.label}
-        </span>
+        {dimPill ? (
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: dimPill.color,
+              background: dimPill.bg,
+              padding: "2px 6px",
+              borderRadius: 99,
+              letterSpacing: 0.15,
+              lineHeight: 1.4,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {item.label}
+          </span>
+        ) : (
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: "#5C5A57",
+              letterSpacing: 0.15,
+              lineHeight: 1.3,
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+            }}
+            title={item.label}
+          >
+            {item.label}
+          </span>
+        )}
       </div>
       {/* Body: score + trend (left) | sparkline (right) */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
@@ -457,8 +490,8 @@ function KpiTile({ item, sparkValues, onClick }) {
               fontWeight: 700,
               marginTop: 5,
               color: trend
-                ? trendPos ? "#4ade80" : "#f87171"
-                : "rgba(255,255,255,0.25)",
+                ? trendPos ? "#16a34a" : "#dc2626"
+                : "rgba(31,30,29,0.3)",
             }}
           >
             {trend ? `${trendPos ? "▲" : "▼"} ${trend.replace(/^[+-]/, "")}` : "—"}
@@ -639,6 +672,13 @@ export default function DashboardWellness() {
       )}
 
       {!dashboardError && !dashboardLoading && metrics.length > 0 && (
+        <Box sx={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8, color: "#6B7F5C",
+          textTransform: "uppercase", mb: "12px" }}>
+          Wellness Dimensions · Tap for Details
+        </Box>
+      )}
+
+      {!dashboardError && !dashboardLoading && metrics.length > 0 && (
         <Box
           sx={{
             display: "grid",
@@ -681,10 +721,10 @@ export default function DashboardWellness() {
             justifyContent: "center", alignItems: "center" }}>
             <WellnessRing score={overallWellnessScore} color={C.g3} size={136} />
             <div style={{ position: "absolute", textAlign: "center", pointerEvents: "none" }}>
-              <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", lineHeight: 1 }}>
+              <div style={{ fontSize: 32, fontWeight: 800, color: "#1F1E1D", lineHeight: 1 }}>
                 {overallWellnessScore || "—"}
               </div>
-              <div style={{ fontSize: 9, color: C.muted, marginTop: 3, letterSpacing: 0.5 }}>
+              <div style={{ fontSize: 9, color: "#6B7F5C", marginTop: 3, letterSpacing: 0.5 }}>
                 / 100
               </div>
             </div>
@@ -737,13 +777,13 @@ export default function DashboardWellness() {
               flexWrap: "wrap",
             }}
           >
-            <div style={{ fontSize: 12, fontWeight: 700 }}>Wellness Trends</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#1F1E1D" }}>Wellness Trends</div>
             <div
               style={{
                 display: "flex",
                 gap: 3,
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(31,30,29,0.05)",
+                border: "1px solid rgba(31,30,29,0.08)",
                 borderRadius: 20,
                 padding: 3,
               }}
@@ -761,7 +801,7 @@ export default function DashboardWellness() {
                     fontWeight: 600,
                     cursor: "pointer",
                     background: trendsPeriod === v ? C.g3 : "transparent",
-                    color: trendsPeriod === v ? "#fff" : "rgba(255,255,255,0.4)",
+                    color: trendsPeriod === v ? "#fff" : "#6B7F5C",
                     textTransform: "capitalize",
                     transition: "background 0.15s, color 0.15s",
                   }}
@@ -857,8 +897,9 @@ export default function DashboardWellness() {
 
         {/* Dosha + Mood */}
         <ClientCard>
-          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
-            Dosha Profile
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8,
+            textTransform: "uppercase", color: "#6B7F5C", marginBottom: 6 }}>
+            Prakriti · Dosha Balance
           </div>
           <div
             style={{
@@ -900,7 +941,7 @@ export default function DashboardWellness() {
                     display: "inline-block",
                   }}
                 />
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>
+                <span style={{ fontSize: 10, color: "#1F1E1D" }}>
                   {l}
                 </span>
               </div>
@@ -913,7 +954,7 @@ export default function DashboardWellness() {
             style={{
               marginTop: 10,
               paddingTop: 10,
-              borderTop: "1px solid rgba(255,255,255,0.06)",
+              borderTop: "1px solid rgba(31,30,29,0.08)",
             }}
           >
             <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>
@@ -959,51 +1000,25 @@ export default function DashboardWellness() {
 
       {/* Lifestyle Suggestions */}
       <ClientCard
-        style={{
-          background: "rgba(107,179,63,0.04)",
-          borderColor: "rgba(107,179,63,0.14)",
-        }}
-        borderColor="rgba(107,179,63,0.14)"
+        style={{ background: "#F5F2EB", borderColor: "rgba(107,127,92,0.2)" }}
+        borderColor="rgba(107,127,92,0.2)"
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 12,
-            gap: 6,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.g3 }}>
-            🌿 Ayumonk Lifestyle Suggestions — Focus Areas This Week
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginBottom: 12, gap: 6, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8,
+            textTransform: "uppercase", color: "#6B7F5C" }}>
+            🌿 Suggestions This Week
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             {suggestionTierLabels.hasKpiRisk && (
-              <span
-                style={{
-                  fontSize: 8,
-                  background: "rgba(107,179,63,0.15)",
-                  color: C.g3,
-                  borderRadius: 5,
-                  padding: "2px 8px",
-                  fontWeight: 700,
-                }}
-              >
+              <span style={{ fontSize: 8, background: "#E8F0E4", color: "#3D5C35",
+                borderRadius: 5, padding: "2px 8px", fontWeight: 700 }}>
                 Tier 1 = KPI risk
               </span>
             )}
             {suggestionTierLabels.hasQuestionScore && (
-              <span
-                style={{
-                  fontSize: 8,
-                  background: "rgba(212,168,67,0.15)",
-                  color: C.gold,
-                  borderRadius: 5,
-                  padding: "2px 8px",
-                  fontWeight: 700,
-                }}
-              >
+              <span style={{ fontSize: 8, background: "#FFF3E0", color: "#8A5C00",
+                borderRadius: 5, padding: "2px 8px", fontWeight: 700 }}>
                 Tier 2 = Question score
               </span>
             )}
@@ -1011,219 +1026,80 @@ export default function DashboardWellness() {
         </div>
 
         {suggestionsError && (
-          <Alert severity="error" sx={{ mb: 1 }}>
-            {suggestionsError}
-          </Alert>
+          <Alert severity="error" sx={{ mb: 1 }}>{suggestionsError}</Alert>
         )}
 
         {suggestionsLoading && (
-          <div style={{ fontSize: 10, color: C.muted, padding: "8px 0" }}>
+          <div style={{ fontSize: 10, color: "#6B7F5C", padding: "8px 0" }}>
             Loading lifestyle suggestions…
           </div>
         )}
 
         {!suggestionsLoading && suggestionItems.length === 0 && (
-          <div style={{ fontSize: 10, color: C.muted, padding: "8px 0" }}>
+          <div style={{ fontSize: 10, color: "#6B7F5C", padding: "8px 0" }}>
             No lifestyle suggestions are available yet.
           </div>
         )}
 
         {!suggestionsLoading && suggestionItems.length > 0 && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))",
-              gap: 10,
-            }}
-          >
+          <div style={{ display: "grid",
+            gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 10 }}>
             {suggestionItems.map((item, index) => {
               const accent = getSuggestionColor(item.suggestion_type, index);
               const triggerBadges = (item.triggers || [])
                 .slice()
-                .sort(
-                  (left, right) => (left.priority || 0) - (right.priority || 0),
-                )
+                .sort((left, right) => (left.priority || 0) - (right.priority || 0))
                 .slice(0, 2);
-              const hasKpiRisk = triggerBadges.some(
-                (t) => t.trigger_mode === "kpi_risk",
-              );
-              const hasQscore = triggerBadges.some(
-                (t) => t.trigger_mode === "question_score",
-              );
+              const hasKpiRisk = triggerBadges.some((t) => t.trigger_mode === "kpi_risk");
+              const hasQscore  = triggerBadges.some((t) => t.trigger_mode === "question_score");
               return (
                 <div
                   key={item.suggestion_id || item.title}
-                  style={{
-                    background: "rgba(255,255,255,0.025)",
-                    borderRadius: 10,
-                    padding: "10px 14px",
-                    borderLeft: `3px solid ${accent}`,
-                  }}
+                  style={{ background: "#FBF9F4", borderRadius: 10,
+                    padding: "12px 14px", borderLeft: `3px solid ${accent}`,
+                    display: "flex", flexDirection: "column", gap: 0 }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: 6,
-                      gap: 6,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: accent,
-                      }}
-                    >
+                  {/* Title row */}
+                  <div style={{ display: "flex", justifyContent: "space-between",
+                    alignItems: "flex-start", marginBottom: 6, gap: 6 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#1F1E1D" }}>
                       {item.title}
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 4,
-                        flexWrap: "wrap",
-                        justifyContent: "flex-end",
-                      }}
-                    >
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap",
+                      justifyContent: "flex-end" }}>
                       {hasKpiRisk && (
-                        <span
-                          style={{
-                            fontSize: 7.5,
-                            background: "rgba(248,113,113,0.18)",
-                            color: "#f87171",
-                            borderRadius: 4,
-                            padding: "1px 6px",
-                            fontWeight: 700,
-                          }}
-                        >
+                        <span style={{ fontSize: 7.5, background: "rgba(220,38,38,0.08)",
+                          color: "#dc2626", borderRadius: 4, padding: "1px 6px",
+                          fontWeight: 700 }}>
                           T1 · KPI risk
                         </span>
                       )}
                       {hasQscore && (
-                        <span
-                          style={{
-                            fontSize: 7.5,
-                            background: "rgba(212,168,67,0.18)",
-                            color: C.gold,
-                            borderRadius: 4,
-                            padding: "1px 6px",
-                            fontWeight: 700,
-                          }}
-                        >
+                        <span style={{ fontSize: 7.5, background: "#FFF3E0",
+                          color: "#8A5C00", borderRadius: 4, padding: "1px 6px",
+                          fontWeight: 700 }}>
                           T2 · Q flagged
                         </span>
                       )}
                     </div>
                   </div>
-                  {!!item.description && (
-                    <div
-                      style={{
-                        fontSize: 8.5,
-                        color: "rgba(255,255,255,0.55)",
-                        lineHeight: 1.55,
-                        marginBottom: 6,
-                      }}
-                    >
-                      {item.description}
+
+                  {/* Description */}
+                  {!!(item.description || item.body) && (
+                    <div style={{ fontSize: 11, color: "#5C5A57", lineHeight: 1.55,
+                      marginBottom: 10 }}>
+                      {item.description || item.body}
                     </div>
                   )}
-                  {(item.suggestion_type ||
-                    item.difficulty ||
-                    item.duration_mins ||
-                    item.dosha_type) && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 4,
-                        marginTop: 4,
-                      }}
-                    >
-                      {item.suggestion_type && (
-                        <span
-                          style={{
-                            fontSize: 7.5,
-                            background: accent + "22",
-                            color: accent,
-                            borderRadius: 4,
-                            padding: "1px 6px",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            letterSpacing: 0.3,
-                          }}
-                        >
-                          {item.suggestion_type}
-                        </span>
-                      )}
-                      {item.difficulty && (
-                        <span
-                          style={{
-                            fontSize: 7.5,
-                            background: "rgba(255,255,255,0.04)",
-                            color: "rgba(255,255,255,0.55)",
-                            border: "1px solid rgba(255,255,255,0.08)",
-                            borderRadius: 4,
-                            padding: "1px 6px",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {item.difficulty}
-                        </span>
-                      )}
-                      {!!item.duration_mins && (
-                        <span
-                          style={{
-                            fontSize: 7.5,
-                            background: "rgba(255,255,255,0.04)",
-                            color: "rgba(255,255,255,0.55)",
-                            border: "1px solid rgba(255,255,255,0.08)",
-                            borderRadius: 4,
-                            padding: "1px 6px",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {item.duration_mins} mins
-                        </span>
-                      )}
-                      {item.dosha_type && (
-                        <span
-                          style={{
-                            fontSize: 7.5,
-                            background: "rgba(255,255,255,0.04)",
-                            color: "rgba(255,255,255,0.55)",
-                            border: "1px solid rgba(255,255,255,0.08)",
-                            borderRadius: 4,
-                            padding: "1px 6px",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Dosha: {item.dosha_type}
-                        </span>
-                      )}
-                    </div>
-                  )}
+
+                  {/* Trigger badges */}
                   {triggerBadges.length > 0 && (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 4,
-                        flexWrap: "wrap",
-                        marginTop: 6,
-                      }}
-                    >
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
                       {triggerBadges.map((trig, ti) => (
-                        <span
-                          key={`${item.suggestion_id}-trig-${ti}`}
-                          style={{
-                            fontSize: 7.5,
-                            background: "rgba(251,191,36,0.1)",
-                            color: C.gold,
-                            borderRadius: 4,
-                            padding: "1px 6px",
-                            border: "1px solid rgba(251,191,36,0.2)",
-                          }}
-                        >
+                        <span key={`${item.suggestion_id}-trig-${ti}`}
+                          style={{ fontSize: 7.5, background: "#FFF3E0", color: "#8A5C00",
+                            borderRadius: 4, padding: "1px 6px",
+                            border: "1px solid rgba(181,127,74,0.25)" }}>
                           ⚡{" "}
                           {trig.trigger_mode === "kpi_risk"
                             ? `${trig.kpi_display_name || trig.kpi_key} · ${trig.risk_level || "risk"}`
@@ -1232,26 +1108,43 @@ export default function DashboardWellness() {
                       ))}
                     </div>
                   )}
-                  {!!item.url && (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        display: "inline-block",
-                        marginTop: 8,
-                        fontSize: 9,
-                        color: accent,
-                        fontWeight: 700,
-                        textDecoration: "none",
-                        border: `1px solid ${accent}55`,
-                        padding: "3px 8px",
-                        borderRadius: 6,
-                      }}
+
+                  {/* Bottom row: time + category pills | Add to plan */}
+                  <div style={{ display: "flex", alignItems: "center",
+                    justifyContent: "space-between", gap: 6, marginTop: "auto", paddingTop: 4 }}>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {!!item.duration_mins && (
+                        <span style={{ fontSize: 9, background: "#F0EDE5",
+                          color: "#5C5A57", borderRadius: 99, padding: "2px 8px",
+                          fontWeight: 600 }}>
+                          {item.duration_mins} min
+                        </span>
+                      )}
+                      {item.suggestion_type && (
+                        <span style={{ fontSize: 9, background: "#E8F0E4",
+                          color: "#3D5C35", borderRadius: 99, padding: "2px 8px",
+                          fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                          {item.suggestion_type}
+                        </span>
+                      )}
+                      {item.difficulty && (
+                        <span style={{ fontSize: 9, background: "#F0EDE5",
+                          color: "#5C5A57", borderRadius: 99, padding: "2px 8px",
+                          fontWeight: 600 }}>
+                          {item.difficulty}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      style={{ fontSize: 9, fontWeight: 700, color: "#6B7F5C",
+                        background: "transparent", border: "1px solid #6B7F5C",
+                        borderRadius: 99, padding: "3px 10px", cursor: "pointer",
+                        whiteSpace: "nowrap", flexShrink: 0 }}
                     >
-                      View Resource →
-                    </a>
-                  )}
+                      Add to plan →
+                    </button>
+                  </div>
                 </div>
               );
             })}
