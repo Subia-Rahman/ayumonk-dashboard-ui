@@ -43,6 +43,15 @@ const getDimensionPill = (label = "") =>
   DIMENSION_PILLS[label.toLowerCase().trim().split(/\s+/)[0]] ||
   { bg: "#E8F0E4", color: "#3D5C35" };
 
+// Derive "Nidra · Sleep Quality" subtitle for KpiSheet from label like "Nidra Sleep Quality"
+const getSubtitle = (label = "") => {
+  const words = label.trim().split(/\s+/);
+  const dim = words[0]?.toLowerCase();
+  if (!dim || !DIMENSION_PILLS[dim]) return null;
+  const rest = words.slice(1).join(" ");
+  return rest ? `${words[0]} · ${rest}` : words[0];
+};
+
 const wiBand = (wi) => {
   if (wi >= 80) return { label: "Excellent", color: C.g3 };
   if (wi >= 60) return { label: "Good", color: C.g4 };
@@ -120,9 +129,11 @@ export default function Wellness() {
           (item.kpi_key != null && sparkByKpi[`key:${item.kpi_key}`]) ||
           (item.kpi_name && sparkByKpi[`name:${item.kpi_name}`]) ||
           [];
+        const label = fmtLabel(item.kpi_name);
         return {
           kpiKey: item.kpi_key,
-          label: fmtLabel(item.kpi_name),
+          label,
+          subtitle: getSubtitle(label),
           score: Number(item.latest_score) || 0,
           change: fmtChange(item.trend_percent),
           color: getKpiColor(i),

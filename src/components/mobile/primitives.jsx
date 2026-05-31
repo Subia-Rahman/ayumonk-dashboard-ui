@@ -251,13 +251,10 @@ export const Pill = ({ label, color = C.g3, bg }) => (
   </span>
 );
 
-// Bottom sheet that opens when a KPI tile is tapped. `kpi` is shaped by the
-// Wellness screen (see employee/Wellness.jsx) so the same component handles
-// both API-driven KPIs and the design's static demo set.
 export const KpiSheet = ({ kpi, onClose }) => {
   if (!kpi) return null;
   const isRisk = (kpi.score || 0) < 3.0;
-  const spark = kpi.sparkValues && kpi.sparkValues.length >= 2
+  const spark = kpi.sparkValues?.length >= 2
     ? kpi.sparkValues
     : [2.2, 2.5, 2.4, 2.8, 2.7, 3.0, 2.9, 3.1, 3.2, 3.0, 3.3, kpi.score || 3.2];
 
@@ -267,169 +264,117 @@ export const KpiSheet = ({ kpi, onClose }) => {
       style={{ position: "fixed", inset: 0, zIndex: 200 }}
       onClick={onClose}
     >
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "rgba(0,0,0,.6)",
-        }}
-      />
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.45)" }} />
+
       <div
         className="ayumonk-anim"
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
+          bottom: 0, left: 0, right: 0,
           background: C.card2,
-          borderRadius: "20px 20px 0 0",
-          border: `1px solid ${kpi.color}44`,
-          padding: "0 0 90px",
-          maxHeight: "85vh",
+          borderRadius: "24px 24px 0 0",
+          padding: "0 0 52px",
+          maxHeight: "88vh",
           overflowY: "auto",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            padding: "10px 0 4px",
-          }}
-        >
-          <div
-            style={{
-              width: 34,
-              height: 4,
-              background: "rgba(31,30,29,0.12)",
-              borderRadius: 2,
-            }}
-          />
+        {/* Drag handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 8px" }}>
+          <div style={{ width: 36, height: 4, background: "rgba(31,30,29,.12)", borderRadius: 2 }} />
         </div>
 
+        {/* Header */}
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "8px 18px 12px",
+            display: "flex", justifyContent: "space-between",
+            alignItems: "center", padding: "6px 20px 16px",
             borderBottom: `1px solid ${C.border}`,
           }}
         >
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", minWidth: 0, flex: 1 }}>
             <div
               style={{
-                width: 42,
-                height: 42,
-                borderRadius: 13,
-                background: `${kpi.color}20`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 21,
+                width: 48, height: 48, borderRadius: 16,
+                background: `${kpi.color}18`,
+                display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: 24, flexShrink: 0,
               }}
             >
               {kpi.icon}
             </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: C.dark }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: C.dark, lineHeight: 1.2 }}>
                 {kpi.label}
               </div>
-              {kpi.sf && (
-                <div style={{ fontSize: 9, color: C.muted }}>SF-12: {kpi.sf}</div>
+              {kpi.subtitle && (
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
+                  {kpi.subtitle}
+                </div>
               )}
             </div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 800,
-                color: kpi.color,
-                lineHeight: 1,
-              }}
-            >
+          <div style={{ textAlign: "right", flexShrink: 0, paddingLeft: 12 }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: kpi.color, lineHeight: 1, marginBottom: 5 }}>
               {Number(kpi.score).toFixed(1)}
             </div>
             <Pill
-              label={isRisk ? "Needs Attention" : "On Track"}
-              color={isRisk ? "#f87171" : C.g3}
+              label={isRisk ? "Needs Attention" : "On track"}
+              color={isRisk ? C.red : C.g3}
             />
           </div>
         </div>
 
-        <div style={{ padding: "14px 18px 10px" }}>
-          <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>
+        {/* 12-week trend */}
+        <div style={{ padding: "16px 20px 12px" }}>
+          <div
+            style={{
+              fontSize: 10, fontWeight: 700, color: C.muted,
+              textTransform: "uppercase", letterSpacing: 1, marginBottom: 10,
+            }}
+          >
             12-week trend
           </div>
-          <Spark vals={spark} color={kpi.color} w={260} h={36} />
+          <div style={{ background: C.bg, borderRadius: 14, padding: "14px 12px 10px" }}>
+            <Spark vals={spark} color={kpi.color} w={300} h={60} />
+          </div>
         </div>
 
+        {/* Question scores */}
         {Array.isArray(kpi.questions) && kpi.questions.length > 0 && (
-          <div style={{ padding: "4px 18px 14px" }}>
+          <div style={{ padding: "4px 20px 16px" }}>
             <div
               style={{
-                fontSize: 9,
-                fontWeight: 700,
-                color: C.muted,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                marginBottom: 8,
+                fontSize: 10, fontWeight: 700, color: C.muted,
+                textTransform: "uppercase", letterSpacing: 1, marginBottom: 14,
               }}
             >
               Question Scores
             </div>
             {kpi.questions.map((q, i) => {
-              const pct = ((q.score - 1) / 4) * 100;
+              const pct = Math.max(0, Math.min(100, ((q.score - 1) / 4) * 100));
               const flagged = q.score < (q.threshold || 3);
               return (
-                <div key={i} style={{ marginBottom: 10 }}>
+                <div key={i} style={{ marginBottom: 16 }}>
                   <div
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: 4,
+                      display: "flex", justifyContent: "space-between",
+                      alignItems: "baseline", marginBottom: 6, gap: 8,
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: flagged
-                          ? "rgba(251,191,36,.9)"
-                          : C.muted,
-                        flex: 1,
-                        paddingRight: 8,
-                      }}
-                    >
-                      {flagged ? "⚡ " : ""}
-                      {q.label}
+                    <span style={{ fontSize: 13, color: C.dark, flex: 1, lineHeight: 1.3 }}>
+                      {flagged ? "⚡ " : ""}{q.label}
                     </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 800,
-                        color: flagged ? "#fbbf24" : kpi.color,
-                      }}
-                    >
+                    <span style={{ fontSize: 15, fontWeight: 800, color: flagged ? C.orange : kpi.color, flexShrink: 0 }}>
                       {Number(q.score).toFixed(1)}
                     </span>
                   </div>
-                  <div
-                    style={{
-                      height: 4,
-                      background: "rgba(31,30,29,0.07)",
-                      borderRadius: 3,
-                    }}
-                  >
+                  <div style={{ height: 5, background: `${kpi.color}18`, borderRadius: 3 }}>
                     <div
                       style={{
-                        height: "100%",
-                        width: `${Math.max(0, Math.min(100, pct))}%`,
-                        background: flagged
-                          ? "linear-gradient(90deg,#f87171,#fbbf24)"
-                          : kpi.color,
-                        borderRadius: 3,
-                        transition: "width .4s",
+                        height: "100%", width: `${pct}%`,
+                        background: flagged ? `linear-gradient(90deg,${C.red},${C.orange})` : kpi.color,
+                        borderRadius: 3, transition: "width .4s",
                       }}
                     />
                   </div>
@@ -439,64 +384,26 @@ export const KpiSheet = ({ kpi, onClose }) => {
           </div>
         )}
 
+        {/* Ayumonk suggestions (at-risk only) */}
         {isRisk && (kpi.aahar || kpi.vihar || kpi.aushadh) && (
           <div
             style={{
-              margin: "0 18px",
-              background: `${kpi.color}0a`,
-              borderRadius: 14,
-              padding: "12px 14px",
-              border: `1px solid ${kpi.color}22`,
+              margin: "0 20px", background: `${kpi.color}08`,
+              borderRadius: 14, padding: "12px 14px",
+              border: `1px solid ${kpi.color}20`,
             }}
           >
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: kpi.color,
-                marginBottom: 8,
-              }}
-            >
+            <div style={{ fontSize: 10, fontWeight: 700, color: kpi.color, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
               🌿 Ayumonk Suggestions
             </div>
-            {[
-              ["🥗", "Aahar", kpi.aahar],
-              ["🌅", "Vihar", kpi.vihar],
-              ["🌿", "Aushadh", kpi.aushadh],
-            ]
-              .filter(([, , txt]) => Boolean(txt))
+            {[["🥗","Aahar",kpi.aahar],["🌅","Vihar",kpi.vihar],["🌿","Aushadh",kpi.aushadh]]
+              .filter(([,,txt]) => Boolean(txt))
               .map(([ic, lbl, txt]) => (
-                <div
-                  key={lbl}
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    marginBottom: 7,
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <span style={{ fontSize: 13, width: 20, flexShrink: 0 }}>
-                    {ic}
-                  </span>
+                <div key={lbl} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-start" }}>
+                  <span style={{ fontSize: 14, width: 22, flexShrink: 0 }}>{ic}</span>
                   <div>
-                    <span
-                      style={{
-                        fontSize: 9,
-                        fontWeight: 700,
-                        color: kpi.color,
-                      }}
-                    >
-                      {lbl} →{" "}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 9,
-                        color: C.muted,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {txt}
-                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: kpi.color }}>{lbl} → </span>
+                    <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}>{txt}</span>
                   </div>
                 </div>
               ))}
