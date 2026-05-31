@@ -257,10 +257,20 @@ export default function Wellness() {
       )}
 
       {metrics.length > 0 && (
-        <div style={{ padding: "0 16px 20px" }}>
-          <SectionLabel>KPI Metrics · tap for details</SectionLabel>
+        <div style={{ padding: "0 0 20px" }}>
+          <div style={{ padding: "0 16px" }}>
+            <SectionLabel>KPI Metrics · tap for details</SectionLabel>
+          </div>
           <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              overflowX: "auto",
+              gap: 10,
+              padding: "0 16px 4px",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+            }}
           >
             {metrics.map((m) => {
               const pos = m.change && m.change.startsWith("+");
@@ -269,6 +279,9 @@ export default function Wellness() {
                   key={m.kpiKey ?? m.label}
                   onClick={() => setActiveKpi(m)}
                   style={{
+                    minWidth: 140,
+                    maxWidth: 140,
+                    flexShrink: 0,
                     background: C.card,
                     borderRadius: 14,
                     padding: "15px 13px",
