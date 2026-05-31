@@ -181,7 +181,7 @@ export default function Wellness() {
           }}
         >
           <div style={{ flexShrink: 0 }}>
-            <Donut pct={overallWi} size={90} color={band.color} label="/ 100" />
+            <Donut pct={overallWi} size={106} stroke={12} color="#ffffff" track="rgba(255,255,255,0.22)" label="/ 100" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
@@ -197,10 +197,11 @@ export default function Wellness() {
             </div>
             <div
               style={{
-                fontSize: 14,
-                fontWeight: 700,
+                fontSize: 22,
+                fontWeight: 800,
                 color: "#fff",
-                marginBottom: 4,
+                letterSpacing: "-0.02em",
+                marginBottom: 6,
               }}
             >
               {overallWi > 0 ? `${overallWi} / 100` : loading ? "Loading…" : "— / 100"}
@@ -209,11 +210,11 @@ export default function Wellness() {
               style={{
                 display: "inline-block",
                 fontSize: 12,
-                fontWeight: 700,
-                color: band.color,
-                background: `${band.color}22`,
+                fontWeight: 800,
+                color: "#fff",
+                background: "rgba(255,255,255,0.20)",
                 borderRadius: 20,
-                padding: "3px 10px",
+                padding: "4px 11px",
               }}
             >
               {band.label}
@@ -237,6 +238,22 @@ export default function Wellness() {
                 </span>
               </div>
             )}
+            <div
+              style={{
+                marginTop: 10,
+                marginLeft: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                background: "rgba(255,255,255,.12)",
+                borderRadius: 20,
+                padding: "3px 10px",
+              }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
+                🔥 7-day streak
+              </span>
+            </div>
           </div>
         </div>
       </div>

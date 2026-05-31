@@ -55,12 +55,15 @@ export const Donut = ({
   color = C.g3,
   label = "",
   center = true,
+  stroke = 7,
+  track = "rgba(255,255,255,0.06)",
 }) => {
   const half = size / 2;
-  const r = half - 10;
-  const stroke = 7;
+  const r = half - stroke - 2;
   const circ = 2 * Math.PI * r;
   const dash = circ * (Math.min(100, Math.max(0, pct)) / 100);
+  const numSize = Math.round(size * 0.3);
+  const labSize = Math.max(8, Math.round(size * 0.095));
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <circle
@@ -68,7 +71,7 @@ export const Donut = ({
         cy={half}
         r={r}
         fill="none"
-        stroke="rgba(255,255,255,0.06)"
+        stroke={track}
         strokeWidth={stroke}
       />
       <circle
@@ -86,22 +89,26 @@ export const Donut = ({
         <>
           <text
             x={half}
-            y={half + 5}
+            y={label ? half - labSize * 0.55 : half}
             textAnchor="middle"
+            dominantBaseline="middle"
             fill="#fff"
-            fontSize="13"
+            fontSize={numSize}
             fontWeight="800"
             fontFamily="Inter, system-ui, sans-serif"
+            style={{ letterSpacing: "-0.02em" }}
           >
             {Math.round(pct)}
           </text>
           {label && (
             <text
               x={half}
-              y={half + 15}
+              y={half + numSize * 0.5}
               textAnchor="middle"
-              fill="rgba(255,255,255,0.3)"
-              fontSize="7"
+              dominantBaseline="middle"
+              fill="rgba(255,255,255,0.55)"
+              fontSize={labSize}
+              fontWeight="600"
               fontFamily="Inter, system-ui, sans-serif"
             >
               {label}
