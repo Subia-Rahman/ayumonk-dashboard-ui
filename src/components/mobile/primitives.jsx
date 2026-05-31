@@ -301,7 +301,7 @@ export const KpiSheet = ({ kpi, onClose }) => {
             style={{
               width: 34,
               height: 4,
-              background: "rgba(255,255,255,0.12)",
+              background: "rgba(31,30,29,0.12)",
               borderRadius: 2,
             }}
           />
@@ -313,7 +313,7 @@ export const KpiSheet = ({ kpi, onClose }) => {
             justifyContent: "space-between",
             alignItems: "center",
             padding: "8px 18px 12px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            borderBottom: `1px solid ${C.border}`,
           }}
         >
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -332,7 +332,7 @@ export const KpiSheet = ({ kpi, onClose }) => {
               {kpi.icon}
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: C.dark }}>
                 {kpi.label}
               </div>
               {kpi.sf && (
@@ -371,7 +371,7 @@ export const KpiSheet = ({ kpi, onClose }) => {
               style={{
                 fontSize: 9,
                 fontWeight: 700,
-                color: "rgba(255,255,255,0.4)",
+                color: C.muted,
                 textTransform: "uppercase",
                 letterSpacing: 0.5,
                 marginBottom: 8,
@@ -396,7 +396,7 @@ export const KpiSheet = ({ kpi, onClose }) => {
                         fontSize: 10,
                         color: flagged
                           ? "rgba(251,191,36,.9)"
-                          : "rgba(255,255,255,.5)",
+                          : C.muted,
                         flex: 1,
                         paddingRight: 8,
                       }}
@@ -417,7 +417,7 @@ export const KpiSheet = ({ kpi, onClose }) => {
                   <div
                     style={{
                       height: 4,
-                      background: "rgba(255,255,255,0.06)",
+                      background: "rgba(31,30,29,0.07)",
                       borderRadius: 3,
                     }}
                   >
@@ -491,7 +491,7 @@ export const KpiSheet = ({ kpi, onClose }) => {
                     <span
                       style={{
                         fontSize: 9,
-                        color: "rgba(255,255,255,0.45)",
+                        color: C.muted,
                         lineHeight: 1.5,
                       }}
                     >
