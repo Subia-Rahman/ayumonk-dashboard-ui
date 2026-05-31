@@ -33,7 +33,7 @@ const LEADERBOARD = [
   { rank: "2nd", name: "Rahul M.", dept: "Product", pct: "+38%", col: "#94a3b8" },
   { rank: "3rd", name: "Anjali K.", dept: "HR", pct: "+35%", col: C.orange },
   { rank: "4th ← You", name: "Amit R.", dept: "Finance", pct: "+31%", col: C.g3, current: true },
-  { rank: "5th", name: "Sneha P.", dept: "Marketing", pct: "+28%", col: "rgba(255,255,255,0.3)" },
+  { rank: "5th", name: "Sneha P.", dept: "Marketing", pct: "+28%", col: "#9E9B97" },
 ];
 
 const getOptions = (type) => {
@@ -67,7 +67,7 @@ function SectionLabel({ children }) {
       style={{
         fontSize: 10,
         fontWeight: 700,
-        color: "rgba(255,255,255,.3)",
+        color: "#6B7F5C",
         textTransform: "uppercase",
         letterSpacing: 1.2,
         marginBottom: 12,
@@ -234,7 +234,7 @@ export default function Challenges() {
       <div style={{ margin: "16px" }}>
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "28px", textAlign: "center" }}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>📅</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,.5)", marginBottom: 6 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#5C5A57", marginBottom: 6 }}>
             No active challenges
           </div>
           <div style={{ fontSize: 12, color: C.muted }}>
@@ -249,7 +249,7 @@ export default function Challenges() {
     <div style={{ background: C.bg, minHeight: "100%", paddingBottom: 16 }}>
       {/* Page header */}
       <div style={{ padding: "10px 16px 16px" }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: "#1F1E1D" }}>
           🎯 Challenges
         </div>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
@@ -285,7 +285,7 @@ export default function Challenges() {
             {completedCount}/{challengeItems.length}
           </span>
         </div>
-        <div style={{ height: 7, borderRadius: 7, background: "rgba(255,255,255,.07)" }}>
+        <div style={{ height: 7, borderRadius: 7, background: "rgba(31,30,29,0.08)" }}>
           <div
             style={{
               height: "100%",
@@ -350,7 +350,7 @@ export default function Challenges() {
                       style={{
                         fontSize: 13,
                         fontWeight: 700,
-                        color: done ? color : "#fff",
+                        color: done ? color : "#1F1E1D",
                         marginBottom: 3,
                         whiteSpace: "nowrap",
                         overflow: "hidden",
@@ -370,7 +370,7 @@ export default function Challenges() {
                 <div
                   style={{
                     fontSize: 12,
-                    color: "rgba(255,255,255,.42)",
+                    color: "#5C5A57",
                     lineHeight: 1.55,
                     marginBottom: 14,
                   }}
@@ -622,13 +622,13 @@ export default function Challenges() {
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: b.earned ? b.color : "rgba(255,255,255,.3)",
+                  color: b.earned ? b.color : "#9E9B97",
                   marginBottom: 2,
                 }}
               >
                 {b.label}
               </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,.28)" }}>
+              <div style={{ fontSize: 10, color: "#9E9B97" }}>
                 {b.level}
                 {!b.earned && " 🔒"}
               </div>
@@ -656,7 +656,7 @@ export default function Challenges() {
                 alignItems: "center",
                 gap: 12,
                 padding: "13px 16px",
-                borderBottom: i < LEADERBOARD.length - 1 ? `1px solid rgba(255,255,255,.04)` : "none",
+                borderBottom: i < LEADERBOARD.length - 1 ? `1px solid rgba(31,30,29,0.06)` : "none",
                 background: row.current ? "rgba(109,179,63,.04)" : "transparent",
               }}
             >
@@ -675,7 +675,7 @@ export default function Challenges() {
                   style={{
                     fontSize: 13,
                     fontWeight: row.current ? 700 : 400,
-                    color: row.current ? C.g3 : "#fff",
+                    color: row.current ? C.g3 : "#1F1E1D",
                     marginBottom: 2,
                   }}
                 >

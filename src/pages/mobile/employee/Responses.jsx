@@ -71,7 +71,7 @@ function ScoreBar({ score, color }) {
         flex: 1,
         height: 5,
         borderRadius: 5,
-        background: "rgba(255,255,255,0.07)",
+        background: "rgba(31,30,29,0.08)",
       }}
     >
       <div
@@ -93,7 +93,7 @@ function SectionLabel({ children }) {
       style={{
         fontSize: 10,
         fontWeight: 700,
-        color: "rgba(255,255,255,.3)",
+        color: "#6B7F5C",
         textTransform: "uppercase",
         letterSpacing: 1.2,
         marginBottom: 0,
@@ -247,7 +247,7 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
                       style={{
                         fontSize: 12,
                         fontWeight: 700,
-                        color: "#fff",
+                        color: "#1F1E1D",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -308,15 +308,15 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
                       fontSize: 12,
                     }}
                   >
-                    <div style={{ color: "rgba(255,255,255,.45)" }}>Total Score</div>
-                    <div style={{ textAlign: "right", fontWeight: 700, color: "#fff" }}>
+                    <div style={{ color: "#5C5A57" }}>Total Score</div>
+                    <div style={{ textAlign: "right", fontWeight: 700, color: "#1F1E1D" }}>
                       {k.total_score}
                     </div>
-                    <div style={{ color: "rgba(255,255,255,.45)" }}>Questions</div>
-                    <div style={{ textAlign: "right", fontWeight: 700, color: "#fff" }}>
+                    <div style={{ color: "#5C5A57" }}>Questions</div>
+                    <div style={{ textAlign: "right", fontWeight: 700, color: "#1F1E1D" }}>
                       {k.question_count}
                     </div>
-                    <div style={{ color: "rgba(255,255,255,.45)" }}>Average</div>
+                    <div style={{ color: "#5C5A57" }}>Average</div>
                     <div style={{ textAlign: "right", fontWeight: 700, color }}>
                       {avg.toFixed(2)} / 5
                     </div>
@@ -327,7 +327,7 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
                       paddingTop: 6,
                       marginTop: 8,
                       fontSize: 10,
-                      color: "rgba(255,255,255,.25)",
+                      color: "#5C5A57",
                       fontFamily: "monospace",
                     }}
                   >
@@ -387,7 +387,7 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
                   <div
                     style={{
                       fontSize: 11,
-                      color: "rgba(255,255,255,.5)",
+                      color: "#5C5A57",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -522,7 +522,7 @@ export default function Responses() {
     <div style={{ background: C.bg, minHeight: "100%" }}>
       {/* Page header */}
       <div style={{ padding: "10px 16px 14px" }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: "#1F1E1D" }}>
           📝 My Responses
         </div>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
@@ -695,7 +695,7 @@ export default function Responses() {
                 style={{
                   fontSize: 14,
                   fontWeight: 700,
-                  color: "rgba(255,255,255,.55)",
+                  color: "#1F1E1D",
                   marginBottom: 5,
                 }}
               >
@@ -765,7 +765,7 @@ export default function Responses() {
                       <span
                         style={{
                           fontSize: 12,
-                          color: "#fff",
+                          color: "#1F1E1D",
                           fontWeight: 700,
                           whiteSpace: "nowrap",
                           overflow: "hidden",
@@ -779,7 +779,7 @@ export default function Responses() {
 
                     {latest?.submitted_at && (
                       <div
-                        style={{ fontSize: 11, color: "rgba(255,255,255,.38)", marginBottom: 8 }}
+                        style={{ fontSize: 11, color: "#5C5A57", marginBottom: 8 }}
                       >
                         {formatDateTimeIST(latest.submitted_at)}
                       </div>
@@ -871,7 +871,7 @@ export default function Responses() {
                       flex: 1,
                       height: 4,
                       borderRadius: 4,
-                      background: "rgba(255,255,255,.07)",
+                      background: "rgba(31,30,29,0.08)",
                     }}
                   >
                     <div
@@ -883,7 +883,7 @@ export default function Responses() {
                       }}
                     />
                   </div>
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,.35)", flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, color: "#5C5A57", flexShrink: 0 }}>
                     /100
                   </span>
                 </div>
@@ -934,7 +934,7 @@ export default function Responses() {
                 style={{
                   fontSize: 14,
                   fontWeight: 700,
-                  color: "rgba(255,255,255,.55)",
+                  color: "#1F1E1D",
                   marginBottom: 5,
                 }}
               >
@@ -985,7 +985,7 @@ export default function Responses() {
                       />
                     </div>
                     <div
-                      style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 4 }}
+                      style={{ fontSize: 13, fontWeight: 700, color: "#1F1E1D", marginBottom: 4 }}
                     >
                       {session.title}
                     </div>
