@@ -47,7 +47,7 @@ export default function SaSuggestions() {
         }}
       >
         <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>
             🌿 Suggestion Master
           </div>
           <div style={{ fontSize: 8.5, color: C.muted }}>
@@ -90,7 +90,7 @@ export default function SaSuggestions() {
               style={{
                 fontSize: 10,
                 background: on ? `${C.g3}20` : C.card,
-                color: on ? C.g3 : "rgba(255,255,255,.38)",
+                color: on ? C.g3 : "#6B7F5C",
                 borderRadius: 8,
                 padding: "5px 11px",
                 border: `1px solid ${on ? C.g3 + "44" : C.border}`,
@@ -152,7 +152,7 @@ export default function SaSuggestions() {
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        color: "#fff",
+                        color: "#1F1E1D",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -198,7 +198,7 @@ export default function SaSuggestions() {
                 <div
                   style={{
                     fontSize: 9.5,
-                    color: "rgba(255,255,255,.45)",
+                    color: "#5C5A57",
                     lineHeight: 1.45,
                   }}
                 >
@@ -212,8 +212,8 @@ export default function SaSuggestions() {
                   <span
                     style={{
                       fontSize: 8.5,
-                      background: "rgba(255,255,255,.04)",
-                      color: "rgba(255,255,255,.4)",
+                      background: "rgba(31,30,29,0.08)",
+                      color: "#5C5A57",
                       borderRadius: 5,
                       padding: "1px 7px",
                     }}
@@ -225,8 +225,8 @@ export default function SaSuggestions() {
                   <span
                     style={{
                       fontSize: 8.5,
-                      background: "rgba(255,255,255,.04)",
-                      color: "rgba(255,255,255,.4)",
+                      background: "rgba(31,30,29,0.08)",
+                      color: "#5C5A57",
                       borderRadius: 5,
                       padding: "1px 7px",
                     }}

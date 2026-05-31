@@ -42,11 +42,11 @@ function Placeholder({ label }) {
       style={{
         padding: "40px 20px",
         textAlign: "center",
-        color: "rgba(255,255,255,.55)",
+        color: "#5C5A57",
       }}
     >
       <div style={{ fontSize: 32, marginBottom: 10 }}>📱</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 6 }}>
+      <div style={{ fontSize: 14, fontWeight: 600, color: "#1F1E1D", marginBottom: 6 }}>
         {label || "Section"}
       </div>
       <div style={{ fontSize: 11 }}>

@@ -48,7 +48,7 @@ export default function SaKpis() {
         }}
       >
         <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>
             🎯 KPI Master
           </div>
           <div style={{ fontSize: 8.5, color: C.muted }}>
@@ -96,7 +96,7 @@ export default function SaKpis() {
             border: "none",
             background: "transparent",
             outline: "none",
-            color: "#fff",
+            color: "#1F1E1D",
             fontSize: 11,
           }}
         />
@@ -162,7 +162,7 @@ export default function SaKpis() {
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        color: "#fff",
+                        color: "#1F1E1D",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -196,8 +196,8 @@ export default function SaKpis() {
                   <span
                     style={{
                       fontSize: 9,
-                      background: "rgba(255,255,255,.04)",
-                      color: "rgba(255,255,255,.38)",
+                      background: "rgba(31,30,29,0.08)",
+                      color: "#5C5A57",
                       borderRadius: 6,
                       padding: "2px 8px",
                     }}
@@ -209,8 +209,8 @@ export default function SaKpis() {
                   <span
                     style={{
                       fontSize: 9,
-                      background: "rgba(255,255,255,.04)",
-                      color: "rgba(255,255,255,.38)",
+                      background: "rgba(31,30,29,0.08)",
+                      color: "#5C5A57",
                       borderRadius: 6,
                       padding: "2px 8px",
                     }}

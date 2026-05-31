@@ -69,7 +69,7 @@ export default function SaHome() {
     <div style={{ background: C.bg, minHeight: "100%" }}>
       <div style={{ padding: "10px 16px 10px" }}>
         <div style={{ fontSize: 8.5, color: C.muted }}>Platform overview</div>
-        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>
           System Dashboard
         </div>
       </div>
@@ -134,7 +134,7 @@ export default function SaHome() {
               <div
                 style={{
                   fontSize: 7.5,
-                  color: "rgba(255,255,255,.25)",
+                  color: "#5C5A57",
                   marginTop: 3,
                 }}
               >
@@ -158,7 +158,7 @@ export default function SaHome() {
           style={{
             fontSize: 10.5,
             fontWeight: 700,
-            color: "rgba(255,255,255,.55)",
+            color: "#1F1E1D",
             marginBottom: 10,
           }}
         >
@@ -205,7 +205,7 @@ export default function SaHome() {
             style={{
               fontSize: 9.5,
               fontWeight: 700,
-              color: "rgba(255,255,255,.42)",
+              color: "#6B7F5C",
               textTransform: "uppercase",
               letterSpacing: 0.5,
             }}
@@ -265,7 +265,7 @@ export default function SaHome() {
                 style={{
                   fontSize: 10.5,
                   fontWeight: 700,
-                  color: "#fff",
+                  color: "#1F1E1D",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
