@@ -51,7 +51,10 @@ export default function MobileShell({
       <div
         className="ayumonk-mobile"
         style={{
-          minHeight: "100vh",
+          height: "100dvh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
           background: palette.bg,
           color: palette.text,
           fontFamily: "'Inter', system-ui, sans-serif",
@@ -60,9 +63,12 @@ export default function MobileShell({
       >
         <div
           style={{
-            minHeight: "100vh",
-            paddingBottom: 72,
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
             paddingTop: "env(safe-area-inset-top)",
+            paddingBottom: 24,
           }}
         >
           <MobileHeader

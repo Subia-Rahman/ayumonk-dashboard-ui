@@ -37,10 +37,8 @@ export default function BottomNav({ items, active, onNav, accent, notch = false,
   return (
     <div
       style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
+        position: "relative",
+        flexShrink: 0,
         display: "flex",
         background: palette.card,
         backdropFilter: "blur(18px)",
@@ -130,10 +128,8 @@ function NotchNav({ items, active, onNav, palette, isDark, acc, centerBadge }) {
   return (
     <div
       style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
+        position: "relative",
+        flexShrink: 0,
         zIndex: 50,
         paddingBottom: "env(safe-area-inset-bottom)",
       }}

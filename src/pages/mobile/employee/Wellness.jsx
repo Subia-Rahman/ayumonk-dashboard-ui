@@ -84,6 +84,7 @@ export default function Wellness() {
   const t = useTokens();
   const dispatch = useDispatch();
   const [activeKpi, setActiveKpi] = useState(null);
+  const [planned, setPlanned] = useState({});
 
   const { items, loading, error, suggestions, suggestionsLoading, trends } =
     useSelector((s) => s.dashboard);
@@ -592,9 +593,9 @@ export default function Wellness() {
                       <span
                         style={{
                           fontSize: 11,
-                          background: "#F0EDE5",
+                          background: t.bg,
                           color: t.sub,
-                          border: "1px solid rgba(31,30,29,0.1)",
+                          border: `1px solid ${t.border}`,
                           borderRadius: 6,
                           padding: "3px 9px",
                         }}
@@ -606,9 +607,9 @@ export default function Wellness() {
                       <span
                         style={{
                           fontSize: 11,
-                          background: "#F0EDE5",
+                          background: t.bg,
                           color: t.sub,
-                          border: "1px solid rgba(31,30,29,0.1)",
+                          border: `1px solid ${t.border}`,
                           borderRadius: 6,
                           padding: "3px 9px",
                         }}
@@ -620,9 +621,9 @@ export default function Wellness() {
                       <span
                         style={{
                           fontSize: 11,
-                          background: "#F0EDE5",
+                          background: t.bg,
                           color: t.sub,
-                          border: "1px solid rgba(31,30,29,0.1)",
+                          border: `1px solid ${t.border}`,
                           borderRadius: 6,
                           padding: "3px 9px",
                         }}
@@ -631,6 +632,42 @@ export default function Wellness() {
                       </span>
                     )}
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPlanned((p) => ({
+                        ...p,
+                        [item.suggestion_id ?? item.title]:
+                          !p[item.suggestion_id ?? item.title],
+                      }))
+                    }
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginTop: 12,
+                      marginRight: 8,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      color: planned[item.suggestion_id ?? item.title]
+                        ? "#fff"
+                        : accent,
+                      background: planned[item.suggestion_id ?? item.title]
+                        ? accent
+                        : `${accent}14`,
+                      border: `1px solid ${accent}55`,
+                      padding: "7px 14px",
+                      borderRadius: 9,
+                      transition: "all .18s",
+                    }}
+                  >
+                    {planned[item.suggestion_id ?? item.title]
+                      ? "✓ Added to plan"
+                      : "+ Add to plan"}
+                  </button>
 
                   {!!item.url && (
                     <a
