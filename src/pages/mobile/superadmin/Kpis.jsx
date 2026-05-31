@@ -6,14 +6,14 @@ import { Pill } from "../../../components/mobile/primitives";
 import { fetchKpis } from "../../../store/kpiSlice";
 
 const KPI_PRESETS = {
-  sleep: { icon: "🌙", color: "#7c6af7", sf: "Mental Health" },
+  sleep: { icon: "🌙", color: "#8B6FCB", sf: "Mental Health" },
   stress: { icon: "🧘", color: C.orange, sf: "Role Emotional" },
-  nutrition: { icon: "🥗", color: "#22c55e", sf: "Gen. Health" },
-  hydration: { icon: "💧", color: "#38bdf8", sf: "Vitality" },
+  nutrition: { icon: "🥗", color: "#4F9D5B", sf: "Gen. Health" },
+  hydration: { icon: "💧", color: "#4A90C4", sf: "Vitality" },
   activity: { icon: "🏃", color: C.orange, sf: "Physical Func." },
   energy: { icon: "⚡", color: C.gold, sf: "Role Physical" },
   posture: { icon: "🦴", color: C.pink, sf: "Bodily Pain" },
-  digestion: { icon: "🫐", color: "#a3e635", sf: "Gen. Health" },
+  digestion: { icon: "🫐", color: "#8FAE5A", sf: "Gen. Health" },
 };
 const DEFAULT_KPI = { icon: "🌿", color: C.g3, sf: "General Health" };
 const presetFor = (name) => {
@@ -187,7 +187,7 @@ export default function SaKpis() {
                   </span>
                   <Pill
                     label={k.is_active ? "Active" : "Inactive"}
-                    color={k.is_active ? "#4ade80" : C.muted}
+                    color={k.is_active ? "#4F9D5B" : C.muted}
                   />
                 </div>
               </div>

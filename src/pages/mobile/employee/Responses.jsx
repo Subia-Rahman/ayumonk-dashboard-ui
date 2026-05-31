@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { C } from "../../../components/mobile/palette";
 import { Pill } from "../../../components/mobile/primitives";
+import { useTokens } from "../../../components/mobile/useTokens";
 import {
   clearMyLinksState,
   clearMySubmissionsState,
@@ -13,8 +14,8 @@ import { formatDateIST, formatDateTimeIST } from "../../../utils/dateTime";
 
 const KPI_ICONS = ["🧠", "🔥", "💧", "🧘", "🌙", "🏃", "🥗", "💪", "❤️"];
 const KPI_COLORS = [
-  "#7c6af7", "#f97316", "#22c55e", "#38bdf8",
-  "#a3e635", "#facc15", "#ec4899", "#f59e0b", "#06b6d4",
+  "#8B6FCB", "#E0935C", "#4F9D5B", "#4A90C4",
+  "#8FAE5A", "#C99A3F", "#C36FA8", "#C99A3F", "#3AA8A0",
 ];
 
 const getKpiIcon = (i) => KPI_ICONS[i % KPI_ICONS.length];
@@ -64,6 +65,7 @@ function RiskBadge({ avg }) {
 }
 
 function ScoreBar({ score, color }) {
+  const t = useTokens();
   const pct = Math.max(0, Math.min(100, ((score - 1) / 4) * 100));
   return (
     <div
@@ -71,7 +73,7 @@ function ScoreBar({ score, color }) {
         flex: 1,
         height: 5,
         borderRadius: 5,
-        background: "rgba(31,30,29,0.08)",
+        background: t.track,
       }}
     >
       <div
@@ -105,6 +107,7 @@ function SectionLabel({ children }) {
 }
 
 function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
+  const t = useTokens();
   const wi = toWi100(response.weighted_index ?? 0);
   const band = wiBandOf(wi);
   const kpis = response.kpi_scores || [];
@@ -216,9 +219,9 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
               key={k.kpi_key}
               onClick={() => onExpandKpi(isExp ? null : k.kpi_key)}
               style={{
-                background: "rgba(255,255,255,.025)",
+                background: t.card2,
                 borderRadius: 12,
-                border: `1px solid ${isExp ? `${color}55` : C.border}`,
+                border: `1px solid ${isExp ? `${color}55` : t.border}`,
                 overflow: "hidden",
                 cursor: "pointer",
                 transition: "border-color .2s",
@@ -247,7 +250,7 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
                       style={{
                         fontSize: 12,
                         fontWeight: 700,
-                        color: "#1F1E1D",
+                        color: t.text,
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -267,15 +270,15 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
                       <span style={{ fontSize: 14, fontWeight: 800, color }}>
                         {avg.toFixed(2)}
                       </span>
-                      <span style={{ fontSize: 10, color: C.muted }}>/5</span>
+                      <span style={{ fontSize: 10, color: t.muted }}>/5</span>
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <ScoreBar score={avg} color={color} />
-                    <span style={{ fontSize: 10, color: C.muted }}>{pct}%</span>
+                    <span style={{ fontSize: 10, color: t.muted }}>{pct}%</span>
                   </div>
                 </div>
-                <span style={{ fontSize: 12, color: C.muted }}>
+                <span style={{ fontSize: 12, color: t.muted }}>
                   {isExp ? "▲" : "▼"}
                 </span>
               </div>
@@ -283,16 +286,16 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
               {isExp && (
                 <div
                   style={{
-                    borderTop: "1px solid rgba(255,255,255,.06)",
+                    borderTop: `1px solid ${t.border}`,
                     padding: "12px 13px",
-                    background: "rgba(0,0,0,.15)",
+                    background: t.inset,
                   }}
                 >
                   <div
                     style={{
                       fontSize: 10,
                       fontWeight: 700,
-                      color: C.muted,
+                      color: t.muted,
                       textTransform: "uppercase",
                       letterSpacing: 0.8,
                       marginBottom: 10,
@@ -308,26 +311,26 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
                       fontSize: 12,
                     }}
                   >
-                    <div style={{ color: "#5C5A57" }}>Total Score</div>
-                    <div style={{ textAlign: "right", fontWeight: 700, color: "#1F1E1D" }}>
+                    <div style={{ color: t.sub }}>Total Score</div>
+                    <div style={{ textAlign: "right", fontWeight: 700, color: t.text }}>
                       {k.total_score}
                     </div>
-                    <div style={{ color: "#5C5A57" }}>Questions</div>
-                    <div style={{ textAlign: "right", fontWeight: 700, color: "#1F1E1D" }}>
+                    <div style={{ color: t.sub }}>Questions</div>
+                    <div style={{ textAlign: "right", fontWeight: 700, color: t.text }}>
                       {k.question_count}
                     </div>
-                    <div style={{ color: "#5C5A57" }}>Average</div>
+                    <div style={{ color: t.sub }}>Average</div>
                     <div style={{ textAlign: "right", fontWeight: 700, color }}>
                       {avg.toFixed(2)} / 5
                     </div>
                   </div>
                   <div
                     style={{
-                      borderTop: "1px solid rgba(255,255,255,.05)",
+                      borderTop: `1px solid ${t.border}`,
                       paddingTop: 6,
                       marginTop: 8,
                       fontSize: 10,
-                      color: "#5C5A57",
+                      color: t.sub,
                       fontFamily: "monospace",
                     }}
                   >
@@ -358,7 +361,7 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
           <div
             style={{
               fontSize: 10,
-              color: C.muted,
+              color: t.muted,
               marginBottom: 12,
               fontFamily: "monospace",
             }}
@@ -387,7 +390,7 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
                   <div
                     style={{
                       fontSize: 11,
-                      color: "#5C5A57",
+                      color: t.sub,
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -400,7 +403,7 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
                     style={{
                       height: 4,
                       borderRadius: 4,
-                      background: "rgba(255,255,255,.06)",
+                      background: t.track,
                     }}
                   >
                     <div
@@ -415,7 +418,7 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
                   <div
                     style={{
                       fontSize: 9,
-                      color: C.muted,
+                      color: t.muted,
                       fontFamily: "monospace",
                       marginTop: 3,
                     }}
@@ -432,7 +435,7 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
 
           <div
             style={{
-              borderTop: "1px solid rgba(255,255,255,.08)",
+              borderTop: `1px solid ${t.border}`,
               paddingTop: 8,
               marginTop: 8,
               display: "flex",
@@ -441,9 +444,9 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
               gap: 6,
             }}
           >
-            <span style={{ fontSize: 11, color: C.muted }}>Wellness Index =</span>
+            <span style={{ fontSize: 11, color: t.muted }}>Wellness Index =</span>
             <span style={{ fontSize: 24, fontWeight: 900, color: C.g3 }}>{wi}</span>
-            <span style={{ fontSize: 11, color: C.muted }}>/ 100</span>
+            <span style={{ fontSize: 11, color: t.muted }}>/ 100</span>
           </div>
         </div>
       )}
@@ -452,6 +455,7 @@ function SubmissionDetail({ session, response, expandedKpiKey, onExpandKpi }) {
 }
 
 export default function Responses() {
+  const t = useTokens();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [tab, setTab] = useState("submitted");
@@ -519,13 +523,13 @@ export default function Responses() {
   };
 
   return (
-    <div style={{ background: C.bg, minHeight: "100%" }}>
+    <div style={{ background: t.bg, minHeight: "100%" }}>
       {/* Page header */}
       <div style={{ padding: "10px 16px 14px" }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: "#1F1E1D" }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: t.text }}>
           📝 My Responses
         </div>
-        <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
+        <div style={{ fontSize: 12, color: t.muted, marginTop: 3 }}>
           Wellness forms · submitted &amp; pending
         </div>
       </div>
@@ -583,14 +587,14 @@ export default function Responses() {
           {
             l: "Overdue",
             v: summary.overdue,
-            c: summary.overdue > 0 ? "#f87171" : C.muted,
+            c: summary.overdue > 0 ? "#f87171" : t.muted,
             i: "⚠️",
           },
         ].map((s) => (
           <div
             key={s.l}
             style={{
-              background: C.card,
+              background: t.card,
               borderRadius: 14,
               padding: "13px 14px",
               border: `1px solid ${s.c}22`,
@@ -600,7 +604,7 @@ export default function Responses() {
             <div style={{ fontSize: 22, fontWeight: 800, color: s.c, lineHeight: 1 }}>
               {s.v}
             </div>
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{s.l}</div>
+            <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>{s.l}</div>
           </div>
         ))}
       </div>
@@ -611,7 +615,7 @@ export default function Responses() {
           margin: "0 16px 16px",
           display: "flex",
           gap: 4,
-          background: "rgba(0,0,0,.3)",
+          background: t.inset,
           borderRadius: 12,
           padding: 4,
           width: "fit-content",
@@ -637,7 +641,7 @@ export default function Responses() {
                 background: active
                   ? `linear-gradient(135deg,${C.g1},${C.g2})`
                   : "transparent",
-                color: active ? "#fff" : "rgba(255,255,255,.4)",
+                color: active ? "#fff" : t.muted,
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
@@ -649,7 +653,7 @@ export default function Responses() {
               <span
                 style={{
                   fontSize: 10,
-                  background: "rgba(255,255,255,.15)",
+                  background: active ? "rgba(255,255,255,.25)" : t.border,
                   borderRadius: "50%",
                   width: 18,
                   height: 18,
@@ -677,7 +681,7 @@ export default function Responses() {
           }}
         >
           {mySubmissionsLoading && !submittedSessions.length && (
-            <div style={{ fontSize: 12, color: C.muted, padding: "10px 0" }}>
+            <div style={{ fontSize: 12, color: t.muted, padding: "10px 0" }}>
               Loading submissions…
             </div>
           )}
@@ -687,7 +691,7 @@ export default function Responses() {
               style={{
                 textAlign: "center",
                 padding: "36px 0",
-                color: C.muted,
+                color: t.muted,
               }}
             >
               <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
@@ -695,13 +699,13 @@ export default function Responses() {
                 style={{
                   fontSize: 14,
                   fontWeight: 700,
-                  color: "#1F1E1D",
+                  color: t.text,
                   marginBottom: 5,
                 }}
               >
                 No submissions yet
               </div>
-              <div style={{ fontSize: 12, color: C.muted }}>
+              <div style={{ fontSize: 12, color: t.muted }}>
                 Submitted sessions show up here.
               </div>
             </div>
@@ -721,9 +725,9 @@ export default function Responses() {
                   handleSelectSession(isSelected ? null : session.session_id)
                 }
                 style={{
-                  background: C.card,
+                  background: t.card,
                   borderRadius: 14,
-                  border: `1px solid ${isSelected ? `${C.g3}55` : C.border}`,
+                  border: `1px solid ${isSelected ? `${C.g3}55` : t.border}`,
                   padding: "14px 14px",
                   cursor: "pointer",
                   transition: "border-color .2s",
@@ -765,7 +769,7 @@ export default function Responses() {
                       <span
                         style={{
                           fontSize: 12,
-                          color: "#1F1E1D",
+                          color: t.text,
                           fontWeight: 700,
                           whiteSpace: "nowrap",
                           overflow: "hidden",
@@ -779,7 +783,7 @@ export default function Responses() {
 
                     {latest?.submitted_at && (
                       <div
-                        style={{ fontSize: 11, color: "#5C5A57", marginBottom: 8 }}
+                        style={{ fontSize: 11, color: t.sub, marginBottom: 8 }}
                       >
                         {formatDateTimeIST(latest.submitted_at)}
                       </div>
@@ -850,7 +854,7 @@ export default function Responses() {
                     <div style={{ fontSize: 10, color: band.color, fontWeight: 600 }}>
                       {band.label}
                     </div>
-                    <div style={{ fontSize: 10, color: C.muted }}>
+                    <div style={{ fontSize: 10, color: t.muted }}>
                       {isSelected ? "▲ collapse" : "▼ expand"}
                     </div>
                   </div>
@@ -865,13 +869,13 @@ export default function Responses() {
                     marginTop: 4,
                   }}
                 >
-                  <span style={{ fontSize: 10, color: C.muted, flexShrink: 0 }}>WI</span>
+                  <span style={{ fontSize: 10, color: t.muted, flexShrink: 0 }}>WI</span>
                   <div
                     style={{
                       flex: 1,
                       height: 4,
                       borderRadius: 4,
-                      background: "rgba(31,30,29,0.08)",
+                      background: t.track,
                     }}
                   >
                     <div
@@ -883,7 +887,7 @@ export default function Responses() {
                       }}
                     />
                   </div>
-                  <span style={{ fontSize: 11, color: "#5C5A57", flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, color: t.sub, flexShrink: 0 }}>
                     /100
                   </span>
                 </div>
@@ -916,7 +920,7 @@ export default function Responses() {
           }}
         >
           {myLinksLoading && !pendingSessions.length && (
-            <div style={{ fontSize: 12, color: C.muted, padding: "10px 0" }}>
+            <div style={{ fontSize: 12, color: t.muted, padding: "10px 0" }}>
               Loading pending forms…
             </div>
           )}
@@ -926,7 +930,7 @@ export default function Responses() {
               style={{
                 textAlign: "center",
                 padding: "36px 0",
-                color: C.muted,
+                color: t.muted,
               }}
             >
               <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
@@ -934,13 +938,13 @@ export default function Responses() {
                 style={{
                   fontSize: 14,
                   fontWeight: 700,
-                  color: "#1F1E1D",
+                  color: t.text,
                   marginBottom: 5,
                 }}
               >
                 All caught up!
               </div>
-              <div style={{ fontSize: 12, color: C.muted }}>
+              <div style={{ fontSize: 12, color: t.muted }}>
                 No pending forms right now.
               </div>
             </div>
@@ -954,7 +958,7 @@ export default function Responses() {
               <div
                 key={session.session_id}
                 style={{
-                  background: C.card,
+                  background: t.card,
                   borderRadius: 14,
                   padding: "14px 14px",
                   border: `1px solid ${accent}44`,
@@ -985,7 +989,7 @@ export default function Responses() {
                       />
                     </div>
                     <div
-                      style={{ fontSize: 13, fontWeight: 700, color: "#1F1E1D", marginBottom: 4 }}
+                      style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}
                     >
                       {session.title}
                     </div>
@@ -993,7 +997,7 @@ export default function Responses() {
                       <div
                         style={{
                           fontSize: 11,
-                          color: isOverdue ? "#f87171" : C.muted,
+                          color: isOverdue ? "#f87171" : t.muted,
                         }}
                       >
                         Published {formatDateIST(session.published_at)}

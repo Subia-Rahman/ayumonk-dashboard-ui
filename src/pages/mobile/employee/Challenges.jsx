@@ -6,26 +6,17 @@ import {
   fetchDashboardKpis,
   postDashboardChallengeAction,
 } from "../../../store/dashboardSlice";
+import { dimHue } from "../../../components/mobile/dimensionColors";
+import { useTokens } from "../../../components/mobile/useTokens";
 
-const METRIC_COLORS = [
-  "#7c3aed", "#ea580c", "#0f766e", "#0284c7",
-  "#ca8a04", "#c026d3", "#16a34a", "#d946ef", "#2563eb",
-];
-const TYPE_COLORS = {
-  counter: "#f97316", toggle: "#ec4899", choice: "#2563eb",
-  multi: "#eab308", timer: "#8b5cf6", rating: "#14b8a6",
-};
-const getChallengeColor = (type, i) =>
-  TYPE_COLORS[String(type || "").toLowerCase()] ||
-  METRIC_COLORS[i % METRIC_COLORS.length];
 
 const BADGES = [
-  { id: "h1", label: "Hydration Hero", icon: "💧", earned: true, level: "Gold", color: "#0284c7" },
-  { id: "s1", label: "Sleep Master", icon: "🌙", earned: true, level: "Silver", color: "#7c3aed" },
-  { id: "st", label: "Stress Buster", icon: "🧘", earned: false, level: "Bronze", color: "#ea580c" },
-  { id: "g1", label: "Green Eater", icon: "🥗", earned: true, level: "Bronze", color: "#16a34a" },
-  { id: "a1", label: "Active Star", icon: "🏃", earned: false, level: "Silver", color: "#f59e0b" },
-  { id: "b1", label: "Banyan Legend", icon: "🌳", earned: false, level: "Legend", color: "#ca8a04" },
+  { id: "h1", label: "Hydration Hero", icon: "💧", earned: true, level: "Gold", color: "#4A90C4" },
+  { id: "s1", label: "Sleep Master", icon: "🌙", earned: true, level: "Silver", color: "#8B6FCB" },
+  { id: "st", label: "Stress Buster", icon: "🧘", earned: false, level: "Bronze", color: "#C36FA8" },
+  { id: "g1", label: "Green Eater", icon: "🥗", earned: true, level: "Bronze", color: "#4F9D5B" },
+  { id: "a1", label: "Active Star", icon: "🏃", earned: false, level: "Silver", color: "#4A90C4" },
+  { id: "b1", label: "Banyan Legend", icon: "🌳", earned: false, level: "Legend", color: "#3AA8A0" },
 ];
 
 const LEADERBOARD = [
@@ -33,7 +24,7 @@ const LEADERBOARD = [
   { rank: "2nd", name: "Rahul M.", dept: "Product", pct: "+38%", col: "#94a3b8" },
   { rank: "3rd", name: "Anjali K.", dept: "HR", pct: "+35%", col: C.orange },
   { rank: "4th ← You", name: "Amit R.", dept: "Finance", pct: "+31%", col: C.g3, current: true },
-  { rank: "5th", name: "Sneha P.", dept: "Marketing", pct: "+28%", col: "#9E9B97" },
+  { rank: "5th", name: "Sneha P.", dept: "Marketing", pct: "+28%", col: t.faint },
 ];
 
 const getOptions = (type) => {
@@ -105,6 +96,7 @@ function ActionBtn({ children, active, color = C.g3, onClick, disabled, style = 
 }
 
 export default function Challenges() {
+  const t = useTokens();
   const dispatch = useDispatch();
   const timerRef = useRef(null);
   const [activeTimerKey, setActiveTimerKey] = useState("");
@@ -124,7 +116,7 @@ export default function Challenges() {
       (ch, idx) => ({
         ...ch,
         kpi_name: item.kpi_name,
-        displayColor: getChallengeColor(ch.challenge_type, idx),
+        displayColor: dimHue(item.kpi_name),
       }),
     ),
   );
@@ -216,7 +208,7 @@ export default function Challenges() {
   if (loading && challengeItems.length === 0) {
     return (
       <div style={{ padding: "32px 16px", textAlign: "center" }}>
-        <div style={{ fontSize: 12, color: C.muted }}>Loading challenges…</div>
+        <div style={{ fontSize: 12, color: t.muted }}>Loading challenges…</div>
       </div>
     );
   }
@@ -232,12 +224,12 @@ export default function Challenges() {
   if (!loading && challengeItems.length === 0) {
     return (
       <div style={{ margin: "16px" }}>
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "28px", textAlign: "center" }}>
+        <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: "28px", textAlign: "center" }}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>📅</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#5C5A57", marginBottom: 6 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: t.sub, marginBottom: 6 }}>
             No active challenges
           </div>
-          <div style={{ fontSize: 12, color: C.muted }}>
+          <div style={{ fontSize: 12, color: t.muted }}>
             Your company hasn't started any KPI programs yet.
           </div>
         </div>
@@ -246,13 +238,13 @@ export default function Challenges() {
   }
 
   return (
-    <div style={{ background: C.bg, minHeight: "100%", paddingBottom: 16 }}>
+    <div style={{ background: t.bg, minHeight: "100%", paddingBottom: 16 }}>
       {/* Page header */}
       <div style={{ padding: "10px 16px 16px" }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: "#1F1E1D" }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: t.text }}>
           🎯 Challenges
         </div>
-        <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
+        <div style={{ fontSize: 12, color: t.muted, marginTop: 3 }}>
           Earn XP · build streaks · unlock badges
         </div>
       </div>
@@ -266,13 +258,13 @@ export default function Challenges() {
         ].map((s) => (
           <div
             key={s.l}
-            style={{ background: C.card, border: `1px solid ${s.c}28`, borderRadius: 14, padding: "12px 10px", textAlign: "center" }}
+            style={{ background: t.card, border: `1px solid ${s.c}28`, borderRadius: 14, padding: "12px 10px", textAlign: "center" }}
           >
             <div style={{ fontSize: 18, marginBottom: 5 }}>{s.i}</div>
             <div style={{ fontSize: 14, fontWeight: 800, color: s.c, lineHeight: 1.1 }}>
               {s.v}
             </div>
-            <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>{s.l}</div>
+            <div style={{ fontSize: 10, color: t.muted, marginTop: 3 }}>{s.l}</div>
           </div>
         ))}
       </div>
@@ -280,7 +272,7 @@ export default function Challenges() {
       {/* Progress bar */}
       <div style={{ margin: "0 16px 20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
-          <span style={{ fontSize: 12, color: C.muted }}>Today's completion</span>
+          <span style={{ fontSize: 12, color: t.muted }}>Today's completion</span>
           <span style={{ fontSize: 12, fontWeight: 700, color: C.g3 }}>
             {completedCount}/{challengeItems.length}
           </span>
@@ -318,7 +310,7 @@ export default function Challenges() {
               <div
                 key={ch.challenge_key}
                 style={{
-                  background: done ? `${color}0a` : C.card,
+                  background: done ? `${color}0a` : t.card,
                   borderRadius: 16,
                   border: `1px solid ${done ? color + "55" : color + "22"}`,
                   padding: "16px 16px",
@@ -350,7 +342,7 @@ export default function Challenges() {
                       style={{
                         fontSize: 13,
                         fontWeight: 700,
-                        color: done ? color : "#1F1E1D",
+                        color: done ? color : t.text,
                         marginBottom: 3,
                         whiteSpace: "nowrap",
                         overflow: "hidden",
@@ -370,7 +362,7 @@ export default function Challenges() {
                 <div
                   style={{
                     fontSize: 12,
-                    color: "#5C5A57",
+                    color: t.sub,
                     lineHeight: 1.55,
                     marginBottom: 14,
                   }}
@@ -430,8 +422,8 @@ export default function Challenges() {
                           }}
                           style={{
                             background: "transparent",
-                            border: "1px solid rgba(255,255,255,.12)",
-                            color: C.muted,
+                            border: `1px solid ${t.border}`,
+                            color: t.muted,
                             borderRadius: 8,
                             padding: "6px 10px",
                             cursor: busy ? "not-allowed" : "pointer",
@@ -443,7 +435,7 @@ export default function Challenges() {
                         </button>
                       )}
                     </div>
-                    <div style={{ height: 6, borderRadius: 6, background: "rgba(255,255,255,.07)" }}>
+                    <div style={{ height: 6, borderRadius: 6, background: "rgba(31,30,29,0.06)" }}>
                       <div
                         style={{
                           height: "100%",
@@ -558,7 +550,7 @@ export default function Challenges() {
                         <div style={{ fontSize: 13, fontWeight: 800, color: C.g3 }}>
                           Session Complete!
                         </div>
-                        <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                        <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>
                           +{Number(ch.xp_reward) || 0} XP earned
                         </div>
                       </div>
@@ -581,7 +573,7 @@ export default function Challenges() {
                         style={{
                           fontSize: 26,
                           border: "none",
-                          background: st.rating === i ? "rgba(52,211,153,.22)" : "transparent",
+                          background: st.rating === i ? `${color}1f` : "transparent",
                           cursor: busy ? "not-allowed" : "pointer",
                           borderRadius: 10,
                           padding: "4px 6px",
@@ -609,8 +601,8 @@ export default function Challenges() {
             <div
               key={b.id}
               style={{
-                background: b.earned ? `${b.color}18` : "rgba(255,255,255,.02)",
-                border: `1px solid ${b.earned ? b.color + "44" : "rgba(255,255,255,.06)"}`,
+                background: b.earned ? `${b.color}18` : t.inset,
+                border: `1px solid ${b.earned ? b.color + "44" : t.border}`,
                 borderRadius: 12,
                 padding: "12px 8px",
                 textAlign: "center",
@@ -622,13 +614,13 @@ export default function Challenges() {
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: b.earned ? b.color : "#9E9B97",
+                  color: b.earned ? b.color : t.faint,
                   marginBottom: 2,
                 }}
               >
                 {b.label}
               </div>
-              <div style={{ fontSize: 10, color: "#9E9B97" }}>
+              <div style={{ fontSize: 10, color: t.faint }}>
                 {b.level}
                 {!b.earned && " 🔒"}
               </div>
@@ -642,9 +634,9 @@ export default function Challenges() {
         <SectionLabel>🏆 Weekly Leaderboard</SectionLabel>
         <div
           style={{
-            background: C.card,
+            background: t.card,
             borderRadius: 14,
-            border: `1px solid ${C.border}`,
+            border: `1px solid ${t.border}`,
             overflow: "hidden",
           }}
         >
@@ -675,13 +667,13 @@ export default function Challenges() {
                   style={{
                     fontSize: 13,
                     fontWeight: row.current ? 700 : 400,
-                    color: row.current ? C.g3 : "#1F1E1D",
+                    color: row.current ? C.g3 : t.text,
                     marginBottom: 2,
                   }}
                 >
                   {row.name}
                 </div>
-                <div style={{ fontSize: 11, color: C.muted }}>{row.dept}</div>
+                <div style={{ fontSize: 11, color: t.muted }}>{row.dept}</div>
               </div>
               <div style={{ fontSize: 14, fontWeight: 700, color: row.col }}>
                 {row.pct}

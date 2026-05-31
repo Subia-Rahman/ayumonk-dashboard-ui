@@ -7,15 +7,15 @@ import { fetchKpis } from "../../../store/kpiSlice";
 
 // Shared with Wellness — keeps icon/color stable for the same KPI name.
 const KPI_PRESETS = {
-  sleep: { icon: "🌙", color: "#7c6af7" },
+  sleep: { icon: "🌙", color: "#8B6FCB" },
   stress: { icon: "🧘", color: C.orange },
-  nutrition: { icon: "🥗", color: "#22c55e" },
-  hydration: { icon: "💧", color: "#38bdf8" },
+  nutrition: { icon: "🥗", color: "#4F9D5B" },
+  hydration: { icon: "💧", color: "#4A90C4" },
   activity: { icon: "🏃", color: C.orange },
   energy: { icon: "⚡", color: C.gold },
   posture: { icon: "🦴", color: C.pink },
   pain: { icon: "🦴", color: C.pink },
-  digestion: { icon: "🫐", color: "#a3e635" },
+  digestion: { icon: "🫐", color: "#8FAE5A" },
 };
 const DEFAULT_KPI = { icon: "🌿", color: C.g3 };
 const presetFor = (name) => {
@@ -134,7 +134,7 @@ export default function HrPrograms() {
                   </div>
                 </div>
               </div>
-              <Pill label="✓ ACTIVE" color="#4ade80" />
+              <Pill label="✓ ACTIVE" color="#4F9D5B" />
             </div>
             <div
               style={{

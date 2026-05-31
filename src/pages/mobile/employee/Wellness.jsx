@@ -8,19 +8,10 @@ import {
   fetchWellnessTrends,
 } from "../../../store/dashboardSlice";
 import { fetchMySubmissions } from "../../../store/sessionSlice";
+import { dimHue } from "../../../components/mobile/dimensionColors";
+import { useTokens } from "../../../components/mobile/useTokens";
 
-const KPI_ICONS = ["🧠", "🔥", "💧", "🧘", "🌙", "🏃", "🥗", "💪", "❤️"];
-const KPI_COLORS = [
-  "#7c6af7", "#f97316", "#22c55e", "#38bdf8",
-  "#a3e635", "#facc15", "#ec4899", "#f59e0b", "#06b6d4",
-];
-const SUGG_COLORS = {
-  aahar: "#16a34a", vihara: "#2563eb", nidra: "#7c3aed",
-  charya: "#f59e0b", manas: "#c026d3", ojas: "#0f766e",
-};
 
-const getKpiIcon = (i) => KPI_ICONS[i % KPI_ICONS.length];
-const getKpiColor = (i) => KPI_COLORS[i % KPI_COLORS.length];
 const fmtLabel = (n = "") =>
   n.replace(/\bKPI\b/gi, "").replace(/\s+/g, " ").trim() || "Wellness";
 const fmtChange = (v) => {
@@ -28,8 +19,7 @@ const fmtChange = (v) => {
   if (!Number.isFinite(n)) return null;
   return `${n >= 0 ? "+" : ""}${n.toFixed(0)}%`;
 };
-const getSuggColor = (type, i) =>
-  SUGG_COLORS[String(type || "").toLowerCase()] || KPI_COLORS[i % KPI_COLORS.length];
+const getSuggColor = (type) => dimHue(type);
 
 const DIMENSION_PILLS = {
   nidra:  { bg: "#E8F0E4", color: "#3D5C35" },
@@ -77,6 +67,7 @@ function SectionLabel({ children }) {
 }
 
 export default function Wellness() {
+  const t = useTokens();
   const dispatch = useDispatch();
   const [activeKpi, setActiveKpi] = useState(null);
 
@@ -136,8 +127,7 @@ export default function Wellness() {
           subtitle: getSubtitle(label),
           score: Number(item.latest_score) || 0,
           change: fmtChange(item.trend_percent),
-          color: getKpiColor(i),
-          icon: getKpiIcon(i),
+          color: dimHue(item.kpi_name),
           sparkVals,
         };
       }),
@@ -150,13 +140,13 @@ export default function Wellness() {
   );
 
   return (
-    <div style={{ background: C.bg, minHeight: "100%", paddingBottom: 16 }}>
+    <div style={{ background: t.bg, minHeight: "100%", paddingBottom: 16 }}>
       {/* Page header */}
       <div style={{ padding: "10px 16px 16px" }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: "#1F1E1D" }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: t.text }}>
           🌿 Wellness
         </div>
-        <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
+        <div style={{ fontSize: 12, color: t.muted, marginTop: 3 }}>
           Your Ayurvedic health overview
         </div>
       </div>
@@ -253,7 +243,7 @@ export default function Wellness() {
 
       {/* KPI Metrics grid */}
       {loading && items.length === 0 && (
-        <div style={{ padding: "0 16px 16px", fontSize: 12, color: C.muted }}>
+        <div style={{ padding: "0 16px 16px", fontSize: 12, color: t.muted }}>
           Loading wellness metrics…
         </div>
       )}
@@ -263,17 +253,17 @@ export default function Wellness() {
           style={{
             margin: "0 16px 16px",
             padding: "24px",
-            background: C.card,
+            background: t.card,
             borderRadius: 14,
-            border: `1px solid ${C.border}`,
+            border: `1px solid ${t.border}`,
             textAlign: "center",
           }}
         >
           <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#5C5A57", marginBottom: 4 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: t.sub, marginBottom: 4 }}>
             No KPI metrics yet
           </div>
-          <div style={{ fontSize: 12, color: C.muted }}>
+          <div style={{ fontSize: 12, color: t.muted }}>
             Your company hasn't set up any KPI programs yet.
           </div>
         </div>
@@ -293,6 +283,7 @@ export default function Wellness() {
               padding: "0 16px 4px",
               scrollbarWidth: "none",
               msOverflowStyle: "none",
+              scrollSnapType: "x proximity",
             }}
           >
             {metrics.map((m) => {
@@ -302,10 +293,11 @@ export default function Wellness() {
                   key={m.kpiKey ?? m.label}
                   onClick={() => setActiveKpi(m)}
                   style={{
-                    minWidth: 140,
-                    maxWidth: 140,
+                    minWidth: 152,
+                    maxWidth: 152,
                     flexShrink: 0,
-                    background: C.card,
+                    scrollSnapAlign: "start",
+                    background: t.card,
                     borderRadius: 14,
                     padding: "15px 13px",
                     border: `1px solid ${m.color}28`,
@@ -313,9 +305,6 @@ export default function Wellness() {
                     transition: "border-color .2s",
                   }}
                 >
-                  {/* Icon */}
-                  <div style={{ fontSize: 20, marginBottom: 6 }}>{m.icon}</div>
-
                   {/* Dimension name pill */}
                   <div style={{ marginBottom: 8 }}>
                     {(() => {
@@ -345,7 +334,7 @@ export default function Wellness() {
                   <div style={{ fontSize: 24, fontWeight: 800, color: m.color,
                     lineHeight: 1, marginBottom: 8 }}>
                     {m.score.toFixed(1)}
-                    <span style={{ fontSize: 11, color: "#5C5A57",
+                    <span style={{ fontSize: 11, color: t.sub,
                       fontWeight: 400, marginLeft: 3 }}>/5</span>
                   </div>
 
@@ -357,7 +346,7 @@ export default function Wellness() {
                       fontWeight: 700,
                       color: m.change
                         ? pos ? "#16a34a" : "#dc2626"
-                        : "#5C5A57",
+                        : t.sub,
                     }}>
                       {m.change
                         ? `${pos ? "▲" : "▼"}${m.change.replace(/^[+-]/, "")}`
@@ -379,16 +368,16 @@ export default function Wellness() {
         <SectionLabel>Dosha Profile</SectionLabel>
         <div
           style={{
-            background: C.card,
+            background: t.card,
             borderRadius: 14,
-            border: `1px solid ${C.border}`,
+            border: `1px solid ${t.border}`,
             padding: "16px 16px",
           }}
         >
           {[
-            { l: "Vata", col: "#38bdf8", v: 30 },
-            { l: "Pitta", col: "#f97316", v: 34 },
-            { l: "Kapha", col: "#22c55e", v: 36 },
+            { l: "Vata", col: "#4A90C4", v: 30 },
+            { l: "Pitta", col: "#E0935C", v: 34 },
+            { l: "Kapha", col: "#4F9D5B", v: 36 },
           ].map(({ l, col, v }) => (
             <div
               key={l}
@@ -412,7 +401,7 @@ export default function Wellness() {
                 style={{
                   flex: 1,
                   fontSize: 12,
-                  color: "#1F1E1D",
+                  color: t.text,
                 }}
               >
                 {l}
@@ -422,7 +411,7 @@ export default function Wellness() {
                   width: 120,
                   height: 6,
                   borderRadius: 6,
-                  background: "rgba(31,30,29,0.08)",
+                  background: t.track,
                   overflow: "hidden",
                 }}
               >
@@ -453,7 +442,7 @@ export default function Wellness() {
 
       {/* Lifestyle Suggestions */}
       {suggestionsLoading && (
-        <div style={{ padding: "0 16px 16px", fontSize: 12, color: C.muted }}>
+        <div style={{ padding: "0 16px 16px", fontSize: 12, color: t.muted }}>
           Loading suggestions…
         </div>
       )}
@@ -471,12 +460,12 @@ export default function Wellness() {
                 <div
                   key={item.suggestion_id ?? item.title}
                   style={{
-                    background: C.card,
+                    background: t.card,
                     borderRadius: 14,
                     padding: "15px 14px",
-                    borderTop: `1px solid ${C.border}`,
-                    borderRight: `1px solid ${C.border}`,
-                    borderBottom: `1px solid ${C.border}`,
+                    borderTop: `1px solid ${t.border}`,
+                    borderRight: `1px solid ${t.border}`,
+                    borderBottom: `1px solid ${t.border}`,
                     borderLeft: `3px solid ${accent}`,
                   }}
                 >
@@ -490,7 +479,7 @@ export default function Wellness() {
                     }}
                   >
                     <div
-                      style={{ fontSize: 13, fontWeight: 700, color: "#1F1E1D" }}
+                      style={{ fontSize: 13, fontWeight: 700, color: t.text }}
                     >
                       {item.title}
                     </div>
@@ -539,7 +528,7 @@ export default function Wellness() {
                     <div
                       style={{
                         fontSize: 12,
-                        color: "#5C5A57",
+                        color: t.sub,
                         lineHeight: 1.55,
                         marginBottom: 10,
                       }}
@@ -554,7 +543,7 @@ export default function Wellness() {
                         style={{
                           fontSize: 11,
                           background: "#F0EDE5",
-                          color: "#5C5A57",
+                          color: t.sub,
                           border: "1px solid rgba(31,30,29,0.1)",
                           borderRadius: 6,
                           padding: "3px 9px",
@@ -568,7 +557,7 @@ export default function Wellness() {
                         style={{
                           fontSize: 11,
                           background: "#F0EDE5",
-                          color: "#5C5A57",
+                          color: t.sub,
                           border: "1px solid rgba(31,30,29,0.1)",
                           borderRadius: 6,
                           padding: "3px 9px",
@@ -582,7 +571,7 @@ export default function Wellness() {
                         style={{
                           fontSize: 11,
                           background: "#F0EDE5",
-                          color: "#5C5A57",
+                          color: t.sub,
                           border: "1px solid rgba(31,30,29,0.1)",
                           borderRadius: 6,
                           padding: "3px 9px",

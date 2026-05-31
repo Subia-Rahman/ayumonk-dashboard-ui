@@ -34,7 +34,7 @@ const BY_AGE = [
 const BY_GENDER = [
   ["Male", C.blue, 68, 186],
   ["Female", C.pink, 70, 112],
-  ["Other", "#a3e635", 67, 26],
+  ["Other", "#8FAE5A", 67, 26],
 ];
 
 export default function HrAnalytics() {
@@ -236,9 +236,9 @@ export default function HrAnalytics() {
         </div>
         <div style={{ fontSize: 10, color: "#5C5A57", lineHeight: 1.55 }}>
           Depts with WI ≥ 70 show{" "}
-          <span style={{ color: "#4ade80", fontWeight: 700 }}>23% higher productivity</span>{" "}
+          <span style={{ color: "#4F9D5B", fontWeight: 700 }}>23% higher productivity</span>{" "}
           and{" "}
-          <span style={{ color: "#4ade80", fontWeight: 700 }}>−18% absenteeism</span>.
+          <span style={{ color: "#4F9D5B", fontWeight: 700 }}>−18% absenteeism</span>.
         </div>
       </div>
     </div>

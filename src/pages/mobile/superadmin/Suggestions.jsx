@@ -10,7 +10,7 @@ const TYPE_PRESET = {
   vihar: { ic: "🌅", color: C.blue },
   vihara: { ic: "🌅", color: C.blue },
   aushadh: { ic: "🌿", color: C.gold },
-  nidra: { ic: "🌙", color: "#7c6af7" },
+  nidra: { ic: "🌙", color: "#8B6FCB" },
   manas: { ic: "🧠", color: C.purple },
 };
 
@@ -171,7 +171,7 @@ export default function SaSuggestions() {
                 <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                   <Pill
                     label={s.is_active ? "Active" : "Inactive"}
-                    color={s.is_active ? "#4ade80" : C.muted}
+                    color={s.is_active ? "#4F9D5B" : C.muted}
                   />
                   <button
                     type="button"
