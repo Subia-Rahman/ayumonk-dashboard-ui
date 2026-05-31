@@ -31,6 +31,18 @@ const fmtChange = (v) => {
 const getSuggColor = (type, i) =>
   SUGG_COLORS[String(type || "").toLowerCase()] || KPI_COLORS[i % KPI_COLORS.length];
 
+const DIMENSION_PILLS = {
+  nidra:  { bg: "#E8F0E4", color: "#3D5C35" },
+  manas:  { bg: "#EDE8F5", color: "#5B3D8A" },
+  aahar:  { bg: "#FFF3E0", color: "#8A5C00" },
+  vihara: { bg: "#E0F2F1", color: "#006064" },
+  charya: { bg: "#FBE9E7", color: "#8A2500" },
+  ojas:   { bg: "#F3E5F5", color: "#6A1B9A" },
+};
+const getDimensionPill = (label = "") =>
+  DIMENSION_PILLS[label.toLowerCase().trim().split(/\s+/)[0]] ||
+  { bg: "#E8F0E4", color: "#3D5C35" };
+
 const wiBand = (wi) => {
   if (wi >= 80) return { label: "Excellent", color: C.g3 };
   if (wi >= 60) return { label: "Good", color: C.g4 };
@@ -290,60 +302,52 @@ export default function Wellness() {
                     transition: "border-color .2s",
                   }}
                 >
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>{m.icon}</div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "rgba(255,255,255,.45)",
-                      lineHeight: 1.35,
-                      marginBottom: 8,
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {m.label}
+                  {/* Icon */}
+                  <div style={{ fontSize: 20, marginBottom: 6 }}>{m.icon}</div>
+
+                  {/* Dimension name pill */}
+                  <div style={{ marginBottom: 8 }}>
+                    {(() => {
+                      const pill = getDimensionPill(m.label);
+                      return (
+                        <span style={{
+                          display: "inline-block",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: pill.color,
+                          background: pill.bg,
+                          padding: "2px 6px",
+                          borderRadius: 99,
+                          lineHeight: 1.4,
+                          maxWidth: "100%",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}>
+                          {m.label}
+                        </span>
+                      );
+                    })()}
                   </div>
-                  <div
-                    style={{
-                      fontSize: 24,
-                      fontWeight: 800,
-                      color: m.color,
-                      lineHeight: 1,
-                      marginBottom: 8,
-                    }}
-                  >
+
+                  {/* Score */}
+                  <div style={{ fontSize: 24, fontWeight: 800, color: m.color,
+                    lineHeight: 1, marginBottom: 8 }}>
                     {m.score.toFixed(1)}
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: C.muted,
-                        fontWeight: 400,
-                        marginLeft: 3,
-                      }}
-                    >
-                      /5
-                    </span>
+                    <span style={{ fontSize: 11, color: "#5C5A57",
+                      fontWeight: 400, marginLeft: 3 }}>/5</span>
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: m.change
-                          ? pos
-                            ? "#4ade80"
-                            : "#f87171"
-                          : "rgba(255,255,255,.25)",
-                      }}
-                    >
+
+                  {/* Trend + sparkline */}
+                  <div style={{ display: "flex", justifyContent: "space-between",
+                    alignItems: "center" }}>
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: m.change
+                        ? pos ? "#16a34a" : "#dc2626"
+                        : "#5C5A57",
+                    }}>
                       {m.change
                         ? `${pos ? "▲" : "▼"}${m.change.replace(/^[+-]/, "")}`
                         : "—"}
