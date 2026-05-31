@@ -56,7 +56,7 @@ function SectionLabel({ children }) {
       style={{
         fontSize: 10,
         fontWeight: 700,
-        color: "rgba(255,255,255,.3)",
+        color: "#6B7F5C",
         textTransform: "uppercase",
         letterSpacing: 1.2,
         marginBottom: 12,
@@ -142,7 +142,7 @@ export default function Wellness() {
     <div style={{ background: C.bg, minHeight: "100%", paddingBottom: 16 }}>
       {/* Page header */}
       <div style={{ padding: "10px 16px 16px" }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: "#1F1E1D" }}>
           🌿 Wellness
         </div>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
@@ -259,7 +259,7 @@ export default function Wellness() {
           }}
         >
           <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,.5)", marginBottom: 4 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#5C5A57", marginBottom: 4 }}>
             No KPI metrics yet
           </div>
           <div style={{ fontSize: 12, color: C.muted }}>
@@ -401,7 +401,7 @@ export default function Wellness() {
                 style={{
                   flex: 1,
                   fontSize: 12,
-                  color: "rgba(255,255,255,.55)",
+                  color: "#1F1E1D",
                 }}
               >
                 {l}
@@ -411,7 +411,7 @@ export default function Wellness() {
                   width: 120,
                   height: 6,
                   borderRadius: 6,
-                  background: "rgba(255,255,255,.07)",
+                  background: "rgba(31,30,29,0.08)",
                   overflow: "hidden",
                 }}
               >
@@ -479,7 +479,7 @@ export default function Wellness() {
                     }}
                   >
                     <div
-                      style={{ fontSize: 13, fontWeight: 700, color: accent }}
+                      style={{ fontSize: 13, fontWeight: 700, color: "#1F1E1D" }}
                     >
                       {item.title}
                     </div>
@@ -528,7 +528,7 @@ export default function Wellness() {
                     <div
                       style={{
                         fontSize: 12,
-                        color: "rgba(255,255,255,.5)",
+                        color: "#5C5A57",
                         lineHeight: 1.55,
                         marginBottom: 10,
                       }}
@@ -542,9 +542,9 @@ export default function Wellness() {
                       <span
                         style={{
                           fontSize: 11,
-                          background: "rgba(255,255,255,.04)",
-                          color: "rgba(255,255,255,.45)",
-                          border: "1px solid rgba(255,255,255,.08)",
+                          background: "#F0EDE5",
+                          color: "#5C5A57",
+                          border: "1px solid rgba(31,30,29,0.1)",
                           borderRadius: 6,
                           padding: "3px 9px",
                         }}
@@ -556,9 +556,9 @@ export default function Wellness() {
                       <span
                         style={{
                           fontSize: 11,
-                          background: "rgba(255,255,255,.04)",
-                          color: "rgba(255,255,255,.45)",
-                          border: "1px solid rgba(255,255,255,.08)",
+                          background: "#F0EDE5",
+                          color: "#5C5A57",
+                          border: "1px solid rgba(31,30,29,0.1)",
                           borderRadius: 6,
                           padding: "3px 9px",
                         }}
@@ -570,9 +570,9 @@ export default function Wellness() {
                       <span
                         style={{
                           fontSize: 11,
-                          background: "rgba(255,255,255,.04)",
-                          color: "rgba(255,255,255,.45)",
-                          border: "1px solid rgba(255,255,255,.08)",
+                          background: "#F0EDE5",
+                          color: "#5C5A57",
+                          border: "1px solid rgba(31,30,29,0.1)",
                           borderRadius: 6,
                           padding: "3px 9px",
                         }}
