@@ -22,6 +22,7 @@ export default function MobileShell({
   roleLabel = "WELLNESS PLATFORM",
   roleLabelColor,
   badgeColor,
+  onProfileShortcut,
 }) {
   const [isDark, setIsDark] = useState(
     () => typeof localStorage !== "undefined" && localStorage.getItem("ayumonk-theme") === "dark",
@@ -67,6 +68,7 @@ export default function MobileShell({
             roleLabelColor={roleLabelColor}
             accent={resolvedAccent}
             badgeColor={badgeColor}
+            onProfileShortcut={onProfileShortcut}
           />
           {children}
         </div>

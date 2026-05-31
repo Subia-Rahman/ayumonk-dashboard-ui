@@ -26,6 +26,7 @@ export default function EmployeeApp({ defaultTab = "wellness" }) {
       accent={C.g3}
       roleLabel="WELLNESS PLATFORM"
       badgeColor={C.orange}
+      onProfileShortcut={() => setTab("profile")}
     >
       <div key={tab} className="ayumonk-anim">
         {tab === "wellness" && <Wellness />}

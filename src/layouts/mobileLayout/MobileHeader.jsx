@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Logo } from "../../components/mobile/primitives";
+import NotificationBell from "../../components/NotificationBell";
 import { useMobileTheme } from "../../components/mobile/palette";
 import { logout } from "../../store/authSlice";
-import { fetchUnreadCount } from "../../store/notificationsSlice";
 
 export default function MobileHeader({
   roleLabel = "WELLNESS PLATFORM",
   roleLabelColor,
   accent,
+  onProfileShortcut,
 }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -20,11 +21,6 @@ export default function MobileHeader({
   const resolvedAccent = accent || palette.g3;
 
   const user = useSelector((state) => state.auth.user);
-  const unread = useSelector((state) => state.notifications.unread);
-
-  useEffect(() => {
-    dispatch(fetchUnreadCount()).catch(() => {});
-  }, [dispatch]);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -121,51 +117,8 @@ export default function MobileHeader({
           {isDark ? "☀️" : "🌙"}
         </button>
 
-        {/* Notifications */}
-        <button
-          type="button"
-          aria-label="Notifications"
-          onClick={() => { closeMenu(); navigate("/profile"); }}
-          style={{
-            position: "relative",
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            background: iconBtnBg,
-            border: `1px solid ${iconBtnBorder}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 14,
-            cursor: "pointer",
-            padding: 0,
-          }}
-        >
-          🔔
-          {unread > 0 && (
-            <span
-              style={{
-                position: "absolute",
-                top: -3,
-                right: -3,
-                minWidth: 14,
-                height: 14,
-                padding: "0 3px",
-                borderRadius: "50%",
-                background: resolvedAccent,
-                border: `2px solid ${palette.bg}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 7,
-                fontWeight: 800,
-                color: "#fff",
-              }}
-            >
-              {unread > 99 ? "99+" : unread}
-            </span>
-          )}
-        </button>
+        {/* Notifications — full panel, same component as desktop */}
+        <NotificationBell />
 
         {/* Avatar */}
         <button
@@ -249,7 +202,7 @@ export default function MobileHeader({
             <button
               type="button"
               role="menuitem"
-              onClick={() => { closeMenu(); navigate("/profile"); }}
+              onClick={() => { closeMenu(); onProfileShortcut ? onProfileShortcut() : navigate("/profile"); }}
               style={{
                 display: "block",
                 width: "100%",
