@@ -463,13 +463,16 @@ function KpiTile({ item, sparkValues, onClick }) {
           <span
             style={{
               fontSize: 10,
-              fontWeight: 600,
-              color: "#5C5A57",
+              fontWeight: 700,
+              color: "#6B7F5C",
+              background: "#E8F0E4",
+              padding: "2px 6px",
+              borderRadius: 99,
               letterSpacing: 0.15,
-              lineHeight: 1.3,
+              lineHeight: 1.4,
               overflow: "hidden",
               display: "-webkit-box",
-              WebkitLineClamp: 2,
+              WebkitLineClamp: 1,
               WebkitBoxOrient: "vertical",
             }}
             title={item.label}
@@ -491,7 +494,7 @@ function KpiTile({ item, sparkValues, onClick }) {
               marginTop: 5,
               color: trend
                 ? trendPos ? "#16a34a" : "#dc2626"
-                : "rgba(31,30,29,0.3)",
+                : "#5C5A57",
             }}
           >
             {trend ? `${trendPos ? "▲" : "▼"} ${trend.replace(/^[+-]/, "")}` : "—"}
@@ -671,12 +674,10 @@ export default function DashboardWellness() {
         </Box>
       )}
 
-      {!dashboardError && !dashboardLoading && metrics.length > 0 && (
-        <Box sx={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8, color: "#6B7F5C",
-          textTransform: "uppercase", mb: "12px" }}>
-          Wellness Dimensions · Tap for Details
-        </Box>
-      )}
+      <Box sx={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8, color: "#6B7F5C",
+        textTransform: "uppercase", mb: "12px" }}>
+        Wellness Dimensions · Tap for Details
+      </Box>
 
       {!dashboardError && !dashboardLoading && metrics.length > 0 && (
         <Box
