@@ -138,7 +138,7 @@ function NotchNav({ items, active, onNav, palette, isDark, acc, centerBadge }) {
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      <div style={{ position: "relative", height: 76 }}>
+      <div style={{ position: "relative", height: 80 }}>
         <svg
           viewBox="0 0 375 96"
           preserveAspectRatio="none"
@@ -161,7 +161,7 @@ function NotchNav({ items, active, onNav, palette, isDark, acc, centerBadge }) {
           aria-label={center.label}
           style={{
             position: "absolute",
-            top: -16,
+            top: -20,
             left: "50%",
             transform: cOn
               ? "translateX(-50%) translateY(-3px) scale(1.05)"

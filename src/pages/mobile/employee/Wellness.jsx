@@ -241,6 +241,102 @@ export default function Wellness() {
         </div>
       </div>
 
+      {/* Prakriti · Dosha profile (conic ring) */}
+      <div style={{ padding: "0 16px 20px" }}>
+        <SectionLabel>Prakriti · your dosha profile</SectionLabel>
+        <div
+          style={{
+            background: t.card,
+            borderRadius: 14,
+            border: `1px solid ${t.border}`,
+            padding: 18,
+            display: "flex",
+            gap: 18,
+            alignItems: "center",
+          }}
+        >
+          {(() => {
+            const data = [
+              { l: "Vata", col: "#4A90C4", v: 30 },
+              { l: "Pitta", col: "#E0935C", v: 34 },
+              { l: "Kapha", col: "#4F9D5B", v: 36 },
+            ];
+            const size = 116;
+            const sw = 14;
+            const r = (size - sw) / 2;
+            const cx = size / 2;
+            const Circ = 2 * Math.PI * r;
+            const total = data.reduce((acc, d) => acc + d.v, 0) || 1;
+            const gap = 5;
+            let pos = 0;
+            const arcs = data.map((d) => {
+              const len = (d.v / total) * Circ;
+              const dash = Math.max(0.5, len - gap);
+              const seg = { ...d, dash, rest: Circ - dash, offset: -pos };
+              pos += len;
+              return seg;
+            });
+            const dom = data.reduce((a, b) => (b.v > a.v ? b : a), data[0]);
+            return (
+              <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+                <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+                  <circle cx={cx} cy={cx} r={r} fill="none" stroke={t.track} strokeWidth={sw} />
+                  {arcs.map((a) => (
+                    <circle
+                      key={a.l}
+                      cx={cx}
+                      cy={cx}
+                      r={r}
+                      fill="none"
+                      stroke={a.col}
+                      strokeWidth={sw}
+                      strokeLinecap="round"
+                      strokeDasharray={`${a.dash} ${a.rest}`}
+                      strokeDashoffset={a.offset}
+                    />
+                  ))}
+                </svg>
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "grid",
+                    placeItems: "center",
+                    textAlign: "center",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: t.text, letterSpacing: "-0.02em", lineHeight: 1 }}>
+                      {dom.l}
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: dom.col, marginTop: 2, letterSpacing: "0.03em" }}>
+                      Dominant
+                    </div>
+                    <div style={{ fontSize: 8.5, color: t.muted, marginTop: 1 }}>{dom.v}% balance</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {[
+              { l: "Vata", col: "#4A90C4", v: 30 },
+              { l: "Pitta", col: "#E0935C", v: 34 },
+              { l: "Kapha", col: "#4F9D5B", v: 36 },
+            ].map(({ l, col, v }) => (
+              <div key={l} style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 11 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: col, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 13, color: t.muted, fontWeight: 600 }}>{l}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: col }}>{v}%</span>
+              </div>
+            ))}
+            <div style={{ marginTop: 3, fontSize: 11, color: t.muted, lineHeight: 1.45 }}>
+              Balanced tridoshic constitution — favour cooling, grounding routines.
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* KPI Metrics grid */}
       {loading && items.length === 0 && (
         <div style={{ padding: "0 16px 16px", fontSize: 12, color: t.muted }}>
@@ -362,83 +458,6 @@ export default function Wellness() {
           </div>
         </div>
       )}
-
-      {/* Dosha Profile (static) */}
-      <div style={{ padding: "0 16px 20px" }}>
-        <SectionLabel>Dosha Profile</SectionLabel>
-        <div
-          style={{
-            background: t.card,
-            borderRadius: 14,
-            border: `1px solid ${t.border}`,
-            padding: "16px 16px",
-          }}
-        >
-          {[
-            { l: "Vata", col: "#4A90C4", v: 30 },
-            { l: "Pitta", col: "#E0935C", v: 34 },
-            { l: "Kapha", col: "#4F9D5B", v: 36 },
-          ].map(({ l, col, v }) => (
-            <div
-              key={l}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                marginBottom: 12,
-              }}
-            >
-              <div
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 2,
-                  background: col,
-                  flexShrink: 0,
-                }}
-              />
-              <div
-                style={{
-                  flex: 1,
-                  fontSize: 12,
-                  color: t.text,
-                }}
-              >
-                {l}
-              </div>
-              <div
-                style={{
-                  width: 120,
-                  height: 6,
-                  borderRadius: 6,
-                  background: t.track,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${v}%`,
-                    background: col,
-                    borderRadius: 6,
-                  }}
-                />
-              </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: col,
-                  width: 34,
-                  textAlign: "right",
-                }}
-              >
-                {v}%
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Lifestyle Suggestions */}
       {suggestionsLoading && (
