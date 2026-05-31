@@ -24,7 +24,7 @@ const LEADERBOARD = [
   { rank: "2nd", name: "Rahul M.", dept: "Product", pct: "+38%", col: "#94a3b8" },
   { rank: "3rd", name: "Anjali K.", dept: "HR", pct: "+35%", col: C.orange },
   { rank: "4th ← You", name: "Amit R.", dept: "Finance", pct: "+31%", col: C.g3, current: true },
-  { rank: "5th", name: "Sneha P.", dept: "Marketing", pct: "+28%", col: t.faint },
+  { rank: "5th", name: "Sneha P.", dept: "Marketing", pct: "+28%", col: C.muted },
 ];
 
 const getOptions = (type) => {
