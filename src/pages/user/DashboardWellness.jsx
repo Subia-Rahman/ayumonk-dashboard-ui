@@ -413,104 +413,67 @@ function KpiTile({ item, sparkValues, onClick }) {
   const trend = item.change === "No trend" ? null : item.change;
   const trendPos = trend && trend.startsWith("+");
   const dimPill = getDimensionPill(item.label);
+  const pill = dimPill || { bg: "#E8F0E4", color: "#6B7F5C" };
   return (
     <div
       onClick={onClick}
       style={{
+        minWidth: 140,
+        maxWidth: 140,
+        flexShrink: 0,
         background: "#FBF9F4",
         border: `1px solid ${item.color}33`,
         borderRadius: 16,
-        padding: "13px 14px 11px",
+        padding: 10,
         cursor: onClick ? "pointer" : "default",
         transition: "all 0.2s",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
       }}
     >
-      {/* Header: icon pill + dimension name pill */}
-      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
-        <span
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 9,
-            background: item.color + "22",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 15,
-            color: item.color,
-            flexShrink: 0,
-          }}
-        >
-          {item.icon}
-        </span>
-        {dimPill ? (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: dimPill.color,
-              background: dimPill.bg,
-              padding: "2px 6px",
-              borderRadius: 99,
-              letterSpacing: 0.15,
-              lineHeight: 1.4,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {item.label}
-          </span>
-        ) : (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: "#6B7F5C",
-              background: "#E8F0E4",
-              padding: "2px 6px",
-              borderRadius: 99,
-              letterSpacing: 0.15,
-              lineHeight: 1.4,
-              overflow: "hidden",
-              display: "-webkit-box",
-              WebkitLineClamp: 1,
-              WebkitBoxOrient: "vertical",
-            }}
-            title={item.label}
-          >
-            {item.label}
-          </span>
-        )}
+      {/* Dimension pill */}
+      <span
+        style={{
+          alignSelf: "flex-start",
+          fontSize: 10,
+          fontWeight: 700,
+          color: pill.color,
+          background: pill.bg,
+          padding: "2px 7px",
+          borderRadius: 99,
+          letterSpacing: 0.15,
+          lineHeight: 1.4,
+          maxWidth: "100%",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+        title={item.label}
+      >
+        {item.label}
+      </span>
+
+      {/* Score */}
+      <div style={{ fontSize: 22, fontWeight: 800, color: item.color, lineHeight: 1 }}>
+        {Number(item.score).toFixed(1)}
       </div>
-      {/* Body: score + trend (left) | sparkline (right) */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: item.color, lineHeight: 1 }}>
-            {Number(item.score).toFixed(1)}
-          </div>
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              marginTop: 5,
-              color: trend
-                ? trendPos ? "#16a34a" : "#dc2626"
-                : "#5C5A57",
-            }}
-          >
-            {trend ? `${trendPos ? "▲" : "▼"} ${trend.replace(/^[+-]/, "")}` : "—"}
-          </div>
-        </div>
-        <Sparkline values={sparkValues} color={item.color} w={68} h={30} />
-      </div>
-      {/* Accent bar */}
+
+      {/* Sparkline — full card width */}
+      <Sparkline values={sparkValues} color={item.color} w={120} h={40} />
+
+      {/* Trend */}
       <div
         style={{
-          marginTop: 10,
-          height: 2,
-          borderRadius: 2,
-          background: `linear-gradient(to right, ${item.color}66, transparent)`,
+          fontSize: 10,
+          fontWeight: 700,
+          color: trend
+            ? trendPos ? "#16a34a" : "#dc2626"
+            : "#5C5A57",
         }}
-      />
+      >
+        {trend ? `${trendPos ? "▲" : "▼"} ${trend.replace(/^[+-]/, "")}` : "—"}
+      </div>
     </div>
   );
 }
@@ -682,14 +645,16 @@ export default function DashboardWellness() {
       {!dashboardError && !dashboardLoading && metrics.length > 0 && (
         <Box
           sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "repeat(2, 1fr)",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(3, 1fr)",
-            },
+            display: "flex",
+            flexDirection: "row",
+            overflowX: "auto",
             gap: "10px",
+            pb: 1,
+            mx: "-16px",
+            px: "16px",
             mb: "18px",
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
           }}
         >
           {metrics.map((item) => (
