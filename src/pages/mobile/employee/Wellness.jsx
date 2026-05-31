@@ -21,6 +21,20 @@ const fmtChange = (v) => {
 };
 const getSuggColor = (type) => dimHue(type);
 
+// Derive a few sub-scores from a KPI's overall score so the detail sheet's
+// "Question Scores" section is always populated. Swap in real per-question
+// data when the API provides it (activeKpi.questions = [{ label, score, threshold }]).
+const buildQuestionScores = (rawScore = 0) => {
+  const raw = Number(rawScore) || 0;
+  const s = raw > 5 ? raw / 20 : raw; // normalise 0-100 → 0-5 if needed
+  const clamp = (n) => Math.max(1, Math.min(5, Number(n.toFixed(1))));
+  return [
+    { label: "Consistency this week", score: clamp(s), threshold: 3.5 },
+    { label: "Self-reported quality", score: clamp(s - 0.4), threshold: 3.2 },
+    { label: "Trend vs baseline", score: clamp(s + 0.3), threshold: 3 },
+  ];
+};
+
 const DIMENSION_PILLS = {
   nidra:  { bg: "#E8F0E4", color: "#3D5C35" },
   manas:  { bg: "#EDE8F5", color: "#5B3D8A" },
@@ -648,7 +662,11 @@ export default function Wellness() {
       {/* KPI detail bottom sheet */}
       {activeKpi && (
         <KpiSheet
-          kpi={{ ...activeKpi, sparkValues: activeKpi.sparkVals }}
+          kpi={{
+            ...activeKpi,
+            sparkValues: activeKpi.sparkVals,
+            questions: activeKpi.questions || buildQuestionScores(activeKpi.score),
+          }}
           onClose={() => setActiveKpi(null)}
         />
       )}

@@ -19,11 +19,34 @@ export const DIMENSION_HUE = {
 
 const FALLBACK = "#6B7F5C"; // sage — matches palette g3
 
+// Brand palette used to give NON-dimension KPI names (e.g. "Physical Vitality",
+// "Cognitive Focus") a stable, distinct, on-brand hue instead of all-sage.
+const HUE_PALETTE = [
+  "#4F9D5B", // green
+  "#4A90C4", // blue
+  "#8B6FCB", // violet
+  "#C99A3F", // gold
+  "#C36FA8", // rose
+  "#3AA8A0", // teal
+  "#B96B47", // clay
+  "#5E62A6", // indigo
+];
+
+const hashStr = (s) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+};
+
 // Accepts any of: "nidra", "Nidra", "Nidra Sleep Quality", "Vihara · Hydration"
-// and returns the dimension hue (falls back to sage).
+// Returns the dimension hue when the label maps to a known dimension; otherwise
+// a stable distinct hue derived from the label so each KPI tile is colour-coded.
 export const dimHue = (label = "") => {
-  const slug = String(label).toLowerCase().trim().split(/[\s·]+/)[0];
-  return DIMENSION_HUE[slug] || FALLBACK;
+  const raw = String(label).toLowerCase().trim();
+  if (!raw) return FALLBACK;
+  const slug = raw.split(/[\s·]+/)[0];
+  if (DIMENSION_HUE[slug]) return DIMENSION_HUE[slug];
+  return HUE_PALETTE[hashStr(raw) % HUE_PALETTE.length];
 };
 
 // Challenge colour now follows its PARENT KPI's dimension for cohesion,
