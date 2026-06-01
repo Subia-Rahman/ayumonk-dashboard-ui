@@ -30,12 +30,12 @@ export default function SaSettings() {
     );
 
   return (
-    <div>
-      <div style={{ padding: "12px 16px 12px" }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+    <div style={{ background: C.bg, minHeight: "100%" }}>
+      <div style={{ padding: "8px 16px 12px" }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>
           ⚙️ Settings
         </div>
-        <div style={{ fontSize: 9, color: C.muted }}>
+        <div style={{ fontSize: 8.5, color: C.muted }}>
           Platform configuration · RBAC
         </div>
       </div>
@@ -68,13 +68,13 @@ export default function SaSettings() {
                 alignItems: "center",
                 marginBottom: 7,
                 paddingBottom: 7,
-                borderBottom: "1px solid rgba(255,255,255,.04)",
+                borderBottom: "1px solid rgba(31,30,29,0.06)",
               }}
             >
               <span style={{ fontSize: 10, fontWeight: 700, color: r.c }}>
                 {r.r}
               </span>
-              <span style={{ fontSize: 9, color: "rgba(255,255,255,.38)" }}>
+              <span style={{ fontSize: 9, color: "#5C5A57" }}>
                 {r.acc}
               </span>
             </div>
@@ -93,7 +93,7 @@ export default function SaSettings() {
             style={{
               fontSize: 11,
               fontWeight: 700,
-              color: "rgba(255,255,255,.6)",
+              color: "#1F1E1D",
               marginBottom: 10,
             }}
           >
@@ -109,7 +109,7 @@ export default function SaSettings() {
                 marginBottom: 9,
               }}
             >
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,.55)" }}>
+              <span style={{ fontSize: 10, color: "#5C5A57" }}>
                 {t.l}
               </span>
               <button
@@ -120,7 +120,7 @@ export default function SaSettings() {
                   width: 36,
                   height: 20,
                   borderRadius: 10,
-                  background: t.on ? C.g3 : "rgba(255,255,255,.1)",
+                  background: t.on ? C.g3 : "rgba(31,30,29,0.15)",
                   display: "flex",
                   alignItems: "center",
                   padding: 2,

@@ -52,12 +52,15 @@ import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import AccountTreeOutlinedIcon from "@mui/icons-material/AccountTreeOutlined";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import AnalyticsIcon from "@mui/icons-material/Analytics";
 import { useThemeMode } from "../../context/ThemeModeContext";
 import usePermissions from "../../hooks/usePermissions";
 import { resolveRouteForSlug } from "../../utils/permissions";
 import NotificationBell from "../../components/NotificationBell";
 import PWAInstallBanner from "../../components/PWAInstallBanner";
 import TenantSwitcher from "../../components/TenantSwitcher";
+import AdminTopLayout from "../adminLayout/AdminTopLayout";
 
 const drawerWidth = 260;
 const collapsedDrawerWidth = 88;
@@ -113,12 +116,48 @@ const ICON_BY_SLUG = {
   policies: <PolicyOutlinedIcon />,
   "role-assignments": <ManageAccountsOutlinedIcon />,
   menus: <MenuBookOutlinedIcon />,
+  "cxo-metrics": <InsightsOutlinedIcon />,
   "my-responses": <AssignmentTurnedInIcon />,
   submissions: <AssignmentTurnedInIcon />,
   profile: <PersonIcon />,
 };
 
-const iconForSlug = (slug) => ICON_BY_SLUG[slug] || <LabelOutlinedIcon />;
+export const iconForSlug = (slug) => ICON_BY_SLUG[slug] || <LabelOutlinedIcon />;
+
+// Backend-driven icon lookup. Values are MUI icon component names (without the
+// "Icon" suffix) stored in the `menus.icon` column. The lookup is case-insensitive
+// and tolerates a trailing "Icon" so a DB value of either "Dashboard" or
+// "DashboardIcon" resolves the same component.
+const ICON_BY_NAME = {
+  dashboard: <DashboardIcon />,
+  business: <BusinessIcon />,
+  people: <PeopleIcon />,
+  quiz: <QuizIcon />,
+  event: <EventIcon />,
+  person: <PersonIcon />,
+  category: <CategoryIcon />,
+  assessment: <AssessmentIcon />,
+  emojievents: <EmojiEventsIcon />,
+  tipsandupdatesrounded: <TipsAndUpdatesRoundedIcon />,
+  linkrounded: <LinkRoundedIcon />,
+  assignmentturnedin: <AssignmentTurnedInIcon />,
+  adminpanelsettings: <AdminPanelSettingsIcon />,
+  badgeoutlined: <BadgeOutlinedIcon />,
+  vpnkeyoutlined: <VpnKeyOutlinedIcon />,
+  policyoutlined: <PolicyOutlinedIcon />,
+  manageaccountsoutlined: <ManageAccountsOutlinedIcon />,
+  menubookoutlined: <MenuBookOutlinedIcon />,
+  accounttreeoutlined: <AccountTreeOutlinedIcon />,
+  insightsoutlined: <InsightsOutlinedIcon />,
+  analytics: <AnalyticsIcon />,
+  labeloutlined: <LabelOutlinedIcon />,
+};
+
+export const iconForName = (name) => {
+  if (!name || typeof name !== "string") return null;
+  const key = name.trim().toLowerCase().replace(/icon$/, "");
+  return ICON_BY_NAME[key] || null;
+};
 
 const adminItems = [
   { label: "Dashboard", to: "/admin/dashboard", icon: <DashboardIcon /> },
@@ -198,6 +237,16 @@ const superAdminItems = [
     to: "/super-admin/role-assignments",
     icon: <ManageAccountsOutlinedIcon />,
   },
+  {
+    label: "CXO Metrics",
+    to: "/super-admin/cxo-metrics",
+    icon: <InsightsOutlinedIcon />,
+  },
+    {
+    label: "Wellness Dimensions",
+    to: "/super-admin/wellness-dimensions",
+    icon: <InsightsOutlinedIcon />,
+  },
   { label: "Menus", to: "/super-admin/menus", icon: <MenuBookOutlinedIcon /> },
 ];
 
@@ -259,7 +308,10 @@ export default function Layout({ children, role, title }) {
     .map((menu) => ({
       label: menu.menu_name,
       to: resolveRouteForSlug(menu.slug, effectiveRole, { isPlatformAdmin }),
-      icon: iconForSlug(menu.slug),
+      // Prefer the backend-supplied icon name from the menus table; fall back
+      // to the slug-based map (and ultimately a label icon) so legacy menus
+      // without an `icon` value still render something sensible.
+      icon: iconForName(menu.icon) || iconForSlug(menu.slug),
       slug: menu.slug,
     }));
 
@@ -328,6 +380,15 @@ export default function Layout({ children, role, title }) {
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
+
+  // Company Admin / HR / CXO get the sidebar-free AdminTopLayout. Platform
+  // admins keep the existing super-admin sidebar because they still need the
+  // deeper RBAC / platform-config nav. Delegating here (after every hook is
+  // called) means every admin page that already wraps in `<Layout role="admin">`
+  // automatically picks up the new shell — no individual page edits required.
+  if (effectiveRole === "admin" && !isPlatformAdmin) {
+    return <AdminTopLayout title={title}>{children}</AdminTopLayout>;
+  }
 
   const drawer = (
     <Box sx={{ height: "100%", p: 2.5 }}>
@@ -475,7 +536,7 @@ export default function Layout({ children, role, title }) {
               color="inherit"
               edge="start"
               onClick={handleSidebarAction}
-              sx={{ mr: 2 }}
+              sx={{ mr: 2, display: { xs: "none", md: "inline-flex" } }}
             >
               <MenuIcon />
             </IconButton>
@@ -637,10 +698,50 @@ export default function Layout({ children, role, title }) {
             onClose={handleMenuClose}
             anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
             transformOrigin={{ vertical: "top", horizontal: "right" }}
+            slotProps={{
+              paper: {
+                sx: {
+                  bgcolor: "#111e12",
+                  color: "#fff",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 2,
+                  mt: 1,
+                  minWidth: 220,
+                  boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+                  "& .MuiMenuItem-root": {
+                    color: "rgba(255,255,255,0.85)",
+                    fontSize: 13,
+                    py: 1.1,
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.05)" },
+                  },
+                  "& .MuiListItemIcon-root": {
+                    color: "rgba(255,255,255,0.75)",
+                    minWidth: 30,
+                  },
+                },
+              },
+            }}
           >
-            <Box sx={{ px: 2, py: 1.2 }}>
-              <Typography sx={{ fontWeight: 700 }}>{displayName}</Typography>
-              <Typography variant="body2" color="text.secondary">
+            <Box
+              sx={{
+                px: 2,
+                py: 1.4,
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: "#fff",
+                  letterSpacing: 0.3,
+                }}
+              >
+                {displayName}
+              </Typography>
+              <Typography
+                sx={{ fontSize: 11, color: "#fff", mt: 0.3 }}
+              >
                 {profile?.email || "No email"}
               </Typography>
             </Box>
@@ -735,6 +836,14 @@ export default function Layout({ children, role, title }) {
           flexGrow: 1,
           minWidth: 0,
           p: { xs: 2, sm: 3 },
+          // Reserve room for the mobile bottom nav on small viewports so the
+          // last bit of content isn't hidden behind the fixed bar.
+          pb: !isUserLayout
+            ? {
+                xs: "calc(72px + env(safe-area-inset-bottom))",
+                md: 3,
+              }
+            : { xs: 2, sm: 3 },
           mt: { xs: isUserLayout ? 10 : 8, sm: isUserLayout ? 11 : 9 },
           ...(isUserLayout
             ? {
@@ -754,6 +863,96 @@ export default function Layout({ children, role, title }) {
         )}
         {children}
       </Box>
+
+      {/* Mobile bottom nav — only on xs/sm, only outside the user layout
+          (the user layout already has its own top-tab nav inside the AppBar).
+          Mirrors the same RBAC-filtered `navItems` the sidebar uses so the
+          two stay in sync; each tap is a Link, just like the desktop tabs in
+          AdminTopLayout. Items overflow horizontally for platform admins who
+          see 15+ menus. */}
+      {!isUserLayout && navItems.length > 0 && (
+        <Box
+          component="nav"
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            display: { xs: "flex", md: "none" },
+            zIndex: (t) => t.zIndex.drawer + 2,
+            background: "rgba(7,13,8,0.97)",
+            backdropFilter: "blur(18px)",
+            WebkitBackdropFilter: "blur(18px)",
+            borderTop: "1px solid rgba(255,255,255,0.07)",
+            paddingBottom: "env(safe-area-inset-bottom)",
+            overflowX: "auto",
+            scrollbarWidth: "none",
+            "&::-webkit-scrollbar": { display: "none" },
+          }}
+        >
+          {navItems.map((item) => {
+            const active =
+              location.pathname === item.to ||
+              location.pathname.startsWith(`${item.to}/`);
+            return (
+              <Box
+                key={`bn-${item.to}`}
+                component={Link}
+                to={item.to}
+                sx={{
+                  flex: "1 0 auto",
+                  minWidth: 72,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "9px 6px 8px",
+                  textDecoration: "none",
+                  color: active ? "#6DB33F" : "rgba(255,255,255,0.4)",
+                  position: "relative",
+                  minHeight: 54,
+                  "& svg": {
+                    fontSize: active ? 22 : 19,
+                    transition: "font-size .15s",
+                  },
+                }}
+              >
+                {active && (
+                  <Box
+                    component="span"
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: "20%",
+                      right: "20%",
+                      height: 2,
+                      background: "#6DB33F",
+                      borderRadius: "0 0 3px 3px",
+                    }}
+                  />
+                )}
+                {item.icon}
+                <Box
+                  component="span"
+                  sx={{
+                    fontSize: 10,
+                    fontWeight: active ? 700 : 500,
+                    marginTop: "3px",
+                    letterSpacing: 0.1,
+                    lineHeight: 1.1,
+                    whiteSpace: "nowrap",
+                    maxWidth: 80,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {item.label}
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
     </Box>
   );
 }

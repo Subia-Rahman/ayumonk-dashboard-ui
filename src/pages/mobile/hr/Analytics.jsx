@@ -34,26 +34,26 @@ const BY_AGE = [
 const BY_GENDER = [
   ["Male", C.blue, 68, 186],
   ["Female", C.pink, 70, 112],
-  ["Other", "#a3e635", 67, 26],
+  ["Other", "#8FAE5A", 67, 26],
 ];
 
 export default function HrAnalytics() {
   const [metric, setMetric] = useState("wellness");
   return (
-    <div>
+    <div style={{ background: C.bg, minHeight: "100%" }}>
       <div
         style={{
-          padding: "12px 16px 10px",
+          padding: "8px 16px 10px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>
             📊 Analytics
           </div>
-          <div style={{ fontSize: 9, color: C.muted }}>
+          <div style={{ fontSize: 8.5, color: C.muted }}>
             Population health · CXO metrics
           </div>
         </div>
@@ -64,7 +64,7 @@ export default function HrAnalytics() {
             borderRadius: 9,
             background: C.card,
             border: `1px solid ${C.border}`,
-            color: "rgba(255,255,255,.45)",
+            color: "#5C5A57",
             fontSize: 10,
             cursor: "pointer",
           }}
@@ -87,7 +87,7 @@ export default function HrAnalytics() {
             style={{
               fontSize: 9,
               background: C.card,
-              color: "rgba(255,255,255,.38)",
+              color: "#5C5A57",
               borderRadius: 8,
               padding: "5px 10px",
               border: `1px solid ${C.border}`,
@@ -129,7 +129,7 @@ export default function HrAnalytics() {
                 metric === id
                   ? `linear-gradient(135deg,${C.g2},${C.g3})`
                   : "transparent",
-              color: metric === id ? "#fff" : "rgba(255,255,255,.32)",
+              color: metric === id ? "#fff" : "#6B7F5C",
             }}
           >
             {l}
@@ -146,7 +146,7 @@ export default function HrAnalytics() {
           border: `1px solid ${C.border}`,
         }}
       >
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#fff", marginBottom: 10 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "#1F1E1D", marginBottom: 10 }}>
           By Department
         </div>
         <Bar data={BY_DEPT} color={C.g3} h={65} />
@@ -161,7 +161,7 @@ export default function HrAnalytics() {
           border: `1px solid ${C.border}`,
         }}
       >
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#fff", marginBottom: 10 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "#1F1E1D", marginBottom: 10 }}>
           By Age Band
         </div>
         <Bar data={BY_AGE} color={C.blue} h={55} />
@@ -176,7 +176,7 @@ export default function HrAnalytics() {
           border: `1px solid ${C.border}`,
         }}
       >
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#fff", marginBottom: 10 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "#1F1E1D", marginBottom: 10 }}>
           Gender Breakdown
         </div>
         {BY_GENDER.map(([g, c, wi, n]) => (
@@ -194,14 +194,14 @@ export default function HrAnalytics() {
                 display: "inline-block",
               }}
             />
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,.55)", width: 42 }}>
+            <span style={{ fontSize: 10, color: "#5C5A57", width: 42 }}>
               {g}
             </span>
             <div
               style={{
                 flex: 1,
                 height: 4,
-                background: "rgba(255,255,255,.04)",
+                background: "rgba(31,30,29,0.08)",
                 borderRadius: 3,
               }}
             >
@@ -234,11 +234,11 @@ export default function HrAnalytics() {
         <div style={{ fontSize: 10, fontWeight: 700, color: C.blue, marginBottom: 3 }}>
           💡 CXO Insight
         </div>
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,.5)", lineHeight: 1.55 }}>
+        <div style={{ fontSize: 10, color: "#5C5A57", lineHeight: 1.55 }}>
           Depts with WI ≥ 70 show{" "}
-          <span style={{ color: "#4ade80", fontWeight: 700 }}>23% higher productivity</span>{" "}
+          <span style={{ color: "#4F9D5B", fontWeight: 700 }}>23% higher productivity</span>{" "}
           and{" "}
-          <span style={{ color: "#4ade80", fontWeight: 700 }}>−18% absenteeism</span>.
+          <span style={{ color: "#4F9D5B", fontWeight: 700 }}>−18% absenteeism</span>.
         </div>
       </div>
     </div>

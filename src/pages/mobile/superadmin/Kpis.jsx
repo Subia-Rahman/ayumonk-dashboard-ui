@@ -6,14 +6,14 @@ import { Pill } from "../../../components/mobile/primitives";
 import { fetchKpis } from "../../../store/kpiSlice";
 
 const KPI_PRESETS = {
-  sleep: { icon: "🌙", color: "#7c6af7", sf: "Mental Health" },
+  sleep: { icon: "🌙", color: "#8B6FCB", sf: "Mental Health" },
   stress: { icon: "🧘", color: C.orange, sf: "Role Emotional" },
-  nutrition: { icon: "🥗", color: "#22c55e", sf: "Gen. Health" },
-  hydration: { icon: "💧", color: "#38bdf8", sf: "Vitality" },
+  nutrition: { icon: "🥗", color: "#4F9D5B", sf: "Gen. Health" },
+  hydration: { icon: "💧", color: "#4A90C4", sf: "Vitality" },
   activity: { icon: "🏃", color: C.orange, sf: "Physical Func." },
   energy: { icon: "⚡", color: C.gold, sf: "Role Physical" },
   posture: { icon: "🦴", color: C.pink, sf: "Bodily Pain" },
-  digestion: { icon: "🫐", color: "#a3e635", sf: "Gen. Health" },
+  digestion: { icon: "🫐", color: "#8FAE5A", sf: "Gen. Health" },
 };
 const DEFAULT_KPI = { icon: "🌿", color: C.g3, sf: "General Health" };
 const presetFor = (name) => {
@@ -38,20 +38,20 @@ export default function SaKpis() {
   });
 
   return (
-    <div>
+    <div style={{ background: C.bg, minHeight: "100%" }}>
       <div
         style={{
-          padding: "12px 16px 10px",
+          padding: "8px 16px 10px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>
             🎯 KPI Master
           </div>
-          <div style={{ fontSize: 9, color: C.muted }}>
+          <div style={{ fontSize: 8.5, color: C.muted }}>
             Weights · questions · SF-12 mapping
           </div>
         </div>
@@ -64,7 +64,7 @@ export default function SaKpis() {
             background: `linear-gradient(135deg,${C.g2},${C.g3})`,
             border: "none",
             color: "#fff",
-            fontSize: 10,
+            fontSize: 9.5,
             fontWeight: 700,
             cursor: "pointer",
           }}
@@ -96,7 +96,7 @@ export default function SaKpis() {
             border: "none",
             background: "transparent",
             outline: "none",
-            color: "#fff",
+            color: "#1F1E1D",
             fontSize: 11,
           }}
         />
@@ -162,7 +162,7 @@ export default function SaKpis() {
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        color: "#fff",
+                        color: "#1F1E1D",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -187,7 +187,7 @@ export default function SaKpis() {
                   </span>
                   <Pill
                     label={k.is_active ? "Active" : "Inactive"}
-                    color={k.is_active ? "#4ade80" : C.muted}
+                    color={k.is_active ? "#4F9D5B" : C.muted}
                   />
                 </div>
               </div>
@@ -196,8 +196,8 @@ export default function SaKpis() {
                   <span
                     style={{
                       fontSize: 9,
-                      background: "rgba(255,255,255,.04)",
-                      color: "rgba(255,255,255,.38)",
+                      background: "rgba(31,30,29,0.08)",
+                      color: "#5C5A57",
                       borderRadius: 6,
                       padding: "2px 8px",
                     }}
@@ -209,8 +209,8 @@ export default function SaKpis() {
                   <span
                     style={{
                       fontSize: 9,
-                      background: "rgba(255,255,255,.04)",
-                      color: "rgba(255,255,255,.38)",
+                      background: "rgba(31,30,29,0.08)",
+                      color: "#5C5A57",
                       borderRadius: 6,
                       padding: "2px 8px",
                     }}

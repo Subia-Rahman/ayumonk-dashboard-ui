@@ -1,28 +1,39 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { C } from "../../../components/mobile/palette";
 import { Pill } from "../../../components/mobile/primitives";
 import { fetchKpis } from "../../../store/kpiSlice";
 
-// KPI preset icon/color shared with the Wellness screen — keeps the visual
-// language consistent when the same KPI shows up in different contexts.
+// Shared with Wellness — keeps icon/color stable for the same KPI name.
 const KPI_PRESETS = {
-  sleep: { icon: "🌙", color: "#7c6af7" },
+  sleep: { icon: "🌙", color: "#8B6FCB" },
   stress: { icon: "🧘", color: C.orange },
-  nutrition: { icon: "🥗", color: "#22c55e" },
-  hydration: { icon: "💧", color: "#38bdf8" },
+  nutrition: { icon: "🥗", color: "#4F9D5B" },
+  hydration: { icon: "💧", color: "#4A90C4" },
   activity: { icon: "🏃", color: C.orange },
   energy: { icon: "⚡", color: C.gold },
   posture: { icon: "🦴", color: C.pink },
   pain: { icon: "🦴", color: C.pink },
-  digestion: { icon: "🫐", color: "#a3e635" },
+  digestion: { icon: "🫐", color: "#8FAE5A" },
 };
 const DEFAULT_KPI = { icon: "🌿", color: C.g3 };
 const presetFor = (name) => {
   const k = String(name || "").toLowerCase();
-  return Object.entries(KPI_PRESETS).find(([n]) => k.includes(n))?.[1] || DEFAULT_KPI;
+  return (
+    Object.entries(KPI_PRESETS).find(([n]) => k.includes(n))?.[1] || DEFAULT_KPI
+  );
 };
+
+// Demo enrollment/completion data — a real "KPI program window" endpoint
+// doesn't exist yet, so we surface visually faithful placeholders keyed off
+// the KPI's own row index so the same KPI gets stable numbers each render.
+const DEMO_WINDOWS = [
+  { end: "31 Dec", pct: 35, en: 298, comp: "82%" },
+  { end: "31 Dec", pct: 35, en: 312, comp: "74%" },
+  { end: "31 Dec", pct: 35, en: 267, comp: "91%" },
+  { end: "30 Jun", pct: 68, en: 245, comp: "67%" },
+];
 
 export default function HrPrograms() {
   const dispatch = useDispatch();
@@ -34,33 +45,39 @@ export default function HrPrograms() {
     dispatch(fetchKpis());
   }, [dispatch]);
 
-  // Until a "KPI program window" endpoint exists, derive per-KPI demo
-  // window data deterministically from the KPI name. Layout-faithful to
-  // the design — visible enrollment + completion stats remain placeholders.
-  const programs = (kpis || []).slice(0, 6).map((k, i) => {
-    const preset = presetFor(k.display_name);
-    return {
-      id: k.kpi_key || `kpi-${i}`,
-      kpi: k.display_name || "KPI",
-      icon: preset.icon,
-      c: preset.color,
-      end: ["31 Dec", "31 Dec", "31 Dec", "30 Jun", "30 Jun", "30 Jun"][i] || "31 Dec",
-      pct: [35, 35, 35, 68, 68, 68][i] || 50,
-      en: [298, 312, 267, 245, 198, 152][i] || 200,
-      comp: ["82%", "74%", "91%", "67%", "58%", "44%"][i] || "70%",
-    };
-  });
+  const programs = useMemo(() => {
+    return (kpis || []).slice(0, 4).map((k, i) => {
+      const preset = presetFor(k.display_name);
+      const window = DEMO_WINDOWS[i] || DEMO_WINDOWS[0];
+      return {
+        id: k.kpi_key || `kpi-${i}`,
+        kpi: k.display_name || "KPI",
+        icon: preset.icon,
+        c: preset.color,
+        ...window,
+      };
+    });
+  }, [kpis]);
 
   return (
-    <div>
-      <div style={{ padding: "12px 16px 12px" }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>📅 KPI Programs</div>
-        <div style={{ fontSize: 9, color: C.muted }}>
+    <div style={{ background: C.bg, minHeight: "100%" }}>
+      <div style={{ padding: "8px 16px 12px" }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>
+          📅 KPI Programs
+        </div>
+        <div style={{ fontSize: 8.5, color: C.muted }}>
           Manage company KPI windows
         </div>
       </div>
 
-      <div style={{ padding: "0 12px", display: "flex", flexDirection: "column", gap: 9 }}>
+      <div
+        style={{
+          padding: "0 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 9,
+        }}
+      >
         {listLoading && !programs.length && (
           <div style={{ fontSize: 10, color: C.muted, padding: "8px 0" }}>
             Loading programs…
@@ -107,18 +124,22 @@ export default function HrPrograms() {
                   {p.icon}
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>
+                  <div
+                    style={{ fontSize: 11, fontWeight: 700, color: "#1F1E1D" }}
+                  >
                     {p.kpi} KPI
                   </div>
-                  <div style={{ fontSize: 9, color: C.muted }}>Ends {p.end}</div>
+                  <div style={{ fontSize: 8.5, color: C.muted }}>
+                    Ends {p.end}
+                  </div>
                 </div>
               </div>
-              <Pill label="✓ ACTIVE" color="#4ade80" />
+              <Pill label="✓ ACTIVE" color="#4F9D5B" />
             </div>
             <div
               style={{
                 height: 4,
-                background: "rgba(255,255,255,.04)",
+                background: "rgba(31,30,29,0.08)",
                 borderRadius: 3,
                 marginBottom: 5,
               }}
@@ -132,9 +153,15 @@ export default function HrPrograms() {
                 }}
               />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 8,
+              }}
+            >
               <span style={{ color: C.muted }}>{p.pct}% elapsed</span>
-              <span style={{ color: "rgba(255,255,255,.38)" }}>
+              <span style={{ color: "#5C5A57" }}>
                 {p.en} enrolled · {p.comp} completion
               </span>
             </div>

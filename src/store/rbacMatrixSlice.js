@@ -101,10 +101,19 @@ const DEFAULT_SECTIONS = [
 
 const VALID_LEVELS = new Set(["none", "view", "full"]);
 
-const normalizeRole = (role, index = 0) => ({
-  key: String(role?.key || role?.role_key || `role-${index}`),
-  label: String(role?.label || role?.role_name || role?.key || `Role ${index + 1}`),
-});
+const normalizeRole = (role, index = 0) => {
+  // Backend currently returns roles as plain display strings
+  // (e.g. ["Company Admin", "Employee", ...]) which are also used verbatim
+  // as the permission map keys on each section. Treat the string as both
+  // key and label so the section lookup in normalizeSection matches.
+  if (typeof role === "string") {
+    return { key: role, label: role };
+  }
+  return {
+    key: String(role?.key || role?.role_key || `role-${index}`),
+    label: String(role?.label || role?.role_name || role?.key || `Role ${index + 1}`),
+  };
+};
 
 const normalizePermissionLevel = (value) => {
   // Accept the canonical "none" / "view" / "full" strings, plus a few common

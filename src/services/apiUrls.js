@@ -153,4 +153,87 @@ export const API_URLS = {
   notificationDismiss: (id) => `/config/api/v1/notifications/${id}/dismiss`,
   notificationSnooze: (id) => `/config/api/v1/notifications/${id}/snooze`,
   notificationAction: (id) => `/config/api/v1/notifications/${id}/action`,
+
+  // CXO Metrics configuration — how Productivity / Engagement / Absenteeism
+  // are derived from wellness KPIs and signals, per company. All routed via
+  // the gateway under the existing /config/api/v1 namespace.
+  //   GET    /config/api/v1/admin/cxo-metrics                                          → metrics master
+  //   GET    /config/api/v1/admin/cxo-metrics/{metric_code}?company_id={uuid}          → one metric's definition for one company
+  //   PUT    /config/api/v1/admin/cxo-metrics/{metric_code}                            → partial update (only sent keys are applied)
+  //   DELETE /config/api/v1/admin/cxo-metrics/{metric_code}?company_id={uuid}          → delete the company-scoped metric
+  //   GET    /config/api/v1/admin/cxo-metrics/{metric_code}/mapping?company_id={uuid}  → one metric's mapping for one company
+  //   PUT    /config/api/v1/admin/cxo-metrics/{metric_code}/mapping                    → atomic replace
+  //   POST   /config/api/v1/admin/cxo-metrics/{metric_code}/reset                      → reset to platform default
+  //   GET    /config/api/v1/admin/cxo-metrics/options?company_id={uuid}                → available KPIs/signals
+  cxoMetricsMaster: "/config/api/v1/admin/cxo-metrics",
+  cxoMetricByCode: (metricCode) =>
+    `/config/api/v1/admin/cxo-metrics/${metricCode}`,
+  // Same path shape as cxoMetricByCode, but the path param is the metric_id
+  // (UUID). The new PUT / DELETE definition endpoints route by id rather
+  // than by code, and don't need a company_id (metric_id is globally unique).
+  cxoMetricById: (metricId) =>
+    `/config/api/v1/admin/cxo-metrics/${metricId}`,
+  cxoMetricMapping: (metricCode) =>
+    `/config/api/v1/admin/cxo-metrics/${metricCode}/mapping`,
+  cxoMetricReset: (metricCode) =>
+    `/config/api/v1/admin/cxo-metrics/${metricCode}/reset`,
+  cxoMetricsOptions: "/config/api/v1/admin/cxo-metrics",
+  // CXO ↔ KPI mapping (per-row granular). The collection endpoint accepts
+  // company_id + metric_id query params; per-row endpoints accept the row's
+  // mapping_id in the path and the company_id query for tenant scoping.
+  //   GET    /admin/cxo-kpi-mapping?company_id=&metric_id=&include_inactive= → list rows
+  //   POST   /admin/cxo-kpi-mapping                                          → create rows
+  //   GET    /admin/cxo-kpi-mapping/{mapping_id}?company_id=                 → one row
+  //   PUT    /admin/cxo-kpi-mapping/{mapping_id}?company_id=                 → update weight
+  //   PATCH  /admin/cxo-kpi-mapping/{mapping_id}/status?company_id=          → toggle is_active
+  //   DELETE /admin/cxo-kpi-mapping/{mapping_id}?company_id=                 → soft-delete one
+  //   DELETE /admin/cxo-kpi-mapping?company_id=&metric_id=                   → soft-delete all
+  cxoKpiMapping: "/config/api/v1/admin/cxo-kpi-mapping",
+  cxoKpiMappingById: (mappingId) =>
+    `/config/api/v1/admin/cxo-kpi-mapping/${mappingId}`,
+  cxoKpiMappingStatus: (mappingId) =>
+    `/config/api/v1/admin/cxo-kpi-mapping/${mappingId}/status`,
+
+  // Wellness Dimensions — platform-level dimension taxonomy plus KPI
+  // mappings beneath each dimension. Two modules, same /dimensions prefix:
+  //   GET    /dimensions                                        → list with kpi_count
+  //   POST   /dimensions                                        → create
+  //   PATCH  /dimensions/{id}                                   → update label / order / active
+  //   DELETE /dimensions/{id}                                   → hard delete (rejects if mappings)
+  //   GET    /dimensions/{id}/mappings                          → mappings (active + inactive)
+  //   POST   /dimensions/{id}/mappings                          → add KPI to dimension
+  //   PATCH  /dimensions/{id}/mappings/{mapping_id}             → update weight / order / active
+  //   DELETE /dimensions/{id}/mappings/{mapping_id}             → hard delete
+  dimensions: "/config/api/v1/dimensions",
+  dimensionById: (dimensionId) => `/config/api/v1/dimensions/${dimensionId}`,
+  dimensionMappings: (dimensionId) =>
+    `/config/api/v1/dimensions/${dimensionId}/mappings`,
+  dimensionMappingById: (dimensionId, mappingId) =>
+    `/config/api/v1/dimensions/${dimensionId}/mappings/${mappingId}`,
+
+  // HR-facing CXO metric read endpoints — used by the HR Analytics dashboard
+  // to render the Productivity / Engagement / Absenteeism chart. Tenant is
+  // derived from the JWT for company-tier callers (HR / admin / cxo); the
+  // `company_id` query param is only honoured for platform admins.
+  //   GET /config/api/v1/hr/cxo-metrics?metric=productivity        → by_department + by_age_band rows
+  //   GET /config/api/v1/hr/cxo-metrics/definitions                → tabs (metrics with an active mapping)
+  hrCxoMetrics: "/config/api/v1/hr/cxo-metrics",
+  hrCxoMetricsDefinitions: "/config/api/v1/hr/cxo-metrics/definitions",
+
+  // HR Analytics charts — three endpoints drive the "Wellness by Dimension"
+  // and "Gender-wise Wellness & Productivity" cards. company_id is derived
+  // from the JWT by the backend; the frontend never passes it.
+  //   GET /config/api/v1/hr/wellness-dimensions
+  //     → [{ key, label, order }, ...] with "wellnessindex" always first
+  //   GET /config/api/v1/hr/wellness-by-dimension?dimension=<key>
+  //     → { dimension, by_department: [...], by_location: [...] }
+  //   GET /config/api/v1/hr/gender-wellness
+  //     → [{ gender, wellness_score, productivity_score | null }, ...]
+  hrWellnessDimensions: "/config/api/v1/hr/wellness-dimensions",
+  hrWellnessByDimension: "/config/api/v1/hr/wellness-by-dimension",
+  hrGenderWellness: "/config/api/v1/hr/gender-wellness",
+  //   GET /config/api/v1/hr/heatmap/location-department
+  //     → 2D wellness scores. Accepts several response shapes; the slice
+  //       normalizes to { locations: [...], departments: [...], cells: [{location, department, value}] }
+  hrHeatmapLocationDept: "/config/api/v1/hr/heatmap/location-department",
 };

@@ -143,9 +143,9 @@ export const fetchCompanyById = createAsyncThunk(
 
 export const createCompany = createAsyncThunk(
   "company/createCompany",
-  async ({ company }, { rejectWithValue }) => {
+  async ({ company, admin = null }, { rejectWithValue }) => {
     try {
-      const response = await api.post(API_URLS.companies, company);
+      const response = await api.post(API_URLS.companies, { company, admin });
       const payload = response?.data || {};
 
       if (!payload?.success || !payload?.data) {

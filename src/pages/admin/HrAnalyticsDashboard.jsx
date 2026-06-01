@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import { logout } from "../../store/authSlice";
 import { fetchDepartments } from "../../store/departmentSlice";
 import { fetchLocations } from "../../store/locationSlice";
-import { fetchUsers } from "../../store/userSlice";
+import {
+  fetchHrGenderWellness,
+  fetchHrHeatmapLocationDept,
+  fetchHrWellnessByDimension,
+  fetchHrWellnessDimensions,
+} from "../../store/hrAnalyticsSlice";
 import api from "../../services/api";
 import { API_URLS } from "../../services/apiUrls";
 import { getCompanyId } from "../../utils/roleHelper";
-import { formatDateIST } from "../../utils/dateTime";
-import AyuLogo from "../../components/AyuLogo";
+import Layout from "../../layouts/commonLayout/Layout";
 
 const FORM_GENDERS = ["male", "female", "other"];
 const FORM_AGE_BANDS = ["20-25", "26-30", "31-35", "36-40", "41-50", "50+"];
@@ -172,9 +174,19 @@ function Sel({ label, value, onChange, opts }) {
           cursor: "pointer",
         }}
       >
-        <option value="All">All</option>
+        {/* Native <option> elements render in the OS dropdown chrome (white on
+            most platforms), so they inherit the parent <select>'s color:#fff
+            and become invisible. Pin each option to a dark bg + white text so
+            the labels stay legible inside the popup. */}
+        <option value="All" style={{ background: C.card, color: "#fff" }}>
+          All
+        </option>
         {opts.map((o) => (
-          <option key={o} value={o}>
+          <option
+            key={o}
+            value={o}
+            style={{ background: C.card, color: "#fff" }}
+          >
             {o}
           </option>
         ))}
@@ -184,6 +196,14 @@ function Sel({ label, value, onChange, opts }) {
 }
 
 function Toggle({ options, value, onChange, colors }) {
+  // `options` may be a list of strings ("productivity") OR a list of
+  // {key, label} objects (the shape returned by /hr/cxo-metrics/definitions).
+  // Normalize once so the render code below doesn't have to branch.
+  const normalized = options.map((o) =>
+    typeof o === "string"
+      ? { key: o, label: o.charAt(0).toUpperCase() + o.slice(1) }
+      : { key: o.key, label: o.label || o.key },
+  );
   return (
     <div
       style={{
@@ -195,10 +215,10 @@ function Toggle({ options, value, onChange, colors }) {
         flexWrap: "wrap",
       }}
     >
-      {options.map((o, i) => (
+      {normalized.map((o, i) => (
         <button
-          key={o}
-          onClick={() => onChange(o)}
+          key={o.key}
+          onClick={() => onChange(o.key)}
           style={{
             padding: "4px 10px",
             borderRadius: 6,
@@ -207,12 +227,12 @@ function Toggle({ options, value, onChange, colors }) {
             fontWeight: 600,
             cursor: "pointer",
             background:
-              value === o ? (colors ? colors[i] : C.g3) : "transparent",
-            color: value === o ? "#fff" : "rgba(255,255,255,0.4)",
+              value === o.key ? (colors ? colors[i] : C.g3) : "transparent",
+            color: value === o.key ? "#fff" : "rgba(255,255,255,0.4)",
             transition: "all 0.2s",
           }}
         >
-          {o.charAt(0).toUpperCase() + o.slice(1)}
+          {o.label}
         </button>
       ))}
     </div>
@@ -226,19 +246,47 @@ function HRDashboardContent() {
   const [fA, setFA] = useState("All");
   const [fG, setFG] = useState("All");
   const [cxo, setCxo] = useState("productivity");
-  const [well, setWell] = useState("wellnessIndex");
+  // `well` starts empty and is resolved to the first key returned by
+  // /hr/wellness-dimensions ("wellnessindex"). The toggle keys are the
+  // dimension_keys on the backend.
+  const [well, setWell] = useState("");
   const [companyMe, setCompanyMe] = useState(null);
 
-  const companyId = getCompanyId();
+  // CXO metric tabs (API 2) and the per-metric chart payload (API 1).
+  // Tabs come from /hr/cxo-metrics/definitions and only include metrics that
+  // have at least one active KPI mapping for the caller's company, so the UI
+  // never offers a tab that would 404. Chart data is refetched on tab change.
+  const [cxoDefinitions, setCxoDefinitions] = useState([]);
+  const [cxoData, setCxoData] = useState(null);
+  const [cxoLoading, setCxoLoading] = useState(false);
+  const [cxoError, setCxoError] = useState("");
+
   const { items: departmentItems } = useSelector((state) => state.department);
   const { items: locationItems } = useSelector((state) => state.location);
-  const { users: employeeUsers } = useSelector((state) => state.user);
 
+  // HR Analytics chart data — three endpoints feeding the "Wellness by
+  // Dimension" toggle/bars and the "Gender-wise Wellness & Productivity"
+  // horizontal bars. company_id rides the JWT; no params here.
+  const {
+    dimensions: hrDimensions,
+    dimensionsLoading: hrDimensionsLoading,
+    dataByDimension: hrDataByDimension,
+    dimensionDataLoading: hrDimensionDataLoading,
+    dimensionDataError: hrDimensionDataError,
+    gender: hrGender,
+    genderLoading: hrGenderLoading,
+    genderError: hrGenderError,
+    heatmap: hrHeatmap,
+    heatmapLoading: hrHeatmapLoading,
+    heatmapError: hrHeatmapError,
+  } = useSelector((state) => state.hrAnalytics);
+
+  // /companies/me is the authoritative source of the HR's company — the login
+  // payload (and therefore localStorage / getCompanyId()) is empty for some
+  // tenant users, so we resolve it lazily here and use it to drive both the
+  // department fetch (scoped to that company) and the location filter (which
+  // narrows the global location list to the company's own location).
   useEffect(() => {
-    if (companyId) {
-      dispatch(fetchDepartments({ companyId, isActive: true }));
-      dispatch(fetchUsers({ companyId, isActive: true, limit: 1000 }));
-    }
     dispatch(fetchLocations({ isActive: true, limit: 500 }));
 
     let cancelled = false;
@@ -255,26 +303,212 @@ function HRDashboardContent() {
     return () => {
       cancelled = true;
     };
-  }, [dispatch, companyId]);
+  }, [dispatch]);
+
+  const resolvedCompanyId =
+    companyMe?.id || companyMe?.company_id || getCompanyId() || "";
+
+  useEffect(() => {
+    if (!resolvedCompanyId) return;
+    dispatch(
+      fetchDepartments({ companyId: resolvedCompanyId, isActive: true }),
+    );
+  }, [dispatch, resolvedCompanyId]);
+
+  // Snapshot of the four top-level dropdowns in the shape the slice's
+  // buildFilterParams expects. Memoized so dependent effects only refire
+  // when the user actually changes a filter.
+  const hrFilters = useMemo(
+    () => ({
+      department: fD === "All" ? "" : fD,
+      location: fL === "All" ? "" : fL,
+      ageBand: fA === "All" ? "" : fA,
+      gender: fG === "All" ? "" : fG,
+    }),
+    [fD, fL, fA, fG],
+  );
+
+  // Dimension toggle list is filter-independent (it's just the metadata for
+  // the tabs). Fetched once per mount.
+  useEffect(() => {
+    dispatch(fetchHrWellnessDimensions());
+  }, [dispatch]);
+
+  // Gender bar chart + heatmap refetch whenever any top-level filter changes.
+  useEffect(() => {
+    dispatch(fetchHrGenderWellness({ filters: hrFilters }));
+    dispatch(fetchHrHeatmapLocationDept({ filters: hrFilters }));
+  }, [dispatch, hrFilters]);
+
+  // Default `well` to the first dimension returned by the API
+  // (typically "wellnessindex"). Computed-then-set so the initial render's
+  // by-dimension fetch has a key to send.
+  useEffect(() => {
+    if (!well && hrDimensions.length > 0) {
+      setWell(hrDimensions[0].key);
+    }
+  }, [well, hrDimensions]);
+
+  // Refetch the bar-chart payload whenever the toggle OR filters change.
+  useEffect(() => {
+    if (!well) return;
+    dispatch(
+      fetchHrWellnessByDimension({ dimension: well, filters: hrFilters }),
+    );
+  }, [dispatch, well, hrFilters]);
+
+  const wellByDimension = hrDataByDimension?.[well] || null;
+  const wellByDeptRows = useMemo(
+    () =>
+      (wellByDimension?.by_department || []).map((row) => ({
+        l: row.label,
+        v: Number(row.value) || 0,
+      })),
+    [wellByDimension],
+  );
+  const wellByLocRows = useMemo(
+    () =>
+      (wellByDimension?.by_location || []).map((row) => ({
+        l: row.label,
+        v: Number(row.value) || 0,
+      })),
+    [wellByDimension],
+  );
+
+  // Flatten the heatmap cells into a Map<"loc|dept", value> for O(1) lookup
+  // in the table render below. Trim/lowercase the keys so a backend that
+  // returns "Engineering" still matches a column labelled "Engineering ".
+  const heatmapValueByCell = useMemo(() => {
+    const map = new Map();
+    (hrHeatmap?.cells || []).forEach((c) => {
+      if (!c.location || !c.department) return;
+      const key = `${String(c.location).trim().toLowerCase()}|${String(c.department).trim().toLowerCase()}`;
+      map.set(key, c.value);
+    });
+    return map;
+  }, [hrHeatmap]);
+
+  const heatmapLocations =
+    hrHeatmap?.locations && hrHeatmap.locations.length > 0
+      ? hrHeatmap.locations
+      : LOCATIONS;
+  const heatmapDepartments =
+    hrHeatmap?.departments && hrHeatmap.departments.length > 0
+      ? hrHeatmap.departments
+      : DEPTS;
+
+  const genderRows = useMemo(() => {
+    // Backend already returns Male / Female / Other in that order and skips
+    // genders without data. Just normalize the case so the legend labels are
+    // stable regardless of how the backend casts them.
+    const order = ["Male", "Female", "Other"];
+    return order
+      .map((g) => {
+        const row = hrGender.find(
+          (r) =>
+            String(r.gender || "").toLowerCase() === g.toLowerCase(),
+        );
+        return row ? { ...row, gender: g } : null;
+      })
+      .filter(Boolean);
+  }, [hrGender]);
+
+  // Load the tab list once. HR is a company-tier caller so the backend
+  // forces the tenant from the JWT — we don't need to pass company_id.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get(API_URLS.hrCxoMetricsDefinitions)
+      .then((response) => {
+        if (cancelled) return;
+        const payload = response?.data;
+        if (!payload?.success) return;
+        const defs = Array.isArray(payload.data) ? payload.data : [];
+        setCxoDefinitions(defs);
+        // If our default tab isn't actually configured for this company,
+        // snap to whatever the first available one is so the metric fetch
+        // below doesn't immediately 404.
+        if (defs.length && !defs.some((d) => d.key === cxo)) {
+          setCxo(defs[0].key);
+        }
+      })
+      .catch(() => {
+        // Non-fatal — chart area falls back to its empty state.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Refetch chart data whenever the selected metric tab changes.
+  useEffect(() => {
+    if (!cxo) return;
+    let cancelled = false;
+    setCxoLoading(true);
+    setCxoError("");
+    api
+      .get(API_URLS.hrCxoMetrics, { params: { metric: cxo } })
+      .then((response) => {
+        if (cancelled) return;
+        const payload = response?.data;
+        if (payload?.success) {
+          setCxoData(payload.data || null);
+        } else {
+          setCxoData(null);
+          setCxoError(payload?.message || "Failed to load metric.");
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setCxoData(null);
+        // 404 = no active mapping for this metric on this company. Surface
+        // the backend's "CXO metric not configured" message verbatim.
+        setCxoError(
+          error?.response?.data?.message ||
+            (error?.response?.status === 404
+              ? "CXO metric not configured."
+              : "Failed to load metric."),
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setCxoLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cxo]);
+
+  const cxoByDept = useMemo(
+    () =>
+      (cxoData?.by_department || []).map((r) => ({
+        l: r.label,
+        v: Number(r.value) || 0,
+      })),
+    [cxoData],
+  );
+  const cxoByAge = useMemo(
+    () =>
+      (cxoData?.by_age_band || []).map((r) => ({
+        l: r.label,
+        v: Number(r.value) || 0,
+      })),
+    [cxoData],
+  );
 
   const departmentOpts = useMemo(
     () => departmentItems.filter((d) => d.is_active).map((d) => d.name),
     [departmentItems],
   );
 
-  // Users carry no location_id of their own; their location is inherited from
-  // their company. So "locations for which an employee exists" resolves, for
-  // a single-company admin, to the company's one location — and only when at
-  // least one employee belongs to it.
   const locationOpts = useMemo(() => {
-    if (!employeeUsers.length) return [];
     const companyLocationId = companyMe?.location_id;
     if (!companyLocationId) return [];
     const match = locationItems.find(
       (l) => String(l.id) === String(companyLocationId),
     );
     return match ? [match.name] : [];
-  }, [companyMe, locationItems, employeeUsers.length]);
+  }, [companyMe, locationItems]);
 
   const filtered = useMemo(
     () =>
@@ -292,18 +526,6 @@ function HRDashboardContent() {
     +(
       filtered.reduce((s, r) => s + r[m], 0) / Math.max(filtered.length, 1)
     ).toFixed(1);
-
-  const agg = (key, m) => {
-    const mp = {};
-    filtered.forEach((r) => {
-      if (!mp[r[key]]) mp[r[key]] = [];
-      mp[r[key]].push(r[m]);
-    });
-    return Object.entries(mp).map(([k, v]) => ({
-      l: k,
-      v: +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(1),
-    }));
-  };
 
   const summaryCards = [
     ["🌿", "Avg Wellness", avg("wellnessIndex"), "/ 100", C.g3],
@@ -388,27 +610,90 @@ function HRDashboardContent() {
               Wellness by Dimension
             </div>
             <Toggle
-              options={["wellnessIndex", "sleep", "stress", "nutrition"]}
+              options={hrDimensions}
               value={well}
               onChange={setWell}
-              colors={[C.g3, C.purple, C.orange, "#22c55e"]}
+              colors={[C.g3, C.purple, C.orange, "#22c55e", C.blue, C.gold]}
             />
           </div>
-          <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>
-            By Department
-          </div>
-          <BarChart data={agg("dept", well)} color={C.g3} h={75} />
-          <div
-            style={{
-              fontSize: 9,
-              color: C.muted,
-              marginTop: 12,
-              marginBottom: 6,
-            }}
-          >
-            By Location
-          </div>
-          <BarChart data={agg("loc", well)} color={C.teal} h={75} />
+          {hrDimensionsLoading && hrDimensions.length === 0 ? (
+            <div
+              style={{
+                fontSize: 10,
+                color: C.muted,
+                padding: "30px 0",
+                textAlign: "center",
+              }}
+            >
+              Loading…
+            </div>
+          ) : hrDimensionDataError ? (
+            <div
+              style={{
+                fontSize: 10,
+                color: C.muted,
+                padding: "30px 0",
+                textAlign: "center",
+              }}
+            >
+              {hrDimensionDataError}
+            </div>
+          ) : hrDimensionDataLoading && !wellByDimension ? (
+            <div
+              style={{
+                fontSize: 10,
+                color: C.muted,
+                padding: "30px 0",
+                textAlign: "center",
+              }}
+            >
+              Loading…
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>
+                By Department
+              </div>
+              {wellByDeptRows.length ? (
+                <BarChart data={wellByDeptRows} color={C.g3} h={75} />
+              ) : (
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: "rgba(255,255,255,0.3)",
+                    padding: "20px 0",
+                    textAlign: "center",
+                  }}
+                >
+                  No department data
+                </div>
+              )}
+              <div
+                style={{
+                  fontSize: 9,
+                  color: C.muted,
+                  marginTop: 12,
+                  marginBottom: 6,
+                }}
+              >
+                By Location
+              </div>
+              {wellByLocRows.length ? (
+                <BarChart data={wellByLocRows} color={C.teal} h={75} />
+              ) : (
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: "rgba(255,255,255,0.3)",
+                    padding: "20px 0",
+                    textAlign: "center",
+                  }}
+                >
+                  No location data
+                </div>
+              )}
+            </>
+          )}
         </Card>
         <Card>
           <div
@@ -423,27 +708,79 @@ function HRDashboardContent() {
               CXO Performance Metrics
             </div>
             <Toggle
-              options={["productivity", "engagement", "absenteeism"]}
+              options={cxoDefinitions}
               value={cxo}
               onChange={setCxo}
-              colors={[C.blue, C.orange, C.red]}
+              colors={[C.blue, C.orange, C.red, C.purple, C.gold, C.teal]}
             />
           </div>
-          <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>
-            By Department
-          </div>
-          <BarChart data={agg("dept", cxo)} color={C.blue} h={75} />
-          <div
-            style={{
-              fontSize: 9,
-              color: C.muted,
-              marginTop: 12,
-              marginBottom: 6,
-            }}
-          >
-            By Age Band
-          </div>
-          <BarChart data={agg("age", cxo)} color={C.purple} h={75} />
+          {cxoLoading ? (
+            <div
+              style={{
+                fontSize: 10,
+                color: C.muted,
+                padding: "30px 0",
+                textAlign: "center",
+              }}
+            >
+              Loading…
+            </div>
+          ) : cxoError ? (
+            <div
+              style={{
+                fontSize: 10,
+                color: C.muted,
+                padding: "30px 0",
+                textAlign: "center",
+              }}
+            >
+              {cxoError}
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>
+                By Department
+              </div>
+              {cxoByDept.length ? (
+                <BarChart data={cxoByDept} color={C.blue} h={75} />
+              ) : (
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: "rgba(255,255,255,0.3)",
+                    padding: "20px 0",
+                    textAlign: "center",
+                  }}
+                >
+                  No department data
+                </div>
+              )}
+              <div
+                style={{
+                  fontSize: 9,
+                  color: C.muted,
+                  marginTop: 12,
+                  marginBottom: 6,
+                }}
+              >
+                By Age Band
+              </div>
+              {cxoByAge.length ? (
+                <BarChart data={cxoByAge} color={C.purple} h={75} />
+              ) : (
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: "rgba(255,255,255,0.3)",
+                    padding: "20px 0",
+                    textAlign: "center",
+                  }}
+                >
+                  No age-band data
+                </div>
+              )}
+            </>
+          )}
         </Card>
       </div>
 
@@ -460,55 +797,95 @@ function HRDashboardContent() {
           <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12 }}>
             Gender-wise Wellness & Productivity
           </div>
-          {["Male", "Female", "Other"].map((g, i) => {
-            const rows = filtered.filter((r) => r.gender === g);
-            if (!rows.length) return null;
-            const wi = +(
-              rows.reduce((s, r) => s + r.wellnessIndex, 0) / rows.length
-            ).toFixed(1);
-            const pr = +(
-              rows.reduce((s, r) => s + r.productivity, 0) / rows.length
-            ).toFixed(1);
-            const cols = ["#38bdf8", "#f472b6", "#a3e635"];
-            return (
-              <div key={g} style={{ marginBottom: 14 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 4,
-                  }}
-                >
-                  <span
-                    style={{ fontSize: 11, color: cols[i], fontWeight: 600 }}
-                  >
-                    {g}
-                  </span>
-                  <span style={{ fontSize: 10, color: C.muted }}>
-                    Wellness:{" "}
-                    <b style={{ color: cols[i] }}>{wi}</b> | Productivity:{" "}
-                    <b style={{ color: cols[i] }}>{pr}%</b>
-                  </span>
-                </div>
-                <div
-                  style={{
-                    height: 5,
-                    borderRadius: 5,
-                    background: "rgba(255,255,255,0.06)",
-                  }}
-                >
+          {hrGenderLoading && genderRows.length === 0 ? (
+            <div
+              style={{
+                fontSize: 10,
+                color: C.muted,
+                padding: "30px 0",
+                textAlign: "center",
+              }}
+            >
+              Loading…
+            </div>
+          ) : hrGenderError ? (
+            <div
+              style={{
+                fontSize: 10,
+                color: C.muted,
+                padding: "30px 0",
+                textAlign: "center",
+              }}
+            >
+              {hrGenderError}
+            </div>
+          ) : genderRows.length === 0 ? (
+            <div
+              style={{
+                fontSize: 10,
+                color: "rgba(255,255,255,0.3)",
+                padding: "30px 0",
+                textAlign: "center",
+              }}
+            >
+              No gender data
+            </div>
+          ) : (
+            genderRows.map((row, i) => {
+              const cols = ["#38bdf8", "#f472b6", "#a3e635"];
+              const wi =
+                row.wellness_score == null
+                  ? null
+                  : Number(row.wellness_score);
+              const pr =
+                row.productivity_score == null
+                  ? null
+                  : Number(row.productivity_score);
+              return (
+                <div key={row.gender} style={{ marginBottom: 14 }}>
                   <div
                     style={{
-                      height: "100%",
-                      width: `${wi}%`,
-                      borderRadius: 5,
-                      background: `linear-gradient(90deg,${cols[i]},${cols[i]}88)`,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: 4,
                     }}
-                  />
+                  >
+                    <span
+                      style={{ fontSize: 11, color: cols[i], fontWeight: 600 }}
+                    >
+                      {row.gender}
+                    </span>
+                    <span style={{ fontSize: 10, color: C.muted }}>
+                      Wellness:{" "}
+                      <b style={{ color: cols[i] }}>
+                        {wi == null ? "—" : wi}
+                      </b>{" "}
+                      | Productivity:{" "}
+                      <b style={{ color: cols[i] }}>
+                        {pr == null ? "—" : `${pr}%`}
+                      </b>
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: 5,
+                      borderRadius: 5,
+                      background: "rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${wi == null ? 0 : Math.max(0, Math.min(100, wi))}%`,
+                        borderRadius: 5,
+                        background: `linear-gradient(90deg,${cols[i]},${cols[i]}88)`,
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </Card>
         <Card>
           <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
@@ -583,285 +960,171 @@ function HRDashboardContent() {
         <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12 }}>
           📊 Location × Department Wellness Heatmap
         </div>
-        <div style={{ overflowX: "auto" }}>
-          <table
+        {hrHeatmapLoading && heatmapValueByCell.size === 0 ? (
+          <div
             style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              minWidth: 400,
+              fontSize: 10,
+              color: C.muted,
+              padding: "30px 0",
+              textAlign: "center",
             }}
           >
-            <thead>
-              <tr>
-                <th
-                  style={{
-                    padding: "8px 12px",
-                    fontSize: 9,
-                    color: C.muted,
-                    textAlign: "left",
-                  }}
-                >
-                  ↓ Location / Dept →
-                </th>
-                {DEPTS.map((d) => (
+            Loading…
+          </div>
+        ) : hrHeatmapError ? (
+          <div
+            style={{
+              fontSize: 10,
+              color: C.muted,
+              padding: "30px 0",
+              textAlign: "center",
+            }}
+          >
+            {hrHeatmapError}
+          </div>
+        ) : heatmapLocations.length === 0 || heatmapDepartments.length === 0 ? (
+          <div
+            style={{
+              fontSize: 10,
+              color: "rgba(255,255,255,0.3)",
+              padding: "30px 0",
+              textAlign: "center",
+            }}
+          >
+            No heatmap data
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                minWidth: 400,
+              }}
+            >
+              <thead>
+                <tr>
                   <th
-                    key={d}
                     style={{
-                      padding: "8px 8px",
+                      padding: "8px 12px",
                       fontSize: 9,
                       color: C.muted,
-                      fontWeight: 600,
-                      textAlign: "center",
+                      textAlign: "left",
                     }}
                   >
-                    {d.slice(0, 6)}
+                    ↓ Location / Dept →
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {LOCATIONS.map((loc) => (
-                <tr key={loc}>
-                  <td
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: 10,
-                      color: "rgba(255,255,255,0.5)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {loc}
-                  </td>
-                  {DEPTS.map((dept) => {
-                    const rows = HR_ROWS.filter(
-                      (r) => r.loc === loc && r.dept === dept,
-                    );
-                    const wi = rows.length
-                      ? +(
-                          rows.reduce((s, r) => s + r.wellnessIndex, 0) /
-                          rows.length
-                        ).toFixed(0)
-                      : null;
-                    if (!wi) {
+                  {heatmapDepartments.map((d) => (
+                    <th
+                      key={d}
+                      style={{
+                        padding: "8px 8px",
+                        fontSize: 9,
+                        color: C.muted,
+                        fontWeight: 600,
+                        textAlign: "center",
+                      }}
+                      title={d}
+                    >
+                      {d.slice(0, 6)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {heatmapLocations.map((loc) => (
+                  <tr key={loc}>
+                    <td
+                      style={{
+                        padding: "6px 12px",
+                        fontSize: 10,
+                        color: "rgba(255,255,255,0.5)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {loc}
+                    </td>
+                    {heatmapDepartments.map((dept) => {
+                      const cellKey = `${String(loc).trim().toLowerCase()}|${String(dept).trim().toLowerCase()}`;
+                      const raw = heatmapValueByCell.get(cellKey);
+                      const wi =
+                        raw == null || Number.isNaN(Number(raw))
+                          ? null
+                          : Math.round(Number(raw));
+                      if (wi == null) {
+                        return (
+                          <td key={dept} style={{ padding: "4px 8px" }}>
+                            <div
+                              style={{
+                                background: "rgba(255,255,255,0.03)",
+                                borderRadius: 6,
+                                padding: "3px 0",
+                                textAlign: "center",
+                                fontSize: 9,
+                                color: "rgba(255,255,255,0.15)",
+                              }}
+                            >
+                              —
+                            </div>
+                          </td>
+                        );
+                      }
+                      // Map score 50..90 → opacity 0.1..0.75 so high scores
+                      // visually pop and missing rows stay nearly invisible.
+                      const inten = Math.max(0, (wi - 50) / 40);
                       return (
-                        <td key={dept} style={{ padding: "4px 8px" }}>
+                        <td
+                          key={dept}
+                          style={{
+                            padding: "4px 8px",
+                            textAlign: "center",
+                          }}
+                        >
                           <div
                             style={{
-                              background: "rgba(255,255,255,0.03)",
+                              background: `rgba(107,179,63,${
+                                inten * 0.65 + 0.1
+                              })`,
                               borderRadius: 6,
                               padding: "3px 0",
-                              textAlign: "center",
-                              fontSize: 9,
-                              color: "rgba(255,255,255,0.15)",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: "#fff",
                             }}
                           >
-                            —
+                            {wi}
                           </div>
                         </td>
                       );
-                    }
-                    const inten = Math.max(0, (wi - 50) / 40);
-                    return (
-                      <td
-                        key={dept}
-                        style={{ padding: "4px 8px", textAlign: "center" }}
-                      >
-                        <div
-                          style={{
-                            background: `rgba(107,179,63,${
-                              inten * 0.65 + 0.1
-                            })`,
-                            borderRadius: 6,
-                            padding: "3px 0",
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: "#fff",
-                          }}
-                        >
-                          {wi}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );
 }
 
 export default function HrAnalyticsDashboard() {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const profile = useSelector((state) => state.auth.user);
-  const displayName = profile?.name || "HR Lead";
-  const displayRole = (profile?.role || "hr").toUpperCase();
-
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate("/login", { replace: true });
-  };
-
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: C.bg,
-        fontFamily: "'Outfit','Nunito','Segoe UI',sans-serif",
-        color: "#fff",
-      }}
-    >
-      {/* HEADER */}
+    <Layout role="admin" title="HR Analytics">
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "11px 22px",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          background: "rgba(255,255,255,0.01)",
-          flexWrap: "wrap",
-          gap: 12,
+          fontSize: 10,
+          color: "rgba(255,255,255,0.28)",
+          marginBottom: 14,
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+          paddingBottom: 10,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <AyuLogo size={32} />
-          <div>
-            <div
-              style={{
-                fontWeight: 800,
-                fontSize: 14,
-                background: "linear-gradient(90deg,#4a7c2f,#6db33f)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                letterSpacing: 0.5,
-              }}
-            >
-              AYUMONK
-            </div>
-            <div
-              style={{
-                fontSize: 8,
-                color: "rgba(255,255,255,0.28)",
-                letterSpacing: 1,
-              }}
-            >
-              WELLNESS INTELLIGENCE PLATFORM
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            background: "rgba(0,0,0,0.4)",
-            borderRadius: 12,
-            padding: 4,
-          }}
-        >
-          <button
-            type="button"
-            style={{
-              padding: "7px 16px",
-              borderRadius: 9,
-              border: "none",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "default",
-              background: "linear-gradient(135deg,#2C5F2D,#6db33f)",
-              color: "#fff",
-              transition: "all 0.25s",
-            }}
-          >
-            👔 HR Analytics
-          </button>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              lineHeight: 1.2,
-            }}
-          >
-            <span
-              style={{ fontSize: 11, color: "#fff", fontWeight: 700 }}
-            >
-              {displayName}
-            </span>
-            <span
-              style={{
-                fontSize: 8,
-                color: C.muted,
-                letterSpacing: 0.6,
-              }}
-            >
-              {displayRole}
-            </span>
-          </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              background: "rgba(224,80,80,0.10)",
-              border: `1px solid ${C.red}66`,
-              color: C.red,
-              borderRadius: 9,
-              padding: "6px 12px",
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            Logout
-          </button>
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)" }}>
-            {formatDateIST(new Date())}
-          </div>
-        </div>
+        👔 HR Intelligence Centre — Population Health Analytics · CXO Metrics
+        · Location & Department Insights
       </div>
 
-      {/* CONTENT */}
-      <div style={{ padding: "18px 22px" }}>
-        <div
-          style={{
-            fontSize: 10,
-            color: "rgba(255,255,255,0.28)",
-            marginBottom: 14,
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
-            paddingBottom: 10,
-          }}
-        >
-          👔 HR Intelligence Centre — Population Health Analytics · CXO Metrics
-          · Location & Department Insights
-        </div>
-
-        <HRDashboardContent />
-      </div>
-
-      <div
-        style={{
-          padding: "10px 22px",
-          borderTop: "1px solid rgba(255,255,255,0.05)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ fontSize: 8, color: "rgba(255,255,255,0.16)" }}>
-          WHO MHW · SF-12 · Gallup Q12 · UN SDGs · SHRM · Ayurveda Tridosha ·
-          W3C PWA
-        </div>
-        <div style={{ fontSize: 8, color: "rgba(255,255,255,0.14)" }}>
-          ayumonk.com/corporate © 2025
-        </div>
-      </div>
-    </div>
+      <HRDashboardContent />
+    </Layout>
   );
 }

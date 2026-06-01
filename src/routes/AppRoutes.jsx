@@ -51,10 +51,17 @@ import Menus from "../pages/superadmin/Menus";
 import MenuForm from "../pages/superadmin/MenuForm";
 import MenuView from "../pages/superadmin/MenuView";
 import Departments from "../pages/superadmin/Departments";
+import CxoMetricsConfig from "../pages/superadmin/CxoMetricsConfig";
+import WellnessDimensionsConfig from "../pages/superadmin/WellnessDimensionsConfig";
 import ClientPage from "../pages/hidden/ClientPage";
+import PwaMobile from "../pages/hidden/PwaMobile";
 import AccessDenied from "../pages/common/AccessDenied";
 import RouteGuard from "./RouteGuard";
-import { getHomePath, isPathAllowedForRole } from "../utils/roleHelper";
+import {
+  getHomePath,
+  isOtherRoleHomePath,
+  isPathAllowedForRole,
+} from "../utils/roleHelper";
 
 // Spec §3: every CRUD route is gated on `<resource>:read` so direct
 // navigation / deep links fail-safe via <AccessDenied /> instead of
@@ -74,13 +81,19 @@ function LoginRoute({ fallback }) {
   const location = useLocation();
   const authenticated = useSelector((state) => state.auth.isAuthenticated);
   const role = useSelector((state) => state.auth.role);
+  const rawRole = useSelector((state) => state.auth.rawRole);
   const isPlatformAdmin = useSelector((state) => state.auth.isPlatformAdmin);
   const fromPath = location.state?.from?.pathname;
   // Only honor `from` redirects when the current user can actually access
   // that path — otherwise a stale `from` left over from a previous role's
   // session would bounce the new user into a route they don't belong on.
+  // Also reject `from` paths that are *another* role's home: Company Admin
+  // and HR Manager both have role="admin" but live on /admin/dashboard vs
+  // /admin/hr-dashboard, so isPathAllowedForRole can't catch the bleed-over.
   const honorFrom =
-    fromPath && isPathAllowedForRole(fromPath, { role, isPlatformAdmin });
+    fromPath &&
+    isPathAllowedForRole(fromPath, { role, isPlatformAdmin }) &&
+    !isOtherRoleHomePath(fromPath, { isPlatformAdmin, role, rawRole });
   const redirectTarget = honorFrom
     ? `${fromPath}${location.state.from.search || ""}${location.state.from.hash || ""}`
     : fallback;
@@ -723,6 +736,22 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/super-admin/cxo-metrics"
+        element={
+          <ProtectedRoute codename="cxo_metrics:read">
+            <CxoMetricsConfig />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/wellness-dimensions"
+        element={
+          <ProtectedRoute codename="wellness_dimensions:read">
+            <WellnessDimensionsConfig />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/super-admin/menus"
         element={
           <ProtectedRoute codename="platform:read">
@@ -798,6 +827,14 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute bypass>
             <ClientPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/client/pwa"
+        element={
+          <ProtectedRoute bypass>
+            <PwaMobile />
           </ProtectedRoute>
         }
       />

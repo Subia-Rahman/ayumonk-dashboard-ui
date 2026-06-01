@@ -19,6 +19,8 @@ export const SLUG_TO_ROUTE = {
   policies: "/super-admin/policies",
   menus: "/super-admin/menus",
   "role-assignments": "/super-admin/role-assignments",
+  "cxo-metrics": "/super-admin/cxo-metrics",
+  "wellness-dimensions": "/super-admin/wellness-dimensions",
   "my-responses": "/user/submissions",
   submissions: "/user/submissions",
   profile: "/profile",

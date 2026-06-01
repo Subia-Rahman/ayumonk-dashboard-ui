@@ -28,20 +28,20 @@ export default function SaCompanies() {
   }, [companies, search]);
 
   return (
-    <div>
+    <div style={{ background: C.bg, minHeight: "100%" }}>
       <div
         style={{
-          padding: "12px 16px 10px",
+          padding: "8px 16px 10px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>
             🏢 Companies
           </div>
-          <div style={{ fontSize: 9, color: C.muted }}>
+          <div style={{ fontSize: 8.5, color: C.muted }}>
             {companies?.length || 0} active corporate clients
           </div>
         </div>
@@ -54,7 +54,7 @@ export default function SaCompanies() {
             background: `linear-gradient(135deg,${C.g2},${C.g3})`,
             border: "none",
             color: "#fff",
-            fontSize: 10,
+            fontSize: 9.5,
             fontWeight: 700,
             cursor: "pointer",
           }}
@@ -86,7 +86,7 @@ export default function SaCompanies() {
             border: "none",
             background: "transparent",
             outline: "none",
-            color: "#fff",
+            color: "#1F1E1D",
             fontSize: 11,
           }}
         />
@@ -130,7 +130,7 @@ export default function SaCompanies() {
                   style={{
                     fontSize: 11,
                     fontWeight: 700,
-                    color: "#fff",
+                    color: "#1F1E1D",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -144,8 +144,8 @@ export default function SaCompanies() {
                     <span
                       style={{
                         fontSize: 8.5,
-                        background: "rgba(255,255,255,.05)",
-                        color: "rgba(255,255,255,.3)",
+                        background: "rgba(31,30,29,0.06)",
+                        color: "#5C5A57",
                         borderRadius: 4,
                         padding: "1px 5px",
                       }}
@@ -164,8 +164,8 @@ export default function SaCompanies() {
               <span
                 style={{
                   fontSize: 9,
-                  background: "rgba(255,255,255,.04)",
-                  color: "rgba(255,255,255,.38)",
+                  background: "rgba(31,30,29,0.08)",
+                  color: "#5C5A57",
                   borderRadius: 6,
                   padding: "2px 8px",
                 }}
@@ -176,8 +176,8 @@ export default function SaCompanies() {
                 <span
                   style={{
                     fontSize: 9,
-                    background: "rgba(255,255,255,.04)",
-                    color: "rgba(255,255,255,.38)",
+                    background: "rgba(31,30,29,0.08)",
+                    color: "#5C5A57",
                     borderRadius: 6,
                     padding: "2px 8px",
                   }}

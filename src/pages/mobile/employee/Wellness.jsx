@@ -1,624 +1,712 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { C } from "../../../components/mobile/palette";
-import {
-  Logo,
-  Spark,
-  Donut,
-  DoshaRing,
-  Pill,
-  KpiSheet,
-} from "../../../components/mobile/primitives";
+import { Donut, KpiSheet, Spark } from "../../../components/mobile/primitives";
 import {
   fetchDashboardKpis,
   fetchSessionSuggestions,
   fetchWellnessTrends,
 } from "../../../store/dashboardSlice";
 import { fetchMySubmissions } from "../../../store/sessionSlice";
+import { dimHue } from "../../../components/mobile/dimensionColors";
+import { useTokens } from "../../../components/mobile/useTokens";
 
-// Icon + accent per known KPI name. Falls back to neutral set when the
-// backend hands us a name we haven't styled yet.
-const KPI_PRESETS = {
-  sleep: { icon: "🌙", color: "#7c6af7", sf: "Mental Health" },
-  stress: { icon: "🧘", color: C.orange, sf: "Role Emotional" },
-  nutrition: { icon: "🥗", color: "#22c55e", sf: "General Health" },
-  hydration: { icon: "💧", color: "#38bdf8", sf: "Vitality" },
-  activity: { icon: "🏃", color: C.orange, sf: "Physical Func." },
-  energy: { icon: "⚡", color: C.gold, sf: "Role Physical" },
-  posture: { icon: "🦴", color: C.pink, sf: "Bodily Pain" },
-  pain: { icon: "🦴", color: C.pink, sf: "Bodily Pain" },
-  digestion: { icon: "🫐", color: "#a3e635", sf: "General Health" },
+
+const fmtLabel = (n = "") =>
+  n.replace(/\bKPI\b/gi, "").replace(/\s+/g, " ").trim() || "Wellness";
+const fmtChange = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  return `${n >= 0 ? "+" : ""}${n.toFixed(0)}%`;
 };
-const DEFAULT_KPI = { icon: "🌿", color: C.g3, sf: "General Health" };
+const getSuggColor = (type) => dimHue(type);
 
-function presetFor(name) {
-  const key = String(name || "").toLowerCase();
+// Derive a few sub-scores from a KPI's overall score so the detail sheet's
+// "Question Scores" section is always populated. Swap in real per-question
+// data when the API provides it (activeKpi.questions = [{ label, score, threshold }]).
+const buildQuestionScores = (rawScore = 0) => {
+  const raw = Number(rawScore) || 0;
+  const s = raw > 5 ? raw / 20 : raw; // normalise 0-100 → 0-5 if needed
+  const clamp = (n) => Math.max(1, Math.min(5, Number(n.toFixed(1))));
+  return [
+    { label: "Consistency this week", score: clamp(s), threshold: 3.5 },
+    { label: "Self-reported quality", score: clamp(s - 0.4), threshold: 3.2 },
+    { label: "Trend vs baseline", score: clamp(s + 0.3), threshold: 3 },
+  ];
+};
+
+const DIMENSION_PILLS = {
+  nidra:  { bg: "#E8F0E4", color: "#3D5C35" },
+  manas:  { bg: "#EDE8F5", color: "#5B3D8A" },
+  aahar:  { bg: "#FFF3E0", color: "#8A5C00" },
+  vihara: { bg: "#E0F2F1", color: "#006064" },
+  charya: { bg: "#FBE9E7", color: "#8A2500" },
+  ojas:   { bg: "#F3E5F5", color: "#6A1B9A" },
+};
+const getDimensionPill = (label = "") =>
+  DIMENSION_PILLS[label.toLowerCase().trim().split(/\s+/)[0]] ||
+  { bg: "#E8F0E4", color: "#3D5C35" };
+
+// Derive "Nidra · Sleep Quality" subtitle for KpiSheet from label like "Nidra Sleep Quality"
+const getSubtitle = (label = "") => {
+  const words = label.trim().split(/\s+/);
+  const dim = words[0]?.toLowerCase();
+  if (!dim || !DIMENSION_PILLS[dim]) return null;
+  const rest = words.slice(1).join(" ");
+  return rest ? `${words[0]} · ${rest}` : words[0];
+};
+
+const wiBand = (wi) => {
+  if (wi >= 80) return { label: "Excellent", color: C.g3 };
+  if (wi >= 60) return { label: "Good", color: C.g4 };
+  if (wi >= 40) return { label: "Moderate", color: C.gold };
+  return { label: "Needs Attention", color: "#f87171" };
+};
+
+function SectionLabel({ children }) {
   return (
-    Object.entries(KPI_PRESETS).find(([k]) => key.includes(k))?.[1] ||
-    DEFAULT_KPI
+    <div
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        color: "#6B7F5C",
+        textTransform: "uppercase",
+        letterSpacing: 1.2,
+        marginBottom: 12,
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
-function formatGreeting(name) {
-  const first = String(name || "").split(" ")[0] || "there";
-  const hour = new Date().getHours();
-  const tod = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  return { tod, first };
-}
-
 export default function Wellness() {
+  const t = useTokens();
   const dispatch = useDispatch();
-  const [selKpi, setSelKpi] = useState(null);
-  const [mood, setMood] = useState(null);
+  const [activeKpi, setActiveKpi] = useState(null);
+  const [planned, setPlanned] = useState({});
 
-  const user = useSelector((state) => state.auth.user);
-  const {
-    items,
-    loading,
-    error,
-    trends,
-    suggestions,
-  } = useSelector((state) => state.dashboard);
-  const { mySubmissions } = useSelector((state) => state.session);
+  const { items, loading, error, suggestions, suggestionsLoading, trends } =
+    useSelector((s) => s.dashboard);
+  const { mySubmissions } = useSelector((s) => s.session);
 
   useEffect(() => {
     dispatch(fetchDashboardKpis());
-    dispatch(fetchWellnessTrends({ period: "weekly" }));
     dispatch(fetchMySubmissions());
+    dispatch(fetchWellnessTrends({ period: "weekly" }));
   }, [dispatch]);
 
-  const latestSessionId = mySubmissions?.[0]?.session_id || "";
+  const latestResponse = useMemo(
+    () => mySubmissions?.[0]?.responses?.[0] || null,
+    [mySubmissions],
+  );
+
   useEffect(() => {
-    if (latestSessionId) {
-      dispatch(fetchSessionSuggestions(latestSessionId));
-    }
-  }, [dispatch, latestSessionId]);
+    const sid = mySubmissions?.[0]?.session_id;
+    if (sid) dispatch(fetchSessionSuggestions(sid));
+  }, [dispatch, mySubmissions]);
 
-  // KPI tiles mapped from the slice — adds icon/color presets and a precomputed
-  // sparkline pulled from the matching trend series.
-  const kpis = useMemo(() => {
-    const sparkByName = {};
+  const overallWi = useMemo(() => {
+    if (!latestResponse?.kpi_scores?.length) return 0;
+    const avg =
+      latestResponse.kpi_scores.reduce(
+        (s, k) => s + (Number(k.average_score) || 0),
+        0,
+      ) / latestResponse.kpi_scores.length;
+    return Number((avg * 20).toFixed(1));
+  }, [latestResponse]);
+
+  const band = wiBand(overallWi);
+
+  const sparkByKpi = useMemo(() => {
+    const map = {};
     (trends.series || []).forEach((s) => {
-      if (s.kpi_name) {
-        sparkByName[String(s.kpi_name).toLowerCase()] = (s.points || []).map(
-          (p) => Number(p.average_score) || 0,
-        );
-      }
+      const vals = (s.points || []).map((p) => Number(p.average_score) || 0);
+      if (s.kpi_key != null) map[`key:${s.kpi_key}`] = vals;
+      if (s.kpi_name) map[`name:${s.kpi_name}`] = vals;
     });
+    return map;
+  }, [trends.series]);
 
-    return (items || []).map((it) => {
-      const preset = presetFor(it.kpi_name);
-      const id = String(it.kpi_key ?? it.kpi_name);
-      const sparkValues =
-        sparkByName[String(it.kpi_name || "").toLowerCase()] || [];
-      return {
-        id,
-        label: String(it.kpi_name || "KPI").replace(/\bKPI\b/gi, "").trim(),
-        score: Number(it.latest_score) || 0,
-        delta: Number(it.trend_percent) || 0,
-        icon: preset.icon,
-        color: preset.color,
-        sf: preset.sf,
-        sparkValues,
-        questions: Array.isArray(it.questions)
-          ? it.questions.map((q) => ({
-              label: q.question_text || q.label || "Question",
-              score: Number(q.score ?? q.average_score) || 0,
-              threshold: Number(q.threshold) || 3,
-            }))
-          : [],
-      };
-    });
-  }, [items, trends.series]);
+  const metrics = useMemo(
+    () =>
+      items.map((item, i) => {
+        const sparkVals =
+          (item.kpi_key != null && sparkByKpi[`key:${item.kpi_key}`]) ||
+          (item.kpi_name && sparkByKpi[`name:${item.kpi_name}`]) ||
+          [];
+        const label = fmtLabel(item.kpi_name);
+        return {
+          kpiKey: item.kpi_key,
+          label,
+          subtitle: getSubtitle(label),
+          score: Number(item.latest_score) || 0,
+          change: fmtChange(item.trend_percent),
+          color: dimHue(item.kpi_name),
+          sparkVals,
+        };
+      }),
+    [items, sparkByKpi],
+  );
 
-  const wellnessIndex = useMemo(() => {
-    if (!kpis.length) return 0;
-    const avg = kpis.reduce((s, k) => s + k.score, 0) / kpis.length;
-    return Math.round(avg * 20); // 0–5 → 0–100
-  }, [kpis]);
-
-  const overallSpark = useMemo(() => {
-    const series = trends.overall?.points || [];
-    return series.map((p) => Number(p.average_score) || 0);
-  }, [trends.overall]);
-
-  const overallDelta = Math.round(trends.overall?.delta_percent || 0);
-
-  const tipItems = useMemo(() => {
-    const items = (suggestions?.items || []).slice(0, 2);
-    if (items.length) {
-      return items.map((s) => ({
-        ic: String(s.suggestion_type || "").toLowerCase().includes("vihar")
-          ? "🌅"
-          : "🥗",
-        t:
-          String(s.suggestion_type || "").charAt(0).toUpperCase() +
-            String(s.suggestion_type || "").slice(1) || "Tip",
-        s: s.description || s.title || "",
-      }));
-    }
-    return [
-      {
-        ic: "🥗",
-        t: "Aahar",
-        s: "Warm turmeric milk at bedtime — supports sleep recovery",
-      },
-      {
-        ic: "🌅",
-        t: "Vihar",
-        s: "5-min Anulom Vilom at 10 AM · drink 8 glasses today",
-      },
-    ];
-  }, [suggestions]);
-
-  const selectedKpi = kpis.find((k) => k.id === selKpi) || null;
-  const { tod, first } = formatGreeting(user?.name);
+  const suggItems = useMemo(
+    () => (Array.isArray(suggestions?.items) ? suggestions.items : []),
+    [suggestions],
+  );
 
   return (
-    <div style={{ position: "relative" }}>
-      {/* Header */}
-      <div
-        style={{
-          padding: "12px 16px 6px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Logo s={22} />
-          <div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 800,
-                background: "linear-gradient(90deg,#4a7c2f,#6db33f)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              AYUMONK
-            </div>
-            <div
-              style={{
-                fontSize: 7.5,
-                color: "rgba(255,255,255,.2)",
-                letterSpacing: 0.8,
-              }}
-            >
-              WELLNESS PLATFORM
-            </div>
-          </div>
+    <div style={{ background: t.bg, minHeight: "100%", paddingBottom: 16 }}>
+      {/* Page header */}
+      <div style={{ padding: "10px 16px 16px" }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: t.text }}>
+          🌿 Wellness
         </div>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            background: `linear-gradient(135deg,${C.g1},${C.g3})`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 12,
-            fontWeight: 800,
-            color: "#fff",
-          }}
-        >
-          {(first[0] || "U").toUpperCase()}
-        </div>
-      </div>
-
-      <div style={{ padding: "2px 16px 10px" }}>
-        <div style={{ fontSize: 9, color: C.muted }}>{tod},</div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>
-          {first} 👋
+        <div style={{ fontSize: 12, color: t.muted, marginTop: 3 }}>
+          Your Ayurvedic health overview
         </div>
       </div>
 
       {error && (
         <div
           style={{
-            margin: "0 12px 10px",
-            padding: "8px 12px",
+            margin: "0 16px 14px",
+            padding: "12px 14px",
             background: "rgba(248,113,113,.08)",
             border: "1px solid rgba(248,113,113,.3)",
             borderRadius: 12,
             color: "#fca5a5",
-            fontSize: 10,
+            fontSize: 12,
+            lineHeight: 1.5,
           }}
         >
           {error}
         </div>
       )}
 
-      {/* Wellness Index hero */}
-      <div
-        style={{
-          margin: "0 12px 12px",
-          background: `linear-gradient(135deg,${C.card},#192a1a)`,
-          borderRadius: 20,
-          padding: 16,
-          border: `1px solid ${C.border}`,
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
+      {/* Wellness Index hero card */}
+      <div style={{ margin: "0 16px 20px" }}>
         <div
           style={{
-            position: "absolute",
-            right: -16,
-            top: -16,
-            width: 100,
-            height: 100,
-            borderRadius: "50%",
-            background: `${C.g3}07`,
-          }}
-        />
-        <div
-          style={{
+            background: `linear-gradient(135deg, ${C.g1} 0%, ${C.g2} 100%)`,
+            borderRadius: 20,
+            padding: "20px 22px",
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
+            gap: 20,
           }}
         >
-          <div>
+          <div style={{ flexShrink: 0 }}>
+            <Donut pct={overallWi} size={106} stroke={12} color="#ffffff" track="rgba(255,255,255,0.22)" label="/ 100" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
-                fontSize: 9,
-                color: C.muted,
+                fontSize: 11,
+                color: "rgba(255,255,255,.6)",
                 textTransform: "uppercase",
-                letterSpacing: 1,
-                marginBottom: 3,
+                letterSpacing: 1.2,
+                marginBottom: 6,
               }}
             >
               Wellness Index
             </div>
             <div
               style={{
-                fontSize: 42,
+                fontSize: 22,
                 fontWeight: 800,
                 color: "#fff",
-                lineHeight: 1,
+                letterSpacing: "-0.02em",
+                marginBottom: 6,
               }}
             >
-              {loading && !wellnessIndex ? "—" : wellnessIndex}
-              <span
-                style={{
-                  fontSize: 14,
-                  color: C.muted,
-                  fontWeight: 500,
-                }}
-              >
-                /100
-              </span>
+              {overallWi > 0 ? `${overallWi} / 100` : loading ? "Loading…" : "— / 100"}
             </div>
-            <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-              {overallDelta !== 0 && (
-                <Pill
-                  label={`${overallDelta >= 0 ? "▲" : "▼"} ${Math.abs(overallDelta)}% this week`}
-                  color={overallDelta >= 0 ? "#4ade80" : "#f87171"}
-                />
-              )}
-              <Pill label="WHO SF-12" color={C.muted} />
-            </div>
-            {overallSpark.length >= 2 && (
-              <div style={{ marginTop: 8 }}>
-                <Spark vals={overallSpark} color={C.g3} w={110} h={20} />
-              </div>
-            )}
-          </div>
-          <Donut pct={wellnessIndex} size={84} color={C.g3} label="GOOD" />
-        </div>
-        <div
-          style={{
-            marginTop: 10,
-            paddingTop: 8,
-            borderTop: "1px solid rgba(255,255,255,.05)",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <div
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: C.g3,
-              animation: "ayumonkPulse 2s infinite",
-            }}
-          />
-          <span style={{ fontSize: 9, color: C.muted }}>
-            Auto-synced · Google Health · {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </span>
-        </div>
-      </div>
-
-      {/* Mood + Dosha */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 10,
-          margin: "0 12px 12px",
-        }}
-      >
-        <div
-          style={{
-            background: C.card,
-            borderRadius: 16,
-            padding: 12,
-            border: `1px solid ${C.border}`,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: C.muted,
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-              marginBottom: 8,
-            }}
-          >
-            Today's Mood
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-            {["😞", "😕", "😐", "🙂", "😄"].map((e, i) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setMood(mood === i ? null : i)}
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 9,
-                  border:
-                    mood === i ? `2px solid ${C.g3}` : "2px solid transparent",
-                  background:
-                    mood === i ? `${C.g3}18` : "rgba(255,255,255,.04)",
-                  fontSize: 18,
-                  cursor: "pointer",
-                  transition: "all .15s",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-          {mood !== null && (
-            <div
-              style={{ fontSize: 9, color: C.g3, textAlign: "center", marginTop: 4 }}
-            >
-              ✓ Mood logged
-            </div>
-          )}
-        </div>
-
-        <div
-          style={{
-            background: C.card,
-            borderRadius: 16,
-            padding: 10,
-            border: `1px solid ${C.border}`,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: C.muted,
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-              marginBottom: 4,
-            }}
-          >
-            Prakriti · Dosha
-          </div>
-          <DoshaRing vata={30} pitta={34} kapha={36} size={78} />
-          <div
-            style={{
-              display: "flex",
-              gap: 6,
-              marginTop: 4,
-              flexWrap: "wrap",
-              justifyContent: "center",
-            }}
-          >
-            {[
-              ["Vata", "#38bdf8", 30],
-              ["Pitta", "#f97316", 34],
-              ["Kapha", "#22c55e", 36],
-            ].map(([n, c, v]) => (
-              <div
-                key={n}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 3,
-                  fontSize: 8,
-                  color: "rgba(255,255,255,.45)",
-                }}
-              >
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 1,
-                    background: c,
-                    display: "inline-block",
-                  }}
-                />
-                {n} {v}%
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* KPI strip */}
-      <div style={{ padding: "0 12px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 8,
-          }}
-        >
-          <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.6)" }}>
-            KPI Overview
-          </span>
-          <span style={{ fontSize: 9, color: C.g3 }}>Tap any tile →</span>
-        </div>
-
-        {loading && !kpis.length ? (
-          <div
-            style={{
-              padding: "20px 0",
-              color: C.muted,
-              fontSize: 10,
-              textAlign: "center",
-            }}
-          >
-            Loading wellness metrics…
-          </div>
-        ) : kpis.length === 0 ? (
-          <div
-            style={{
-              padding: "20px 0",
-              color: C.muted,
-              fontSize: 10,
-              textAlign: "center",
-            }}
-          >
-            No KPI metrics available yet.
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              gap: 7,
-              overflowX: "auto",
-              paddingBottom: 4,
-            }}
-          >
-            {kpis.map((k) => (
-              <div
-                key={k.id}
-                onClick={() => setSelKpi(k.id)}
-                style={{
-                  minWidth: 76,
-                  background: C.card,
-                  borderRadius: 14,
-                  padding: "10px 6px",
-                  border: `1px solid ${k.color}33`,
-                  textAlign: "center",
-                  flexShrink: 0,
-                  cursor: "pointer",
-                  transition: "all .15s",
-                  boxShadow: selKpi === k.id ? `0 0 16px ${k.color}33` : "none",
-                  borderColor: selKpi === k.id ? k.color : `${k.color}33`,
-                }}
-              >
-                <div style={{ fontSize: 19, marginBottom: 2 }}>{k.icon}</div>
-                <div
-                  style={{
-                    fontSize: 8,
-                    color: "rgba(255,255,255,.3)",
-                    marginBottom: 1,
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {k.label}
-                </div>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 800,
-                    color: k.color,
-                    lineHeight: 1,
-                  }}
-                >
-                  {k.score.toFixed(1)}
-                </div>
-                {k.delta !== 0 && (
-                  <div
-                    style={{
-                      fontSize: 9,
-                      fontWeight: 700,
-                      marginTop: 2,
-                      color: k.delta > 0 ? "#4ade80" : "#f87171",
-                    }}
-                  >
-                    {k.delta > 0 ? "▲" : "▼"}
-                    {Math.abs(k.delta)}%
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Lifestyle suggestions */}
-      <div
-        style={{
-          margin: "12px 12px 0",
-          background: "rgba(109,179,63,.04)",
-          borderRadius: 16,
-          padding: 12,
-          border: "1px solid rgba(109,179,63,.12)",
-        }}
-      >
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.g3, marginBottom: 8 }}>
-          🌿 Today's Ayumonk Tips
-        </div>
-        {tipItems.map((s, i) => (
-          <div
-            key={`${s.t}-${i}`}
-            style={{ display: "flex", gap: 8, marginBottom: 7, alignItems: "flex-start" }}
-          >
             <div
               style={{
-                width: 26,
-                height: 26,
-                borderRadius: 8,
-                background: `${C.g3}14`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 13,
-                flexShrink: 0,
+                display: "inline-block",
+                fontSize: 12,
+                fontWeight: 800,
+                color: "#fff",
+                background: "rgba(255,255,255,0.20)",
+                borderRadius: 20,
+                padding: "4px 11px",
               }}
             >
-              {s.ic}
+              {band.label}
             </div>
-            <div>
-              <span style={{ fontSize: 9, fontWeight: 700, color: C.g3 }}>
-                {s.t} →{" "}
-              </span>
-              <span
+            {trends.overall?.delta_percent != null && (
+              <div
                 style={{
-                  fontSize: 9,
-                  color: "rgba(255,255,255,.42)",
-                  lineHeight: 1.4,
+                  marginTop: 10,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  background: "rgba(255,255,255,.12)",
+                  borderRadius: 20,
+                  padding: "3px 10px",
                 }}
               >
-                {s.s}
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
+                  {trends.overall.delta_percent >= 0 ? "▲" : "▼"}{" "}
+                  {Math.abs(Math.round(trends.overall.delta_percent))}% from
+                  baseline
+                </span>
+              </div>
+            )}
+            <div
+              style={{
+                marginTop: 10,
+                marginLeft: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                background: "rgba(255,255,255,.12)",
+                borderRadius: 20,
+                padding: "3px 10px",
+              }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
+                🔥 7-day streak
               </span>
             </div>
           </div>
-        ))}
+        </div>
       </div>
 
-      {selKpi && <KpiSheet kpi={selectedKpi} onClose={() => setSelKpi(null)} />}
+      {/* Prakriti · Dosha profile (conic ring) */}
+      <div style={{ padding: "0 16px 20px" }}>
+        <SectionLabel>Prakriti · your dosha profile</SectionLabel>
+        <div
+          style={{
+            background: t.card,
+            borderRadius: 14,
+            border: `1px solid ${t.border}`,
+            padding: 18,
+            display: "flex",
+            gap: 18,
+            alignItems: "center",
+          }}
+        >
+          {(() => {
+            const data = [
+              { l: "Vata", col: "#4A90C4", v: 30 },
+              { l: "Pitta", col: "#E0935C", v: 34 },
+              { l: "Kapha", col: "#4F9D5B", v: 36 },
+            ];
+            const size = 116;
+            const sw = 14;
+            const r = (size - sw) / 2;
+            const cx = size / 2;
+            const Circ = 2 * Math.PI * r;
+            const total = data.reduce((acc, d) => acc + d.v, 0) || 1;
+            const gap = 5;
+            let pos = 0;
+            const arcs = data.map((d) => {
+              const len = (d.v / total) * Circ;
+              const dash = Math.max(0.5, len - gap);
+              const seg = { ...d, dash, rest: Circ - dash, offset: -pos };
+              pos += len;
+              return seg;
+            });
+            const dom = data.reduce((a, b) => (b.v > a.v ? b : a), data[0]);
+            return (
+              <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+                <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+                  <circle cx={cx} cy={cx} r={r} fill="none" stroke={t.track} strokeWidth={sw} />
+                  {arcs.map((a) => (
+                    <circle
+                      key={a.l}
+                      cx={cx}
+                      cy={cx}
+                      r={r}
+                      fill="none"
+                      stroke={a.col}
+                      strokeWidth={sw}
+                      strokeLinecap="round"
+                      strokeDasharray={`${a.dash} ${a.rest}`}
+                      strokeDashoffset={a.offset}
+                    />
+                  ))}
+                </svg>
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "grid",
+                    placeItems: "center",
+                    textAlign: "center",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: t.text, letterSpacing: "-0.02em", lineHeight: 1 }}>
+                      {dom.l}
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: dom.col, marginTop: 2, letterSpacing: "0.03em" }}>
+                      Dominant
+                    </div>
+                    <div style={{ fontSize: 8.5, color: t.muted, marginTop: 1 }}>{dom.v}% balance</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {[
+              { l: "Vata", col: "#4A90C4", v: 30 },
+              { l: "Pitta", col: "#E0935C", v: 34 },
+              { l: "Kapha", col: "#4F9D5B", v: 36 },
+            ].map(({ l, col, v }) => (
+              <div key={l} style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 11 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: col, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 13, color: t.muted, fontWeight: 600 }}>{l}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: col }}>{v}%</span>
+              </div>
+            ))}
+            <div style={{ marginTop: 3, fontSize: 11, color: t.muted, lineHeight: 1.45 }}>
+              Balanced tridoshic constitution — favour cooling, grounding routines.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Metrics grid */}
+      {loading && items.length === 0 && (
+        <div style={{ padding: "0 16px 16px", fontSize: 12, color: t.muted }}>
+          Loading wellness metrics…
+        </div>
+      )}
+
+      {!loading && items.length === 0 && !error && (
+        <div
+          style={{
+            margin: "0 16px 16px",
+            padding: "24px",
+            background: t.card,
+            borderRadius: 14,
+            border: `1px solid ${t.border}`,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: t.sub, marginBottom: 4 }}>
+            No KPI metrics yet
+          </div>
+          <div style={{ fontSize: 12, color: t.muted }}>
+            Your company hasn't set up any KPI programs yet.
+          </div>
+        </div>
+      )}
+
+      {metrics.length > 0 && (
+        <div style={{ padding: "0 0 20px" }}>
+          <div style={{ padding: "0 16px" }}>
+            <SectionLabel>KPI Metrics · tap for details</SectionLabel>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              overflowX: "auto",
+              gap: 10,
+              padding: "0 16px 4px",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              scrollSnapType: "x proximity",
+            }}
+          >
+            {metrics.map((m) => {
+              const pos = m.change && m.change.startsWith("+");
+              return (
+                <div
+                  key={m.kpiKey ?? m.label}
+                  onClick={() => setActiveKpi(m)}
+                  style={{
+                    minWidth: 152,
+                    maxWidth: 152,
+                    flexShrink: 0,
+                    scrollSnapAlign: "start",
+                    background: t.card,
+                    borderRadius: 14,
+                    padding: "15px 13px",
+                    border: `1px solid ${m.color}28`,
+                    cursor: "pointer",
+                    transition: "border-color .2s",
+                  }}
+                >
+                  {/* Dimension name pill */}
+                  <div style={{ marginBottom: 8 }}>
+                    {(() => {
+                      const pill = getDimensionPill(m.label);
+                      return (
+                        <span style={{
+                          display: "inline-block",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: pill.color,
+                          background: pill.bg,
+                          padding: "2px 6px",
+                          borderRadius: 99,
+                          lineHeight: 1.4,
+                          maxWidth: "100%",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}>
+                          {m.label}
+                        </span>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Score */}
+                  <div style={{ fontSize: 24, fontWeight: 800, color: m.color,
+                    lineHeight: 1, marginBottom: 8 }}>
+                    {m.score.toFixed(1)}
+                    <span style={{ fontSize: 11, color: t.sub,
+                      fontWeight: 400, marginLeft: 3 }}>/5</span>
+                  </div>
+
+                  {/* Trend + sparkline */}
+                  <div style={{ display: "flex", justifyContent: "space-between",
+                    alignItems: "center" }}>
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: m.change
+                        ? pos ? "#16a34a" : "#dc2626"
+                        : t.sub,
+                    }}>
+                      {m.change
+                        ? `${pos ? "▲" : "▼"}${m.change.replace(/^[+-]/, "")}`
+                        : "—"}
+                    </span>
+                    {m.sparkVals.length >= 2 && (
+                      <Spark vals={m.sparkVals} color={m.color} w={46} h={18} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Lifestyle Suggestions */}
+      {suggestionsLoading && (
+        <div style={{ padding: "0 16px 16px", fontSize: 12, color: t.muted }}>
+          Loading suggestions…
+        </div>
+      )}
+
+      {!suggestionsLoading && suggItems.length > 0 && (
+        <div style={{ padding: "0 16px 16px" }}>
+          <SectionLabel>🌿 Suggestions this week</SectionLabel>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {suggItems.map((item, i) => {
+              const accent = getSuggColor(item.suggestion_type, i);
+              const hasKpiRisk = (item.triggers || []).some(
+                (t) => t.trigger_mode === "kpi_risk",
+              );
+              return (
+                <div
+                  key={item.suggestion_id ?? item.title}
+                  style={{
+                    background: t.card,
+                    borderRadius: 14,
+                    padding: "15px 14px",
+                    borderTop: `1px solid ${t.border}`,
+                    borderRight: `1px solid ${t.border}`,
+                    borderBottom: `1px solid ${t.border}`,
+                    borderLeft: `3px solid ${accent}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      marginBottom: 8,
+                      gap: 8,
+                    }}
+                  >
+                    <div
+                      style={{ fontSize: 13, fontWeight: 700, color: t.text }}
+                    >
+                      {item.title}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 4,
+                        flexShrink: 0,
+                        flexWrap: "wrap",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      {hasKpiRisk && (
+                        <span
+                          style={{
+                            fontSize: 9,
+                            background: "rgba(248,113,113,.15)",
+                            color: "#f87171",
+                            borderRadius: 5,
+                            padding: "2px 7px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          T1
+                        </span>
+                      )}
+                      {item.suggestion_type && (
+                        <span
+                          style={{
+                            fontSize: 9,
+                            background: `${accent}18`,
+                            color: accent,
+                            borderRadius: 5,
+                            padding: "2px 7px",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {item.suggestion_type}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {item.description && (
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: t.sub,
+                        lineHeight: 1.55,
+                        marginBottom: 10,
+                      }}
+                    >
+                      {item.description}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {item.difficulty && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          background: t.bg,
+                          color: t.sub,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: 6,
+                          padding: "3px 9px",
+                        }}
+                      >
+                        {item.difficulty}
+                      </span>
+                    )}
+                    {!!item.duration_mins && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          background: t.bg,
+                          color: t.sub,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: 6,
+                          padding: "3px 9px",
+                        }}
+                      >
+                        {item.duration_mins} min
+                      </span>
+                    )}
+                    {item.dosha_type && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          background: t.bg,
+                          color: t.sub,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: 6,
+                          padding: "3px 9px",
+                        }}
+                      >
+                        {item.dosha_type}
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPlanned((p) => ({
+                        ...p,
+                        [item.suggestion_id ?? item.title]:
+                          !p[item.suggestion_id ?? item.title],
+                      }))
+                    }
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginTop: 12,
+                      marginRight: 8,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      color: planned[item.suggestion_id ?? item.title]
+                        ? "#fff"
+                        : accent,
+                      background: planned[item.suggestion_id ?? item.title]
+                        ? accent
+                        : `${accent}14`,
+                      border: `1px solid ${accent}55`,
+                      padding: "7px 14px",
+                      borderRadius: 9,
+                      transition: "all .18s",
+                    }}
+                  >
+                    {planned[item.suggestion_id ?? item.title]
+                      ? "✓ Added to plan"
+                      : "+ Add to plan"}
+                  </button>
+
+                  {!!item.url && (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: "inline-block",
+                        marginTop: 12,
+                        fontSize: 12,
+                        color: accent,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        border: `1px solid ${accent}44`,
+                        padding: "5px 12px",
+                        borderRadius: 8,
+                      }}
+                    >
+                      View Resource →
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* KPI detail bottom sheet */}
+      {activeKpi && (
+        <KpiSheet
+          kpi={{
+            ...activeKpi,
+            sparkValues: activeKpi.sparkVals,
+            questions: activeKpi.questions || buildQuestionScores(activeKpi.score),
+          }}
+          onClose={() => setActiveKpi(null)}
+        />
+      )}
     </div>
   );
 }

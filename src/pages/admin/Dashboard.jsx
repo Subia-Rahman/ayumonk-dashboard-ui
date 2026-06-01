@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { cloneElement, isValidElement, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { Box } from "@mui/material";
-import Layout from "../../layouts/commonLayout/Layout";
+import Layout, {
+  iconForName,
+  iconForSlug,
+} from "../../layouts/commonLayout/Layout";
 import { fetchRbacMatrix } from "../../store/rbacMatrixSlice";
 import { ACCENT, useClientPalette } from "../../utils/clientPalette";
+import usePermissions from "../../hooks/usePermissions";
 
 // Mock preview rows mirroring the client AdminDashboard sample data — scoped
 // to a single company's perspective (Company Admin sees their own tenant).
@@ -93,6 +97,15 @@ function StatusBadge({ s, mutedColor }) {
   );
 }
 
+// Render an MUI icon at a small inline size for chip-style nav (matches the
+// pill-strip pattern used by /client/dashboard's top tabs).
+const renderChipIcon = (icon) => {
+  if (!isValidElement(icon)) return null;
+  return cloneElement(icon, {
+    sx: { fontSize: 14, mr: 0.7, verticalAlign: "-2px" },
+  });
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -108,6 +121,29 @@ export default function Dashboard() {
     loading: rbacLoading,
     error: rbacError,
   } = useSelector((state) => state.rbacMatrix);
+  const { menus } = usePermissions();
+
+  // Resolve each ADMIN_SECTIONS row against the backend-driven accessible
+  // menus by `path`. When a menu matches, prefer its backend-supplied name +
+  // icon so the chip strip reflects the user's actual nav and stays in sync
+  // with the sidebar / top-nav. Falls back to the hardcoded label + emoji
+  // when the menu isn't in the user's accessible list (e.g. permissions
+  // haven't loaded yet, or the slug isn't exposed for this role).
+  const sectionChips = useMemo(() => {
+    const menuByPath = new Map(
+      (menus || []).map((menu) => [menu?.path, menu]),
+    );
+    return ADMIN_SECTIONS.map((s) => {
+      const menu = menuByPath.get(s.route);
+      const chipIcon =
+        (menu && (iconForName(menu.icon) || iconForSlug(menu.slug))) || null;
+      return {
+        ...s,
+        chipLabel: menu?.menu_name || s.label,
+        chipIcon,
+      };
+    });
+  }, [menus]);
 
   // Company admins cannot pick a different company — the backend uses their
   // JWT-derived tenant and ignores any company_id query param (Spec §7).
@@ -519,7 +555,7 @@ export default function Dashboard() {
                 style={{
                   padding: "6px 14px",
                   borderRadius: 8,
-                  background: `linear-gradient(135deg, ${C.g1}, ${C.g2})`,
+                  background: `linear-gradient(135deg, ${C.g1}, ${C.g3})`,
                   border: "none",
                   color: "#fff",
                   fontWeight: 700,
@@ -676,7 +712,7 @@ export default function Dashboard() {
                   style={{
                     padding: "7px 20px",
                     borderRadius: 8,
-                    background: `linear-gradient(135deg, ${C.g1}, ${C.g2})`,
+                    background: `linear-gradient(135deg, ${C.g1}, ${C.g3})`,
                     border: "none",
                     color: "#fff",
                     fontWeight: 700,

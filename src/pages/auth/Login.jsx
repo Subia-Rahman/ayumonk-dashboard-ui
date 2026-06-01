@@ -18,7 +18,11 @@ import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import VisibilityOffRoundedIcon from "@mui/icons-material/VisibilityOffRounded";
 import { clearAuthError, loginUser, setAuthError } from "../../store/authSlice";
 import { loadAuthorization } from "../../store/permissionSlice";
-import { getHomePath, isPathAllowedForRole } from "../../utils/roleHelper";
+import {
+  getHomePath,
+  isOtherRoleHomePath,
+  isPathAllowedForRole,
+} from "../../utils/roleHelper";
 import { getSurfaceBackground } from "../../theme";
 import AyuLogo from "../../components/AyuLogo";
 
@@ -57,11 +61,21 @@ export default function Login() {
         rawRole: result.rawRole,
       });
       const fromPath = location.state?.from?.pathname;
+      // Honor a deep-link `from` only if it's accessible to the new user AND
+      // it's not another role's home page (a stale `from` left over from the
+      // previous account's session). Both Company Admin and HR Manager are
+      // role="admin" but live on different homes, so isPathAllowedForRole
+      // alone can't catch the bleed-over.
       const honorFrom =
         fromPath &&
         isPathAllowedForRole(fromPath, {
           role: result.role,
           isPlatformAdmin: result.isPlatformAdmin,
+        }) &&
+        !isOtherRoleHomePath(fromPath, {
+          isPlatformAdmin: result.isPlatformAdmin,
+          role: result.role,
+          rawRole: result.rawRole,
         });
       const target = honorFrom
         ? `${fromPath}${location.state.from.search || ""}${location.state.from.hash || ""}`

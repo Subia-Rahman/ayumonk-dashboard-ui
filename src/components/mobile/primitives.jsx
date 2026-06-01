@@ -1,4 +1,5 @@
 import { C } from "./palette";
+import { useTokens } from "./useTokens";
 
 export const Logo = ({ s = 26 }) => (
   <svg width={s * 1.65} height={s * 0.72} viewBox="0 0 120 52" fill="none">
@@ -24,28 +25,26 @@ export const Logo = ({ s = 26 }) => (
 );
 
 export const Spark = ({ vals = [], color = C.g3, w = 64, h = 22 }) => {
-  if (!Array.isArray(vals) || vals.length < 2) {
-    return <svg width={w} height={h} />;
-  }
-  const mn = Math.min(...vals);
-  const mx = Math.max(...vals);
-  const rng = mx - mn || 1;
-  const pts = vals
-    .map(
-      (v, i) =>
-        `${(i / (vals.length - 1)) * w},${h - ((v - mn) / rng) * (h - 4) + 2}`,
-    )
-    .join(" ");
+  if (!Array.isArray(vals) || vals.length < 2) return <svg width={w} height={h} />;
+  const mn = Math.min(...vals), mx = Math.max(...vals), rng = mx - mn || 1;
+  const pts = vals.map((v, i) => [
+    (i / (vals.length - 1)) * w,
+    h - ((v - mn) / rng) * (h - 4) + 2,
+  ]);
+  const line = pts.map(([x, y]) => `${x},${y}`).join(" ");
+  const area = `${pts[0][0]},${h} ${line} ${pts[pts.length - 1][0]},${h}`;
+  const gid = "sp" + color.replace(/[^a-z0-9]/gi, "");
   return (
     <svg width={w} height={h} style={{ display: "block", overflow: "visible" }}>
-      <polyline
-        points={pts}
-        fill="none"
-        stroke={color}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={`${color}40`} />
+          <stop offset="100%" stopColor={`${color}00`} />
+        </linearGradient>
+      </defs>
+      <polygon points={area} fill={`url(#${gid})`} />
+      <polyline points={line} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="2.4" fill={color} />
     </svg>
   );
 };
@@ -56,12 +55,15 @@ export const Donut = ({
   color = C.g3,
   label = "",
   center = true,
+  stroke = 7,
+  track = "rgba(255,255,255,0.06)",
 }) => {
   const half = size / 2;
-  const r = half - 10;
-  const stroke = 7;
+  const r = half - stroke - 2;
   const circ = 2 * Math.PI * r;
   const dash = circ * (Math.min(100, Math.max(0, pct)) / 100);
+  const numSize = Math.round(size * 0.3);
+  const labSize = Math.max(8, Math.round(size * 0.095));
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <circle
@@ -69,7 +71,7 @@ export const Donut = ({
         cy={half}
         r={r}
         fill="none"
-        stroke="rgba(255,255,255,0.06)"
+        stroke={track}
         strokeWidth={stroke}
       />
       <circle
@@ -87,23 +89,27 @@ export const Donut = ({
         <>
           <text
             x={half}
-            y={half + 5}
+            y={label ? half - labSize * 0.55 : half}
             textAnchor="middle"
+            dominantBaseline="middle"
             fill="#fff"
-            fontSize="13"
+            fontSize={numSize}
             fontWeight="800"
-            fontFamily="Plus Jakarta Sans"
+            fontFamily="Inter, system-ui, sans-serif"
+            style={{ letterSpacing: "-0.02em" }}
           >
             {Math.round(pct)}
           </text>
           {label && (
             <text
               x={half}
-              y={half + 15}
+              y={half + numSize * 0.5}
               textAnchor="middle"
-              fill="rgba(255,255,255,0.3)"
-              fontSize="7"
-              fontFamily="Plus Jakarta Sans"
+              dominantBaseline="middle"
+              fill="rgba(255,255,255,0.55)"
+              fontSize={labSize}
+              fontWeight="600"
+              fontFamily="Inter, system-ui, sans-serif"
             >
               {label}
             </text>
@@ -123,9 +129,9 @@ export const DoshaRing = ({ vata = 30, pitta = 34, kapha = 36, size = 120 }) => 
   const stroke = 9;
   const circ = 2 * Math.PI * r;
   const segs = [
-    { val: vata, color: "#38bdf8" },
-    { val: pitta, color: "#f97316" },
-    { val: kapha, color: "#22c55e" },
+    { val: vata, color: "#4A90C4" },
+    { val: pitta, color: "#E0935C" },
+    { val: kapha, color: "#4F9D5B" },
   ];
   let cumulative = 0;
   const arcs = segs.map((s) => {
@@ -142,7 +148,7 @@ export const DoshaRing = ({ vata = 30, pitta = 34, kapha = 36, size = 120 }) => 
         cy={half}
         r={r}
         fill="none"
-        stroke="rgba(255,255,255,0.05)"
+        stroke="rgba(31,30,29,0.06)"
         strokeWidth={stroke}
       />
       {arcs.map((a, i) => (
@@ -165,10 +171,10 @@ export const DoshaRing = ({ vata = 30, pitta = 34, kapha = 36, size = 120 }) => 
         x={half}
         y={half - 4}
         textAnchor="middle"
-        fill="#fff"
+        fill="#1F1E1D"
         fontSize="9"
         fontWeight="700"
-        fontFamily="Plus Jakarta Sans"
+        fontFamily="Inter, system-ui, sans-serif"
       >
         Prakriti
       </text>
@@ -176,9 +182,9 @@ export const DoshaRing = ({ vata = 30, pitta = 34, kapha = 36, size = 120 }) => 
         x={half}
         y={half + 8}
         textAnchor="middle"
-        fill="rgba(255,255,255,0.4)"
+        fill="rgba(31,30,29,0.45)"
         fontSize="8"
-        fontFamily="Plus Jakarta Sans"
+        fontFamily="Inter, system-ui, sans-serif"
       >
         Profile
       </text>
@@ -221,7 +227,7 @@ export const Bar = ({ data = [], color = C.g3, h = 56 }) => {
           <span
             style={{
               fontSize: 8,
-              color: "rgba(255,255,255,0.28)",
+              color: C.muted,
               whiteSpace: "nowrap",
             }}
           >
@@ -251,13 +257,11 @@ export const Pill = ({ label, color = C.g3, bg }) => (
   </span>
 );
 
-// Bottom sheet that opens when a KPI tile is tapped. `kpi` is shaped by the
-// Wellness screen (see employee/Wellness.jsx) so the same component handles
-// both API-driven KPIs and the design's static demo set.
 export const KpiSheet = ({ kpi, onClose }) => {
+  const t = useTokens();
   if (!kpi) return null;
   const isRisk = (kpi.score || 0) < 3.0;
-  const spark = kpi.sparkValues && kpi.sparkValues.length >= 2
+  const spark = kpi.sparkValues?.length >= 2
     ? kpi.sparkValues
     : [2.2, 2.5, 2.4, 2.8, 2.7, 3.0, 2.9, 3.1, 3.2, 3.0, 3.3, kpi.score || 3.2];
 
@@ -267,169 +271,117 @@ export const KpiSheet = ({ kpi, onClose }) => {
       style={{ position: "fixed", inset: 0, zIndex: 200 }}
       onClick={onClose}
     >
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "rgba(0,0,0,.6)",
-        }}
-      />
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.45)" }} />
+
       <div
         className="ayumonk-anim"
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: C.card2,
-          borderRadius: "20px 20px 0 0",
-          border: `1px solid ${kpi.color}44`,
-          padding: "0 0 90px",
-          maxHeight: "85vh",
+          bottom: 0, left: 0, right: 0,
+          background: t.card2,
+          borderRadius: "24px 24px 0 0",
+          padding: "0 0 52px",
+          maxHeight: "88vh",
           overflowY: "auto",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            padding: "10px 0 4px",
-          }}
-        >
-          <div
-            style={{
-              width: 34,
-              height: 4,
-              background: "rgba(255,255,255,0.12)",
-              borderRadius: 2,
-            }}
-          />
+        {/* Drag handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 8px" }}>
+          <div style={{ width: 36, height: 4, background: t.border, borderRadius: 2 }} />
         </div>
 
+        {/* Header */}
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "8px 18px 12px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            display: "flex", justifyContent: "space-between",
+            alignItems: "center", padding: "6px 20px 16px",
+            borderBottom: `1px solid ${t.border}`,
           }}
         >
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", minWidth: 0, flex: 1 }}>
             <div
               style={{
-                width: 42,
-                height: 42,
-                borderRadius: 13,
-                background: `${kpi.color}20`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 21,
+                width: 48, height: 48, borderRadius: 16,
+                background: `${kpi.color}18`,
+                display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: 24, flexShrink: 0,
               }}
             >
               {kpi.icon}
             </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: t.text, lineHeight: 1.2 }}>
                 {kpi.label}
               </div>
-              {kpi.sf && (
-                <div style={{ fontSize: 9, color: C.muted }}>SF-12: {kpi.sf}</div>
+              {kpi.subtitle && (
+                <div style={{ fontSize: 11, color: t.muted, marginTop: 3 }}>
+                  {kpi.subtitle}
+                </div>
               )}
             </div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 800,
-                color: kpi.color,
-                lineHeight: 1,
-              }}
-            >
+          <div style={{ textAlign: "right", flexShrink: 0, paddingLeft: 12 }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: kpi.color, lineHeight: 1, marginBottom: 5 }}>
               {Number(kpi.score).toFixed(1)}
             </div>
             <Pill
-              label={isRisk ? "Needs Attention" : "On Track"}
-              color={isRisk ? "#f87171" : C.g3}
+              label={isRisk ? "Needs Attention" : "On track"}
+              color={isRisk ? C.red : C.g3}
             />
           </div>
         </div>
 
-        <div style={{ padding: "14px 18px 10px" }}>
-          <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>
+        {/* 12-week trend */}
+        <div style={{ padding: "16px 20px 12px" }}>
+          <div
+            style={{
+              fontSize: 10, fontWeight: 700, color: t.muted,
+              textTransform: "uppercase", letterSpacing: 1, marginBottom: 10,
+            }}
+          >
             12-week trend
           </div>
-          <Spark vals={spark} color={kpi.color} w={260} h={36} />
+          <div style={{ background: t.bg, borderRadius: 14, padding: "14px 12px 10px" }}>
+            <Spark vals={spark} color={kpi.color} w={300} h={60} />
+          </div>
         </div>
 
+        {/* Question scores */}
         {Array.isArray(kpi.questions) && kpi.questions.length > 0 && (
-          <div style={{ padding: "4px 18px 14px" }}>
+          <div style={{ padding: "4px 20px 16px" }}>
             <div
               style={{
-                fontSize: 9,
-                fontWeight: 700,
-                color: "rgba(255,255,255,0.4)",
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                marginBottom: 8,
+                fontSize: 10, fontWeight: 700, color: t.muted,
+                textTransform: "uppercase", letterSpacing: 1, marginBottom: 14,
               }}
             >
               Question Scores
             </div>
             {kpi.questions.map((q, i) => {
-              const pct = ((q.score - 1) / 4) * 100;
+              const pct = Math.max(0, Math.min(100, ((q.score - 1) / 4) * 100));
               const flagged = q.score < (q.threshold || 3);
               return (
-                <div key={i} style={{ marginBottom: 10 }}>
+                <div key={i} style={{ marginBottom: 16 }}>
                   <div
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: 4,
+                      display: "flex", justifyContent: "space-between",
+                      alignItems: "baseline", marginBottom: 6, gap: 8,
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: flagged
-                          ? "rgba(251,191,36,.9)"
-                          : "rgba(255,255,255,.5)",
-                        flex: 1,
-                        paddingRight: 8,
-                      }}
-                    >
-                      {flagged ? "⚡ " : ""}
-                      {q.label}
+                    <span style={{ fontSize: 13, color: t.text, flex: 1, lineHeight: 1.3 }}>
+                      {flagged ? "⚡ " : ""}{q.label}
                     </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 800,
-                        color: flagged ? "#fbbf24" : kpi.color,
-                      }}
-                    >
+                    <span style={{ fontSize: 15, fontWeight: 800, color: flagged ? C.orange : kpi.color, flexShrink: 0 }}>
                       {Number(q.score).toFixed(1)}
                     </span>
                   </div>
-                  <div
-                    style={{
-                      height: 4,
-                      background: "rgba(255,255,255,0.06)",
-                      borderRadius: 3,
-                    }}
-                  >
+                  <div style={{ height: 5, background: `${kpi.color}18`, borderRadius: 3 }}>
                     <div
                       style={{
-                        height: "100%",
-                        width: `${Math.max(0, Math.min(100, pct))}%`,
-                        background: flagged
-                          ? "linear-gradient(90deg,#f87171,#fbbf24)"
-                          : kpi.color,
-                        borderRadius: 3,
-                        transition: "width .4s",
+                        height: "100%", width: `${pct}%`,
+                        background: flagged ? `linear-gradient(90deg,${C.red},${C.orange})` : kpi.color,
+                        borderRadius: 3, transition: "width .4s",
                       }}
                     />
                   </div>
@@ -439,64 +391,26 @@ export const KpiSheet = ({ kpi, onClose }) => {
           </div>
         )}
 
+        {/* Ayumonk suggestions (at-risk only) */}
         {isRisk && (kpi.aahar || kpi.vihar || kpi.aushadh) && (
           <div
             style={{
-              margin: "0 18px",
-              background: `${kpi.color}0a`,
-              borderRadius: 14,
-              padding: "12px 14px",
-              border: `1px solid ${kpi.color}22`,
+              margin: "0 20px", background: `${kpi.color}08`,
+              borderRadius: 14, padding: "12px 14px",
+              border: `1px solid ${kpi.color}20`,
             }}
           >
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: kpi.color,
-                marginBottom: 8,
-              }}
-            >
+            <div style={{ fontSize: 10, fontWeight: 700, color: kpi.color, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
               🌿 Ayumonk Suggestions
             </div>
-            {[
-              ["🥗", "Aahar", kpi.aahar],
-              ["🌅", "Vihar", kpi.vihar],
-              ["🌿", "Aushadh", kpi.aushadh],
-            ]
-              .filter(([, , txt]) => Boolean(txt))
+            {[["🥗","Aahar",kpi.aahar],["🌅","Vihar",kpi.vihar],["🌿","Aushadh",kpi.aushadh]]
+              .filter(([,,txt]) => Boolean(txt))
               .map(([ic, lbl, txt]) => (
-                <div
-                  key={lbl}
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    marginBottom: 7,
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <span style={{ fontSize: 13, width: 20, flexShrink: 0 }}>
-                    {ic}
-                  </span>
+                <div key={lbl} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-start" }}>
+                  <span style={{ fontSize: 14, width: 22, flexShrink: 0 }}>{ic}</span>
                   <div>
-                    <span
-                      style={{
-                        fontSize: 9,
-                        fontWeight: 700,
-                        color: kpi.color,
-                      }}
-                    >
-                      {lbl} →{" "}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 9,
-                        color: "rgba(255,255,255,0.45)",
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {txt}
-                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: kpi.color }}>{lbl} → </span>
+                    <span style={{ fontSize: 11, color: t.muted, lineHeight: 1.5 }}>{txt}</span>
                   </div>
                 </div>
               ))}

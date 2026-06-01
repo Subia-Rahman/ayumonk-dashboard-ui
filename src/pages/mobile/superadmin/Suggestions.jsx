@@ -10,7 +10,7 @@ const TYPE_PRESET = {
   vihar: { ic: "🌅", color: C.blue },
   vihara: { ic: "🌅", color: C.blue },
   aushadh: { ic: "🌿", color: C.gold },
-  nidra: { ic: "🌙", color: "#7c6af7" },
+  nidra: { ic: "🌙", color: "#8B6FCB" },
   manas: { ic: "🧠", color: C.purple },
 };
 
@@ -37,20 +37,20 @@ export default function SaSuggestions() {
   });
 
   return (
-    <div>
+    <div style={{ background: C.bg, minHeight: "100%" }}>
       <div
         style={{
-          padding: "12px 16px 10px",
+          padding: "8px 16px 10px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#1F1E1D" }}>
             🌿 Suggestion Master
           </div>
-          <div style={{ fontSize: 9, color: C.muted }}>
+          <div style={{ fontSize: 8.5, color: C.muted }}>
             Aahar · Vihar · Aushadh per KPI
           </div>
         </div>
@@ -63,7 +63,7 @@ export default function SaSuggestions() {
             background: `linear-gradient(135deg,${C.g2},${C.g3})`,
             border: "none",
             color: "#fff",
-            fontSize: 10,
+            fontSize: 9.5,
             fontWeight: 700,
             cursor: "pointer",
           }}
@@ -90,7 +90,7 @@ export default function SaSuggestions() {
               style={{
                 fontSize: 10,
                 background: on ? `${C.g3}20` : C.card,
-                color: on ? C.g3 : "rgba(255,255,255,.38)",
+                color: on ? C.g3 : "#6B7F5C",
                 borderRadius: 8,
                 padding: "5px 11px",
                 border: `1px solid ${on ? C.g3 + "44" : C.border}`,
@@ -152,7 +152,7 @@ export default function SaSuggestions() {
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        color: "#fff",
+                        color: "#1F1E1D",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -171,7 +171,7 @@ export default function SaSuggestions() {
                 <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                   <Pill
                     label={s.is_active ? "Active" : "Inactive"}
-                    color={s.is_active ? "#4ade80" : C.muted}
+                    color={s.is_active ? "#4F9D5B" : C.muted}
                   />
                   <button
                     type="button"
@@ -198,7 +198,7 @@ export default function SaSuggestions() {
                 <div
                   style={{
                     fontSize: 9.5,
-                    color: "rgba(255,255,255,.45)",
+                    color: "#5C5A57",
                     lineHeight: 1.45,
                   }}
                 >
@@ -212,8 +212,8 @@ export default function SaSuggestions() {
                   <span
                     style={{
                       fontSize: 8.5,
-                      background: "rgba(255,255,255,.04)",
-                      color: "rgba(255,255,255,.4)",
+                      background: "rgba(31,30,29,0.08)",
+                      color: "#5C5A57",
                       borderRadius: 5,
                       padding: "1px 7px",
                     }}
@@ -225,8 +225,8 @@ export default function SaSuggestions() {
                   <span
                     style={{
                       fontSize: 8.5,
-                      background: "rgba(255,255,255,.04)",
-                      color: "rgba(255,255,255,.4)",
+                      background: "rgba(31,30,29,0.08)",
+                      color: "#5C5A57",
                       borderRadius: 5,
                       padding: "1px 7px",
                     }}
