@@ -107,12 +107,181 @@ function ActionBtn({ children, active, color = C.g3, onClick, disabled, style = 
   );
 }
 
+// Step-sync keyframes (injected once).
+let stepStylesInjected = false;
+function injectStepStyles() {
+  if (stepStylesInjected || typeof document === "undefined") return;
+  const tag = document.createElement("style");
+  tag.dataset.ayumonkSteps = "true";
+  tag.textContent =
+    "@keyframes ayuStepPulse{0%{transform:scale(.7);opacity:.5}100%{transform:scale(1.7);opacity:0}}" +
+    "@keyframes ayuRunnerBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}" +
+    "@keyframes ayuPhoneShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}" +
+    "@keyframes ayuLiveBlink{0%,100%{opacity:1}50%{opacity:.25}}";
+  document.head.appendChild(tag);
+  stepStylesInjected = true;
+}
+
+// Step Sync sheet — connects "phone health data" and reveals the day live.
+// Demo numbers for now (6,240 / 8,000); wire to Apple Health / Health Connect
+// or your backend step field when available.
+function StepsSheet({ t, onClose }) {
+  injectStepStyles();
+  const GOAL = 8000;
+  const TARGET = 6240;
+  const [phase, setPhase] = useState("idle"); // idle | connecting | synced
+  const [steps, setSteps] = useState(0);
+  const connect = () => {
+    if (phase !== "idle") return;
+    setPhase("connecting");
+    setTimeout(() => setPhase("synced"), 1500);
+  };
+  useEffect(() => {
+    if (phase !== "synced") return undefined;
+    let raf;
+    const t0 = performance.now();
+    const dur = 1700;
+    const tick = (now) => {
+      const k = Math.min(1, (now - t0) / dur);
+      const e = 1 - Math.pow(1 - k, 3);
+      setSteps(Math.round(TARGET * e));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [phase]);
+  const synced = phase === "synced";
+  const pct = Math.min(100, (steps / GOAL) * 100);
+  const SIZE = 200;
+  const TH = 18;
+  const R = (SIZE - TH) / 2;
+  const CIRC = 2 * Math.PI * R;
+  const off = CIRC - (pct / 100) * CIRC;
+  const ang = ((-90 + (pct / 100) * 360) * Math.PI) / 180;
+  const mx = SIZE / 2 + R * Math.cos(ang);
+  const my = SIZE / 2 + R * Math.sin(ang);
+  const dist = (steps * 0.000762).toFixed(2);
+  const kcal = Math.round(steps * 0.04);
+  const activeMin = Math.round(steps / 130);
+  const toGo = Math.max(0, GOAL - steps);
+  const hourly = [1, 2, 4, 3, 6, 9, 5, 12, 8, 14, 7, 4];
+  const hmax = Math.max(...hourly);
+  const stats = [
+    { l: "Distance", v: synced ? dist : "0.00", u: "km", c: "#4A90C4" },
+    { l: "Calories", v: synced ? kcal : 0, u: "kcal", c: "#E0935C" },
+    { l: "Active", v: synced ? activeMin : 0, u: "min", c: "#4F9D5B" },
+  ];
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200 }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(15,20,12,0.5)" }} />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "absolute", left: 0, right: 0, bottom: 0,
+          background: t.card2, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+          maxHeight: "92%", overflowY: "auto", paddingBottom: 26,
+        }}
+      >
+        <div style={{ width: 38, height: 4.5, borderRadius: 999, background: t.border, margin: "10px auto 6px" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "6px 20px 14px" }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: t.text, display: "flex", alignItems: "center", gap: 8 }}>
+              🏃 Step Sync
+              {synced && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, letterSpacing: "0.08em", color: "#4F9D5B", background: "rgba(79,157,91,0.14)", borderRadius: 999, padding: "2px 8px" }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4F9D5B", animation: "ayuLiveBlink 1.4s ease-in-out infinite" }} />
+                  LIVE
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 11.5, color: t.faint, marginTop: 2 }}>
+              {synced ? "Streaming from Apple Health · today" : "Connect your phone to auto-track"}
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ width: 30, height: 30, borderRadius: 9, border: `1px solid ${t.border}`, background: t.inset, color: t.muted, fontSize: 14, cursor: "pointer", flexShrink: 0 }}>✕</button>
+        </div>
+        <div style={{ display: "grid", placeItems: "center", padding: "6px 0 14px" }}>
+          <div style={{ position: "relative", width: SIZE, height: SIZE }}>
+            <svg width={SIZE} height={SIZE}>
+              <circle cx={SIZE / 2} cy={SIZE / 2} r={R} fill="none" stroke={t.inset} strokeWidth={TH} />
+              <circle cx={SIZE / 2} cy={SIZE / 2} r={R} fill="none" stroke="#E0935C" strokeWidth={TH} strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={off} transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`} style={{ transition: "stroke-dashoffset .2s linear" }} />
+            </svg>
+            {synced && (
+              <div style={{ position: "absolute", left: mx - 17, top: my - 17, width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#E0935C,#C99A3F)", display: "grid", placeItems: "center", fontSize: 17, boxShadow: "0 4px 12px rgba(224,147,92,0.6)", animation: "ayuRunnerBob 1s ease-in-out infinite" }}>🏃</div>
+            )}
+            <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}>
+              {!synced ? (
+                <div style={{ position: "relative", display: "grid", placeItems: "center" }}>
+                  <span style={{ position: "absolute", width: 64, height: 64, borderRadius: "50%", border: `2px solid ${C.g3}`, opacity: 0, animation: "ayuStepPulse 2.2s ease-out infinite" }} />
+                  <span style={{ position: "absolute", width: 64, height: 64, borderRadius: "50%", border: `2px solid ${C.g3}`, opacity: 0, animation: "ayuStepPulse 2.2s ease-out infinite", animationDelay: "1.1s" }} />
+                  <div style={{ fontSize: 46, position: "relative", animation: phase === "connecting" ? "ayuPhoneShake .4s ease-in-out infinite" : "none" }}>📱</div>
+                  <div style={{ fontSize: 11, color: t.faint, marginTop: 6, fontWeight: 600 }}>{phase === "connecting" ? "Connecting…" : "Not synced"}</div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 38, fontWeight: 800, color: t.text, letterSpacing: "-0.03em", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{steps.toLocaleString()}</div>
+                  <div style={{ fontSize: 11.5, color: t.faint, marginTop: 4, fontWeight: 600 }}>steps · {Math.round(pct)}% of {GOAL.toLocaleString()}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div style={{ padding: "4px 20px 0" }}>
+          {!synced ? (
+            <button type="button" onClick={connect} disabled={phase === "connecting"} style={{ width: "100%", border: "none", cursor: "pointer", fontFamily: "inherit", background: "linear-gradient(135deg,#E0935C,#C99A3F)", color: "#fff", fontSize: 14, fontWeight: 800, borderRadius: 13, padding: 14, boxShadow: "0 10px 22px -8px rgba(224,147,92,0.7)", opacity: phase === "connecting" ? 0.7 : 1 }}>
+              {phase === "connecting" ? "Connecting to Health…" : "🔗 Connect Health"}
+            </button>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(79,157,91,0.1)", border: "1px solid rgba(79,157,91,0.3)", borderRadius: 13, padding: "12px 15px" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 700, fontSize: 12.5, color: "#4F9D5B" }}><span style={{ fontSize: 15 }}>✓</span> Synced with Apple Health</span>
+              <button type="button" onClick={() => { setPhase("idle"); setSteps(0); }} style={{ background: "transparent", border: "none", color: t.faint, fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Disconnect</button>
+            </div>
+          )}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, padding: "16px 20px 8px" }}>
+          {stats.map((st) => (
+            <div key={st.l} style={{ background: t.inset, borderRadius: 13, padding: "13px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: st.c, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{st.v}</div>
+              <div style={{ fontSize: 9.5, color: t.faint, marginTop: 3 }}>{st.u}</div>
+              <div style={{ fontSize: 10.5, color: t.muted, fontWeight: 600, marginTop: 1 }}>{st.l}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "4px 20px 8px" }}>
+          <SectionLabel>Today's activity · hourly</SectionLabel>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 76, padding: "6px 2px 0" }}>
+            {hourly.map((h, i) => (
+              <div key={i} style={{ flex: 1, height: "100%", display: "flex", alignItems: "flex-end" }}>
+                <div style={{ width: "100%", borderRadius: "5px 5px 2px 2px", minHeight: 4, background: "linear-gradient(180deg,#E0935C,#C99A3F)", height: (synced ? (h / hmax) * 100 : 5) + "%", opacity: synced ? 1 : 0.25 }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: t.faint, marginTop: 5 }}>
+            <span>6a</span><span>12p</span><span>6p</span><span>now</span>
+          </div>
+        </div>
+        <div style={{ margin: "8px 20px 8px", padding: "13px 15px", borderRadius: 14, background: `${C.g3}1a`, display: "flex", alignItems: "center", gap: 11 }}>
+          <span style={{ fontSize: 22 }}>{synced ? "🎯" : "💤"}</span>
+          <div style={{ fontSize: 12.5, color: t.muted, lineHeight: 1.45 }}>
+            {synced ? (
+              <>You're <b style={{ color: C.g3 }}>{Math.round(pct)}%</b> to goal — <b style={{ color: C.g3 }}>{toGo.toLocaleString()}</b> steps to auto-complete the challenge.</>
+            ) : (
+              <>Enable sync and your steps auto-complete this challenge — no manual logging.</>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Challenges() {
   const t = useTokens();
   const dispatch = useDispatch();
   const timerRef = useRef(null);
   const [activeTimerKey, setActiveTimerKey] = useState("");
   const [challengeState, setChallengeState] = useState({});
+  const [stepsOpen, setStepsOpen] = useState(false);
 
   const {
     items: dashboardItems,
@@ -303,6 +472,35 @@ export default function Challenges() {
               transition: "width 0.5s ease",
             }}
           />
+        </div>
+      </div>
+
+      {/* Step sync — connected activity */}
+      <div style={{ padding: "0 16px 20px" }}>
+        <SectionLabel>📲 Connected activity</SectionLabel>
+        <div
+          onClick={() => setStepsOpen(true)}
+          role="button"
+          tabIndex={0}
+          style={{ background: t.card, border: "1px solid rgba(224,147,92,0.32)", borderRadius: 16, padding: "15px 16px", cursor: "pointer" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+            <div style={{ width: 46, height: 46, borderRadius: 14, flexShrink: 0, background: "linear-gradient(135deg, rgba(224,147,92,0.18), rgba(201,154,63,0.18))", display: "grid", placeItems: "center", fontSize: 24 }}>🏃</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                <span style={{ fontSize: 15, fontWeight: 800, color: t.text }}>8,000 Steps</span>
+                <span style={{ fontSize: 20, fontWeight: 800, color: "#E0935C", lineHeight: 1 }}>6,240<span style={{ fontSize: 11, color: t.faint, fontWeight: 600 }}> /8,000</span></span>
+              </div>
+              <span style={{ display: "inline-block", marginTop: 5, fontSize: 11, fontWeight: 600, color: "#C0844A", background: "rgba(224,147,92,0.12)", borderRadius: 6, padding: "2px 8px" }}>▢ Enable sync to auto-complete</span>
+            </div>
+          </div>
+          <div style={{ height: 9, borderRadius: 7, background: t.track, marginTop: 13, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: "78%", borderRadius: 7, background: "linear-gradient(90deg,#C99A3F,#E0935C)" }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 9, gap: 8 }}>
+            <span style={{ fontSize: 10.5, color: t.faint }}>Manual tracking not available — enable health sync</span>
+            <span style={{ fontSize: 11, fontWeight: 800, color: C.g3, whiteSpace: "nowrap" }}>Tap to sync →</span>
+          </div>
         </div>
       </div>
 
@@ -698,6 +896,9 @@ export default function Challenges() {
           ))}
         </div>
       </div>
+
+      {/* Step Sync sheet */}
+      {stepsOpen && <StepsSheet t={t} onClose={() => setStepsOpen(false)} />}
     </div>
   );
 }
