@@ -19,6 +19,7 @@ export default function MobileShell({
   activeTab,
   onNav,
   accent,
+  accentDark,
   roleLabel = "WELLNESS PLATFORM",
   roleLabelColor,
   badgeColor,
@@ -91,6 +92,7 @@ export default function MobileShell({
             active={activeTab}
             onNav={onNav}
             accent={resolvedAccent}
+            accentDark={accentDark}
             notch={notch}
             centerBadge={centerBadge}
           />
