@@ -1,4 +1,4 @@
-import { C, useMobileTheme } from "../../../components/mobile/palette";
+import { C, THEME_LIST, useMobileTheme } from "../../../components/mobile/palette";
 import { useTokens } from "../../../components/mobile/useTokens";
 
 const RESPONSES = [
@@ -40,7 +40,7 @@ function SectionLabel({ children }) {
 
 export default function Profile() {
   const t = useTokens();
-  const { isDark, toggle } = useMobileTheme();
+  const { isDark, themeKey, setTheme, toggle } = useMobileTheme();
 
   return (
     <div style={{ background: t.bg, minHeight: "100%", paddingBottom: 16 }}>
@@ -186,78 +186,37 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Appearance / Themes */}
+      {/* Appearance · 4 themes */}
       <div style={{ padding: "0 16px 20px" }}>
-        <SectionLabel>🎨 Appearance</SectionLabel>
+        <SectionLabel>🎨 Appearance · 4 themes</SectionLabel>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {[
-            { id: "light", label: "Light", bg: "#F5F2EB", line: "#E4DCCB", accent: "#6B7F5C", active: !isDark },
-            { id: "dark", label: "Dark", bg: "#0b160c", line: "#1e3d20", accent: "#6DB33F", active: isDark },
-          ].map((th) => (
-            <button
-              key={th.id}
-              type="button"
-              onClick={() => {
-                const wantDark = th.id === "dark";
-                if (wantDark !== isDark) toggle();
-              }}
-              style={{
-                textAlign: "left",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                background: t.card,
-                border: `2px solid ${th.active ? C.g3 : t.border}`,
-                borderRadius: 16,
-                padding: 12,
-                transition: "border-color .18s",
-              }}
-            >
-              <div
-                style={{
-                  background: th.bg,
-                  borderRadius: 10,
-                  padding: 10,
-                  border: `1px solid ${th.line}`,
-                }}
+          {THEME_LIST.map((th) => {
+            const active = themeKey === th.key;
+            return (
+              <button
+                key={th.key}
+                type="button"
+                onClick={() => setTheme(th.key)}
+                style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: t.card, border: `2px solid ${active ? C.g3 : t.border}`, borderRadius: 16, padding: 12, transition: "border-color .18s" }}
               >
-                <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ width: 18, height: 18, borderRadius: 6, background: th.accent }} />
-                  <span style={{ flex: 1, height: 7, borderRadius: 4, background: th.line }} />
+                <div style={{ background: th.bg, borderRadius: 10, padding: 10, border: `1px solid ${th.line}` }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
+                    <span style={{ width: 18, height: 18, borderRadius: 6, background: th.accent }} />
+                    <span style={{ flex: 1, height: 7, borderRadius: 4, background: th.line }} />
+                  </div>
+                  <div style={{ height: 7, borderRadius: 4, background: th.line, marginBottom: 5 }} />
+                  <div style={{ height: 7, width: "70%", borderRadius: 4, background: th.line }} />
                 </div>
-                <div style={{ height: 7, borderRadius: 4, background: th.line, marginBottom: 5 }} />
-                <div style={{ height: 7, width: "70%", borderRadius: 4, background: th.line }} />
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginTop: 10,
-                }}
-              >
-                <span style={{ fontSize: 13, fontWeight: 800, color: t.text }}>
-                  {th.id === "dark" ? "🌙 " : "☀️ "}
-                  {th.label}
-                </span>
-                <span
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 999,
-                    border: `2px solid ${th.active ? C.g3 : t.border}`,
-                    background: th.active ? C.g3 : "transparent",
-                    color: "#fff",
-                    fontSize: 11,
-                    fontWeight: 800,
-                    display: "grid",
-                    placeItems: "center",
-                  }}
-                >
-                  {th.active ? "✓" : ""}
-                </span>
-              </div>
-            </button>
-          ))}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: t.text }}>{th.dark ? "🌙 " : "☀️ "}{th.label}</div>
+                    <div style={{ fontSize: 10, color: t.faint, marginTop: 1 }}>{th.sub}</div>
+                  </div>
+                  <span style={{ width: 18, height: 18, borderRadius: 999, flexShrink: 0, border: `2px solid ${active ? C.g3 : t.border}`, background: active ? C.g3 : "transparent", color: "#fff", fontSize: 11, fontWeight: 800, display: "grid", placeItems: "center" }}>{active ? "✓" : ""}</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
