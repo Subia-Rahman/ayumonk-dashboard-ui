@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 
 import EmployeeApp from "../pages/mobile/employee/EmployeeApp";
 import AdminApp from "../pages/mobile/admin/AdminApp";
+import HrApp from "../pages/mobile/hr/HrApp";
 import Login from "../pages/auth/Login";
 import AccessDenied from "../pages/common/AccessDenied";
 import AppRoutes from "./AppRoutes";
@@ -87,6 +88,16 @@ export default function MobileRoutes() {
         element={
           <Protected>
             <AdminApp />
+          </Protected>
+        }
+      />
+
+      {/* HR — mobile-specific UX. */}
+      <Route
+        path="/admin/hr-dashboard"
+        element={
+          <Protected>
+            <HrApp />
           </Protected>
         }
       />
