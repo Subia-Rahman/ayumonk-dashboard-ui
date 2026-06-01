@@ -115,7 +115,7 @@ export default function CompanyData() {
   };
 
   const handleDownloadFormat = () => {
-    downloadTemplateFile("templates/MasterData.xlsx", "MasterData.xlsx");
+    downloadTemplateFile("templates/CompanyData.xlsx", "CompanyData.xlsx");
   };
 
   const handleApplyFilters = () => {
@@ -302,19 +302,19 @@ export default function CompanyData() {
 
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               {canCreateCompanies && (
-              <Button
-                variant="contained"
-                startIcon={<AddRoundedIcon />}
-                onClick={() => navigate("/super-admin/company-data/add")}
-                sx={{
-                  height: 40,
-                  px: 2.5,
-                  flex: { xs: "1 1 100%", sm: "0 0 auto" },
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Add Company
-              </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<AddRoundedIcon />}
+                  onClick={() => navigate("/super-admin/company-data/add")}
+                  sx={{
+                    height: 40,
+                    px: 2.5,
+                    flex: { xs: "1 1 100%", sm: "0 0 auto" },
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Add Company
+                </Button>
               )}
               <Button
                 variant="outlined"

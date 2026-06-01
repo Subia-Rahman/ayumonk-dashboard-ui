@@ -111,6 +111,20 @@ export default function Questions({ role = "admin" }) {
     }
   }, [dispatch, role]);
 
+  // Restore company filter from location state when returning from detail/edit page
+  useEffect(() => {
+    if (location.state?.companyId) {
+      setFilters((current) => ({
+        ...current,
+        companyId: location.state.companyId,
+      }));
+      setAppliedFilters((current) => ({
+        ...current,
+        companyId: location.state.companyId,
+      }));
+    }
+  }, [location.state?.companyId]);
+
   // Resolve which company_id should be attached to platform-admin / super-admin
   // requests. Mirrors the CompanyUsers.jsx pattern (Spec §7): explicit filter
   // dropdown wins; falls back to the globally selected tenant from the tenant
@@ -379,6 +393,7 @@ export default function Questions({ role = "admin" }) {
                     role === "admin"
                       ? `/admin/questions/${row.id}`
                       : `/super-admin/questions/${row.id}`,
+                    { state: { companyId: appliedFilters.companyId } },
                   )
                 }
               >
@@ -394,6 +409,7 @@ export default function Questions({ role = "admin" }) {
                       role === "admin"
                         ? `/admin/questions/${row.id}/edit`
                         : `/super-admin/questions/${row.id}/edit`,
+                      { state: { companyId: appliedFilters.companyId } },
                     )
                   }
                 >

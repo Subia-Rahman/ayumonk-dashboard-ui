@@ -184,7 +184,8 @@ export default function SessionForm({
               </Box>
             </Paper>
 
-            {questions.map((question) => (
+            {/* {questions.map((question) => ( */}
+              {questions.map((question, index) => (
               <Paper
                 key={question.question_id}
                 elevation={0}
@@ -204,7 +205,8 @@ export default function SessionForm({
                   >
                     <Box>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {question.display_order}. {question.question_text}
+                        {/* {question.display_order}. {question.question_text} */}
+                        {index + 1}. {question.question_text}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {question.theme_display_name} •{" "}

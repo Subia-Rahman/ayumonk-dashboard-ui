@@ -11,6 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import { useTheme } from "@mui/material/styles";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../../layouts/commonLayout/Layout";
@@ -162,14 +163,38 @@ export default function SessionEditor({ mode, role = "superadmin" }) {
         }}
       >
         <Stack spacing={2}>
-          <Typography variant="h5" sx={{ fontWeight: 750 }}>
+          {/* <Typography variant="h5" sx={{ fontWeight: 750 }}>
             {heading}
           </Typography>
           <Typography color="text.secondary">
             {mode === "edit"
               ? "Update the session details here."
               : "Create the session details here. After creation, you can continue to add questions and review the session summary."}
-          </Typography>
+          </Typography> */}
+
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            spacing={2}
+            sx={{ mb: 1 }}
+          >
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 750 }}>
+                {heading}
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                {mode === "edit"
+                  ? "Update the session details here."
+                  : "Create the session details here. After creation, you can continue to add questions and review the session summary."}
+              </Typography>
+            </Box>
+            <Button
+              startIcon={<ArrowBackRoundedIcon />}
+              onClick={() => navigate("/super-admin/sessions")}
+            >
+              Back to list
+            </Button>
+          </Stack>
 
           {detailLoading && mode === "edit" && (
             <Stack direction="row" spacing={1} alignItems="center">

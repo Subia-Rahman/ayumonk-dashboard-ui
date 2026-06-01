@@ -67,7 +67,7 @@ export default function Challenges({ role = "admin" }) {
   const [filters, setFilters] = useState({
     companyId: role === "admin" ? getCompanyId() : "",
     search: "",
-    status: "active",
+    status: "all",
     themeKey: "",
     kpiKey: "",
     startDate: "",
@@ -76,7 +76,7 @@ export default function Challenges({ role = "admin" }) {
   const [appliedFilters, setAppliedFilters] = useState({
     companyId: role === "admin" ? getCompanyId() : "",
     search: "",
-    status: "active",
+    status: "all",
     themeKey: "",
     kpiKey: "",
     startDate: "",
@@ -189,7 +189,7 @@ export default function Challenges({ role = "admin" }) {
     const defaultFilters = {
       companyId: role === "admin" ? getCompanyId() : "",
       search: "",
-      status: "active",
+      status: "all",
       themeKey: "",
       kpiKey: "",
       startDate: "",
