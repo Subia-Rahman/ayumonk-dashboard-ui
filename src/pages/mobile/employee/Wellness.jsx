@@ -491,6 +491,99 @@ export default function Wellness() {
         </div>
       )}
 
+      {/* Plans for Your Dosha */}
+      <div style={{ padding: "0 16px 20px" }}>
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            background: `linear-gradient(135deg, ${t.g1}, ${t.g2})`,
+            borderRadius: 18,
+            padding: "16px 17px",
+            boxShadow: "0 14px 30px -16px rgba(79,122,58,0.55)",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              right: -10,
+              bottom: -16,
+              fontSize: 78,
+              opacity: 0.12,
+              transform: "rotate(-12deg)",
+              pointerEvents: "none",
+            }}
+          >
+            🌿
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 8,
+              position: "relative",
+            }}
+          >
+            <div style={{ fontSize: 14.5, fontWeight: 800, color: "#fff" }}>
+              🌿 Plans for Your Dosha
+            </div>
+            <button
+              type="button"
+              style={{
+                background: "rgba(255,255,255,0.2)",
+                border: "none",
+                color: "#fff",
+                fontSize: 11.5,
+                fontWeight: 700,
+                borderRadius: 999,
+                padding: "4px 12px",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Open ↗
+            </button>
+          </div>
+          <div
+            style={{
+              fontSize: 12.5,
+              color: "rgba(255,255,255,0.86)",
+              lineHeight: 1.55,
+              marginBottom: 13,
+              position: "relative",
+            }}
+          >
+            You're <b style={{ color: "#fff" }}>Kapha-dominant</b>. A personalised
+            Aahar diet, Kapha-balancing yoga, and an Aushadh herb pack are ready
+            for you.
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", position: "relative" }}>
+            {["🥗 Aahar Plan", "🧘 Yoga Flow", "🌿 Herb Pack"].map((p) => (
+              <button
+                key={p}
+                type="button"
+                style={{
+                  background: "rgba(255,255,255,0.12)",
+                  border: "1px solid rgba(255,255,255,0.38)",
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  borderRadius: 10,
+                  padding: "7px 13px",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Lifestyle Suggestions */}
       {suggestionsLoading && (
         <div style={{ padding: "0 16px 16px", fontSize: 12, color: t.muted }}>
