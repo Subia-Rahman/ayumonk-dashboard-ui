@@ -543,7 +543,7 @@ export default function CxoMetricsConfig() {
                 sx={{ mt: 0.5 }}
               >
                 Create and review the metric master rows backing the
-                configurations above. POST /admin/cxo-metrics.
+                configurations above.
               </Typography>
             </Box>
             {canEditConfig && (
