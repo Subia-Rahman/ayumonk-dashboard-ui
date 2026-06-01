@@ -27,6 +27,18 @@ const LEADERBOARD = [
   { rank: "5th", name: "Sneha P.", dept: "Marketing", pct: "+28%", col: "#9E9B97" },
 ];
 
+// Shown when the company has not configured any challenges yet, so the screen
+// always demonstrates the full experience. These are local-only (demo: true) —
+// they update UI state but never hit the API. Replace once real data flows.
+const FALLBACK_CHALLENGES = [
+  { demo: true, challenge_key: "demo_water", challenge_type: "counter", name: "Hydration Mission", description: "Drink 8 glasses of water before evening.", icon: "💧", xp_reward: 50, target_value: 8, kpi_name: "Hydration", displayColor: "#4A90C4" },
+  { demo: true, challenge_key: "demo_sleep", challenge_type: "toggle", name: "Sleep Before 10", description: "Commit to a consistent recovery window tonight.", icon: "🌙", xp_reward: 40, target_value: 1, kpi_name: "Sleep", displayColor: "#8B6FCB", options: ["I'll wind down by 10 PM"] },
+  { demo: true, challenge_key: "demo_move", challenge_type: "choice", name: "Move Your Body", description: "Pick one form of movement for today.", icon: "🏃", xp_reward: 45, target_value: 1, kpi_name: "Movement", displayColor: "#4F9D5B", options: ["Walk", "Yoga", "Workout"] },
+  { demo: true, challenge_key: "demo_breathe", challenge_type: "timer", name: "Mindful Breathing", description: "Two minutes of box breathing to reset.", icon: "🧘", xp_reward: 60, target_value: 120, kpi_name: "Calm", displayColor: "#C36FA8" },
+  { demo: true, challenge_key: "demo_mood", challenge_type: "rating", name: "Mood Check-In", description: "How are you feeling right now?", icon: "🪷", xp_reward: 30, target_value: 1, kpi_name: "Mind", displayColor: "#3AA8A0" },
+  { demo: true, challenge_key: "demo_greens", challenge_type: "multi", name: "Eat Your Greens", description: "Add greens to each meal you log today.", icon: "🥗", xp_reward: 55, target_value: 1, kpi_name: "Nutrition", displayColor: "#C99A3F", options: ["Breakfast", "Lunch", "Dinner"] },
+];
+
 const getOptions = (type) => {
   const t = String(type || "").toLowerCase();
   if (t === "choice") return ["Option 1", "Option 2", "Option 3"];
@@ -111,7 +123,7 @@ export default function Challenges() {
     actionResultById,
   } = useSelector((s) => s.dashboard);
 
-  const challengeItems = dashboardItems.flatMap((item) =>
+  const apiChallengeItems = dashboardItems.flatMap((item) =>
     (Array.isArray(item.challenges) ? item.challenges : []).map(
       (ch, idx) => ({
         ...ch,
@@ -120,6 +132,9 @@ export default function Challenges() {
       }),
     ),
   );
+  // Fall back to the demo set so the screen is never empty during rollout.
+  const challengeItems =
+    apiChallengeItems.length > 0 ? apiChallengeItems : FALLBACK_CHALLENGES;
 
   useEffect(() => {
     dispatch(fetchDashboardKpis());
@@ -137,7 +152,7 @@ export default function Challenges() {
         if (next <= 0) {
           const ch = challengeItems.find((c) => c.challenge_key === activeTimerKey);
           setActiveTimerKey("");
-          if (ch) {
+          if (ch && !ch.demo) {
             void dispatch(
               postDashboardChallengeAction({
                 challenge_id: ch.challenge_key,
@@ -161,6 +176,7 @@ export default function Challenges() {
     setChallengeState((cur) => ({ ...cur, [id]: { ...cur[id], ...payload } }));
 
   const act = async (ch, values) => {
+    if (ch.demo) return undefined; // demo items are local-only
     dispatch(clearDashboardChallengeActionError(ch.challenge_key));
     const result = await dispatch(
       postDashboardChallengeAction({
@@ -192,7 +208,7 @@ export default function Challenges() {
   const getXp = (ch) => {
     if (!isDone(ch)) return 0;
     if (String(ch.challenge_type || "").toLowerCase() === "multi") {
-      const opts = Math.max(getOptions(ch.challenge_type).length, 1);
+      const opts = Math.max((ch.options || getOptions(ch.challenge_type)).length, 1);
       return Math.round(
         (Number(ch.xp_reward) || 0) *
           ((challengeState[ch.challenge_key]?.chosen?.length || 0) / opts),
@@ -296,7 +312,7 @@ export default function Challenges() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {challengeItems.map((ch) => {
             const type = String(ch.challenge_type || "").toLowerCase();
-            const opts = getOptions(ch.challenge_type);
+            const opts = ch.options || getOptions(ch.challenge_type);
             const tv = Math.max(1, Number(ch.target_value) || 1);
             const st = challengeState[ch.challenge_key] || initState([ch])[ch.challenge_key];
             const done = isDone(ch);
