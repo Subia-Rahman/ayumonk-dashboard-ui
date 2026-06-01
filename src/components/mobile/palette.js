@@ -40,11 +40,44 @@ export const TWILIGHT = {
   isDark: true,
 };
 
+// ── Theme 5 · Clay (light, terracotta) ───────────────────────────────────────
+export const CLAY = {
+  bg: "#F2EEE5", card: "#FBF9F4", card2: "#FFFFFF", border: "rgba(31,30,29,0.09)",
+  g1: "#99513A", g2: "#B0654A", g3: "#B0654A", g4: "#CE8568",
+  text: "#1F1E1D", white: "#FFFFFF", muted: "#6B6760",
+  orange: "#B0654A", blue: "#5E828F", purple: "#9A7FB0", gold: "#C99A3F",
+  teal: "#5A9B96", red: "#B85A4A", pink: "#c4607a", dark: "#1F1E1D",
+  isDark: false,
+};
+
+// ── Theme 6 · Teal (light, ocean calm) ───────────────────────────────────────
+export const TEAL = {
+  bg: "#EEF1EE", card: "#FAFBF9", card2: "#FFFFFF", border: "rgba(25,45,42,0.09)",
+  g1: "#2F7068", g2: "#3E8A82", g3: "#3E8A82", g4: "#5FAaa2",
+  text: "#1A2422", white: "#FFFFFF", muted: "#5E716D",
+  orange: "#C0744A", blue: "#4A90C4", purple: "#8B7FB0", gold: "#C99A3F",
+  teal: "#3E8A82", red: "#B85A4A", pink: "#c4607a", dark: "#1A2422",
+  isDark: false,
+};
+
+// ── Theme 7 · Indigo (light, soft violet) ────────────────────────────────────
+export const INDIGO = {
+  bg: "#EFEEF4", card: "#FAFAFD", card2: "#FFFFFF", border: "rgba(30,28,50,0.09)",
+  g1: "#4C4D92", g2: "#5E5FA6", g3: "#5E5FA6", g4: "#8788C4",
+  text: "#1E1C30", white: "#FFFFFF", muted: "#615F78",
+  orange: "#C0744A", blue: "#4A90C4", purple: "#5E5FA6", gold: "#C99A3F",
+  teal: "#5A9B96", red: "#B85A4A", pink: "#c4607a", dark: "#1E1C30",
+  isDark: false,
+};
+
 // theme registry + ordered list for the picker
-export const THEMES = { sage: LIGHT, forest: DARK, saffron: SAFFRON, twilight: TWILIGHT };
+export const THEMES = { sage: LIGHT, forest: DARK, saffron: SAFFRON, twilight: TWILIGHT, clay: CLAY, teal: TEAL, indigo: INDIGO };
 export const THEME_LIST = [
   { key: "sage",     label: "Sage",     sub: "Calm cream",    bg: "#F5F2EB", line: "#E4DCCB", accent: "#6B7F5C", dark: false },
   { key: "saffron",  label: "Saffron",  sub: "Warm clay",     bg: "#F7F0E3", line: "#E7D9C0", accent: "#C2772A", dark: false },
+  { key: "clay",     label: "Clay",     sub: "Terracotta",    bg: "#F2EEE5", line: "#E4DCCB", accent: "#B0654A", dark: false },
+  { key: "teal",     label: "Teal",     sub: "Ocean calm",    bg: "#EEF1EE", line: "#D6E2DE", accent: "#3E8A82", dark: false },
+  { key: "indigo",   label: "Indigo",   sub: "Soft violet",   bg: "#EFEEF4", line: "#DDDCEA", accent: "#5E5FA6", dark: false },
   { key: "forest",   label: "Forest",   sub: "Deep green",    bg: "#0b160c", line: "#1e3d20", accent: "#6DB33F", dark: true },
   { key: "twilight", label: "Twilight", sub: "Indigo & teal", bg: "#0b1020", line: "#28324f", accent: "#3FC9BB", dark: true },
 ];
