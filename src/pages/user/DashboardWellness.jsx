@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Box } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
-import BedtimeRoundedIcon from "@mui/icons-material/BedtimeRounded";
-import BoltRoundedIcon from "@mui/icons-material/BoltRounded";
-import DirectionsRunRoundedIcon from "@mui/icons-material/DirectionsRunRounded";
-import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
-import LocalDiningRoundedIcon from "@mui/icons-material/LocalDiningRounded";
-import PsychologyRoundedIcon from "@mui/icons-material/PsychologyRounded";
-import SelfImprovementRoundedIcon from "@mui/icons-material/SelfImprovementRounded";
-import SpaRoundedIcon from "@mui/icons-material/SpaRounded";
-import WaterDropRoundedIcon from "@mui/icons-material/WaterDropRounded";
+import { dimHue } from "../../components/mobile/dimensionColors";
 import {
   fetchDashboardKpis,
   fetchSessionSuggestions,
@@ -17,18 +9,6 @@ import {
 } from "../../store/dashboardSlice";
 import { fetchMySubmissions } from "../../store/sessionSlice";
 import { useClientPalette } from "../../utils/clientPalette";
-
-const METRIC_ICON_SET = [
-  <BedtimeRoundedIcon fontSize="small" />,
-  <PsychologyRoundedIcon fontSize="small" />,
-  <LocalDiningRoundedIcon fontSize="small" />,
-  <WaterDropRoundedIcon fontSize="small" />,
-  <SpaRoundedIcon fontSize="small" />,
-  <DirectionsRunRoundedIcon fontSize="small" />,
-  <SelfImprovementRoundedIcon fontSize="small" />,
-  <BoltRoundedIcon fontSize="small" />,
-  <FavoriteRoundedIcon fontSize="small" />,
-];
 
 const METRIC_COLOR_SET = [
   "#7c3aed",
@@ -41,6 +21,20 @@ const METRIC_COLOR_SET = [
   "#d946ef",
   "#2563eb",
 ];
+
+const DIMENSION_EMOJI = {
+  nidra:  "🌙",
+  manas:  "🧠",
+  aahar:  "🥗",
+  vihara: "🌅",
+  charya: "🌄",
+  ojas:   "⚡",
+};
+
+const dimEmoji = (label = "") => {
+  const slug = String(label).toLowerCase().trim().split(/[\s·]+/)[0];
+  return DIMENSION_EMOJI[slug] || "🌿";
+};
 
 const SUGGESTION_TYPE_COLORS = {
   aahar: "#16a34a",
@@ -100,7 +94,6 @@ const formatChange = (value) => {
   return `${number >= 0 ? "+" : ""}${number.toFixed(0)}%`;
 };
 
-const getMetricIcon = (index) => METRIC_ICON_SET[index % METRIC_ICON_SET.length];
 const getMetricColor = (index) => METRIC_COLOR_SET[index % METRIC_COLOR_SET.length];
 const getSuggestionColor = (type, index) =>
   SUGGESTION_TYPE_COLORS[String(type || "").toLowerCase()] ||
@@ -412,105 +405,61 @@ function MultiLine({ series, labels, h = 90, highlighted = [] }) {
 function KpiTile({ item, sparkValues, onClick }) {
   const trend = item.change === "No trend" ? null : item.change;
   const trendPos = trend && trend.startsWith("+");
-  const dimPill = getDimensionPill(item.label);
   return (
     <div
       onClick={onClick}
       style={{
+        minWidth: 96,
+        flexShrink: 0,
+        textAlign: "center",
         background: "#FBF9F4",
         border: `1px solid ${item.color}33`,
-        borderRadius: 16,
-        padding: "13px 14px 11px",
+        borderRadius: 12,
+        padding: "12px 8px",
         cursor: onClick ? "pointer" : "default",
         transition: "all 0.2s",
       }}
     >
-      {/* Header: icon pill + dimension name pill */}
-      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
-        <span
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 9,
-            background: item.color + "22",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 15,
-            color: item.color,
-            flexShrink: 0,
-          }}
-        >
-          {item.icon}
-        </span>
-        {dimPill ? (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: dimPill.color,
-              background: dimPill.bg,
-              padding: "2px 6px",
-              borderRadius: 99,
-              letterSpacing: 0.15,
-              lineHeight: 1.4,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {item.label}
-          </span>
-        ) : (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: "#6B7F5C",
-              background: "#E8F0E4",
-              padding: "2px 6px",
-              borderRadius: 99,
-              letterSpacing: 0.15,
-              lineHeight: 1.4,
-              overflow: "hidden",
-              display: "-webkit-box",
-              WebkitLineClamp: 1,
-              WebkitBoxOrient: "vertical",
-            }}
-            title={item.label}
-          >
-            {item.label}
-          </span>
-        )}
-      </div>
-      {/* Body: score + trend (left) | sparkline (right) */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: item.color, lineHeight: 1 }}>
-            {Number(item.score).toFixed(1)}
-          </div>
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              marginTop: 5,
-              color: trend
-                ? trendPos ? "#16a34a" : "#dc2626"
-                : "#5C5A57",
-            }}
-          >
-            {trend ? `${trendPos ? "▲" : "▼"} ${trend.replace(/^[+-]/, "")}` : "—"}
-          </div>
-        </div>
-        <Sparkline values={sparkValues} color={item.color} w={68} h={30} />
-      </div>
-      {/* Accent bar */}
+      <div style={{ fontSize: 20, marginBottom: 4 }}>{item.emoji}</div>
       <div
         style={{
-          marginTop: 10,
-          height: 2,
-          borderRadius: 2,
-          background: `linear-gradient(to right, ${item.color}66, transparent)`,
+          fontSize: 10,
+          color: "#5C5A57",
+          fontWeight: 600,
+          marginBottom: 4,
+          overflow: "hidden",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
         }}
-      />
+        title={item.label}
+      >
+        {item.label}
+      </div>
+      <div
+        style={{
+          fontSize: 18,
+          fontWeight: 800,
+          color: item.color,
+          lineHeight: 1,
+          marginBottom: 4,
+        }}
+      >
+        {Number(item.score).toFixed(1)}
+      </div>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          marginBottom: 4,
+          color: trend ? (trendPos ? "#16a34a" : "#dc2626") : "#5C5A57",
+        }}
+      >
+        {trend ? `${trendPos ? "▲" : "▼"} ${trend.replace(/^[+-]/, "")}` : "—"}
+      </div>
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <Sparkline values={sparkValues} color={item.color} w={68} h={16} />
+      </div>
     </div>
   );
 }
@@ -555,16 +504,19 @@ export default function DashboardWellness() {
 
   const metrics = useMemo(
     () =>
-      dashboardItems.map((item, index) => ({
-        kpiKey: item.kpi_key ?? null,
-        kpiName: item.kpi_name || "",
-        label: formatMetricLabel(item.kpi_name),
-        score: Number(item.latest_score) || 0,
-        progress: clampPercent(item.latest_score),
-        change: formatChange(item.trend_percent),
-        color: getMetricColor(index),
-        icon: getMetricIcon(index),
-      })),
+      dashboardItems.map((item) => {
+        const label = formatMetricLabel(item.kpi_name);
+        return {
+          kpiKey: item.kpi_key ?? null,
+          kpiName: item.kpi_name || "",
+          label,
+          score: Number(item.latest_score) || 0,
+          progress: clampPercent(item.latest_score),
+          change: formatChange(item.trend_percent),
+          color: dimHue(item.kpi_name),
+          emoji: dimEmoji(label),
+        };
+      }),
     [dashboardItems],
   );
 
@@ -682,13 +634,13 @@ export default function DashboardWellness() {
       {!dashboardError && !dashboardLoading && metrics.length > 0 && (
         <Box
           sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "repeat(2, 1fr)",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(3, 1fr)",
-            },
-            gap: "10px",
+            display: "flex",
+            flexDirection: "row",
+            gap: "8px",
+            overflowX: "auto",
+            paddingBottom: "8px",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
             mb: "18px",
           }}
         >
