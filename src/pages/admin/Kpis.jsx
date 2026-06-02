@@ -391,36 +391,33 @@ export default function Kpis({ role = "admin" }) {
               gridTemplateColumns: {
                 xs: "1fr",
                 sm: "repeat(2, minmax(0, 1fr))",
-                lg: role === "superadmin"
-                  ? "repeat(4, minmax(0, 1fr)) auto auto"
-                  : "repeat(3, minmax(0, 1fr)) auto auto",
+                lg: "repeat(4, minmax(0, 1fr)) auto auto",
               },
               alignItems: { lg: "end" },
             }}
           >
-            {role === "superadmin" && (
-              <TextField
-                label="Company"
-                select
-                value={filters.companyId}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    companyId: event.target.value,
-                    themeKey: "",
-                  }))
-                }
-                fullWidth
-                sx={filterFieldSx}
-              >
-                <MenuItem value="">All Companies</MenuItem>
-                {companies.map((company) => (
-                  <MenuItem key={company.id} value={company.id}>
-                    {company.company_name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
+            <TextField
+              label="Company"
+              select
+              value={filters.companyId}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  companyId: event.target.value,
+                  themeKey: "",
+                }))
+              }
+              disabled={role === "admin"}
+              fullWidth
+              sx={filterFieldSx}
+            >
+              <MenuItem value="">All Companies</MenuItem>
+              {companies.map((company) => (
+                <MenuItem key={company.id} value={company.id}>
+                  {company.company_name}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               label="Theme"
               select
@@ -431,6 +428,7 @@ export default function Kpis({ role = "admin" }) {
                   themeKey: event.target.value,
                 }))
               }
+              disabled={!filters.companyId}
               fullWidth
               sx={filterFieldSx}
             >

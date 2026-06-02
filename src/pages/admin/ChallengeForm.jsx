@@ -34,8 +34,10 @@ import {
   updateChallenge,
 } from "../../store/challengeSlice";
 import { getSurfaceBackground } from "../../theme";
-import { getCompanyId } from "../../utils/roleHelper";
+import { getCompanyId, setCompanyId } from "../../utils/roleHelper";
 import usePermissions from "../../hooks/usePermissions";
+import api, { getApiErrorMessage } from "../../services/api";
+import { API_URLS } from "../../services/apiUrls";
 
 const CHALLENGE_ICON_OPTIONS = [
   { value: "🏆", label: "Trophy" },
@@ -86,7 +88,7 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
     updateError,
   } = useSelector((state) => state.challenge);
   const [draftForm, setDraftForm] = useState({
-    companyId: "",
+    companyId: role === "admin" ? getCompanyId() : "",
     name: "",
     challengeType: "",
     description: "",
@@ -99,15 +101,41 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
   const [draftMappings, setDraftMappings] = useState([defaultMapping()]);
   const [hasStartedEditing, setHasStartedEditing] = useState(false);
   const [formError, setFormError] = useState("");
+  const [companyMe, setCompanyMe] = useState(null);
+  const [companyMeError, setCompanyMeError] = useState("");
   const { canCreate, canEdit } = usePermissions();
   const canSubmitForm = mode === "edit" ? canEdit("challenges") : canCreate("challenges");
 
   useEffect(() => {
     dispatch(fetchCompanies());
+
+    if (role === "admin") {
+      const fetchCompanyMe = async () => {
+        try {
+          const response = await api.get(API_URLS.companyMe);
+          const payload = response?.data || {};
+
+          if (!payload?.success || !payload?.data) {
+            throw new Error(payload?.message || "Failed to fetch company details.");
+          }
+
+          const resolvedCompanyId = payload.data?.id || payload.data?.company_id || "";
+          setCompanyMe(payload.data);
+          setCompanyMeError("");
+          setCompanyId(resolvedCompanyId);
+        } catch (error) {
+          setCompanyMe(null);
+          setCompanyMeError(getApiErrorMessage(error, "Failed to fetch company details."));
+        }
+      };
+
+      fetchCompanyMe();
+    }
+
     if (mode === "edit" && id) {
       dispatch(fetchChallengeById(id));
     }
-  }, [dispatch, id, mode]);
+  }, [dispatch, id, mode, role]);
 
   useEffect(() => {
     if (mode !== "edit" || !selectedChallenge) return;
@@ -183,14 +211,47 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
     return draftMappings;
   }, [draftMappings, hasStartedEditing, mode, selectedChallenge]);
 
-  const selectedCompanyId =
-    role === "superadmin" ? form.companyId : getCompanyId();
+  const selectedCompanyId = useMemo(() => {
+    if (role === "superadmin") {
+      return form.companyId;
+    }
+
+    return companyMe?.id || companyMe?.company_id || form.companyId || getCompanyId();
+  }, [companyMe, form.companyId, role]);
+
+  const selectedCompanyName = useMemo(() => {
+    if (companyMe?.company_name) {
+      return companyMe.company_name;
+    }
+
+    const selectedCompany = companies.find(
+      (company) => String(company.id) === String(selectedCompanyId),
+    );
+
+    return selectedCompany?.company_name || selectedCompanyId || "";
+  }, [companies, companyMe, selectedCompanyId]);
+
+  useEffect(() => {
+    if (role !== "admin" || !selectedCompanyId) return;
+
+    setDraftForm((current) =>
+      current.companyId === selectedCompanyId
+        ? current
+        : { ...current, companyId: selectedCompanyId },
+    );
+  }, [role, selectedCompanyId]);
 
   const filteredKpis = useMemo(
-    () =>
-      selectedCompanyId
-        ? kpiItems.filter((kpi) => kpi.company_id === selectedCompanyId)
-        : [],
+    () => {
+      if (!selectedCompanyId) {
+        return [];
+      }
+
+      return kpiItems.filter(
+        (kpi) =>
+          !kpi.company_id || String(kpi.company_id) === String(selectedCompanyId),
+      );
+    },
     [kpiItems, selectedCompanyId],
   );
 
@@ -448,14 +509,14 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
             </Button>
           </Stack>
 
-          {(formError || createError || updateError || detailError) && (
+          {(formError || companyMeError || createError || updateError || detailError) && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              {formError || createError || updateError || detailError}
+              {formError || companyMeError || createError || updateError || detailError}
             </Alert>
           )}
 
           <Stack spacing={2}>
-            {role === "superadmin" && (
+            {role === "superadmin" ? (
               <TextField
                 label="Company"
                 select
@@ -478,6 +539,14 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
                   </MenuItem>
                 ))}
               </TextField>
+            ) : (
+              <TextField
+                label="Company"
+                value={selectedCompanyName}
+                helperText="Selected from your admin profile."
+                fullWidth
+                disabled
+              />
             )}
             <TextField
               label="Challenge Name"

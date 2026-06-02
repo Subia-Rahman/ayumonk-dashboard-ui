@@ -170,6 +170,14 @@ export default function Challenges({ role = "admin" }) {
     [themeItems],
   );
 
+  const filteredThemeItems = useMemo(
+    () =>
+      filters.companyId
+        ? themeItems.filter((item) => item.company_id === filters.companyId)
+        : themeItems,
+    [filters.companyId, themeItems],
+  );
+
   const handleRefresh = () => {
     dispatch(fetchChallenges(challengeQuery));
   };
@@ -451,40 +459,35 @@ export default function Challenges({ role = "admin" }) {
                 xs: "1fr",
                 sm: "repeat(2, minmax(0, 1fr))",
                 md: "repeat(2, minmax(0, 1fr))",
-                lg: role === "superadmin"
-                  ? "repeat(4, minmax(0, 1fr))"
-                  : "repeat(4, minmax(0, 1fr))",
-                xl: role === "superadmin"
-                  ? "1.15fr 1fr 1fr 1fr 1fr 1.4fr 0.9fr auto auto"
-                  : "1fr 1fr 1fr 1fr 1.4fr 0.9fr auto auto",
+                lg: "repeat(4, minmax(0, 1fr))",
+                xl: "1.15fr 1fr 1fr 1fr 1fr 1.4fr 0.9fr auto auto",
               },
               alignItems: { lg: "end" },
             }}
           >
-            {role === "superadmin" && (
-              <TextField
-                label="Company"
-                select
-                value={filters.companyId}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    companyId: event.target.value,
-                    themeKey: "",
-                    kpiKey: "",
-                  }))
-                }
-                fullWidth
-                sx={filterFieldSx}
-              >
-                <MenuItem value="">All Companies</MenuItem>
-                {companies.map((company) => (
-                  <MenuItem key={company.id} value={company.id}>
-                    {company.company_name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
+            <TextField
+              label="Company"
+              select
+              value={filters.companyId}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  companyId: event.target.value,
+                  themeKey: "",
+                  kpiKey: "",
+                }))
+              }
+              disabled={role === "admin"}
+              fullWidth
+              sx={filterFieldSx}
+            >
+              <MenuItem value="">All Companies</MenuItem>
+              {companies.map((company) => (
+                <MenuItem key={company.id} value={company.id}>
+                  {company.company_name}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               label="Theme"
               select
@@ -496,11 +499,12 @@ export default function Challenges({ role = "admin" }) {
                   kpiKey: "",
                 }))
               }
+              disabled={!filters.companyId}
               fullWidth
               sx={filterFieldSx}
             >
               <MenuItem value="">All Themes</MenuItem>
-              {themeItems.map((item) => (
+              {filteredThemeItems.map((item) => (
                 <MenuItem key={item.theme_key} value={item.theme_key}>
                   {item.theme_display_name}
                 </MenuItem>
