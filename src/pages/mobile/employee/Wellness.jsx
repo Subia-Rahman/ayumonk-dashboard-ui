@@ -194,6 +194,7 @@ export default function Wellness() {
   const [activeKpi, setActiveKpi] = useState(null);
   const [planned, setPlanned] = useState({});
   const [plansOpen, setPlansOpen] = useState(false);
+  const [mood, setMood] = useState(null);
 
   const { items, loading, error, suggestions, suggestionsLoading, trends } =
     useSelector((s) => s.dashboard);
@@ -292,192 +293,137 @@ export default function Wellness() {
         </div>
       )}
 
-      {/* Wellness Index hero card */}
-      <div style={{ margin: "0 16px 20px" }}>
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${C.g1} 0%, ${C.g2} 100%)`,
-            borderRadius: 20,
-            padding: "20px 22px",
-            display: "flex",
-            alignItems: "center",
-            gap: 20,
-          }}
-        >
-          <div style={{ flexShrink: 0 }}>
-            <Donut pct={overallWi} size={106} stroke={12} color="#ffffff" track="rgba(255,255,255,0.22)" label="/ 100" />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 11,
-                color: "rgba(255,255,255,.6)",
-                textTransform: "uppercase",
-                letterSpacing: 1.2,
-                marginBottom: 6,
-              }}
-            >
-              Wellness Index
-            </div>
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 800,
-                color: "#fff",
-                letterSpacing: "-0.02em",
-                marginBottom: 6,
-              }}
-            >
-              {overallWi > 0 ? `${overallWi} / 100` : loading ? "Loading…" : "— / 100"}
-            </div>
-            <div
-              style={{
-                display: "inline-block",
-                fontSize: 12,
-                fontWeight: 800,
-                color: "#fff",
-                background: "rgba(255,255,255,0.20)",
-                borderRadius: 20,
-                padding: "4px 11px",
-              }}
-            >
-              {band.label}
-            </div>
-            {trends.overall?.delta_percent != null && (
-              <div
-                style={{
-                  marginTop: 10,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  background: "rgba(255,255,255,.12)",
-                  borderRadius: 20,
-                  padding: "3px 10px",
-                }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
-                  {trends.overall.delta_percent >= 0 ? "▲" : "▼"}{" "}
-                  {Math.abs(Math.round(trends.overall.delta_percent))}% from
-                  baseline
+      {/* Wellness Index + Prakriti BioType — side by side */}
+      <div style={{ padding: "0 16px 18px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "stretch" }}>
+          {/* Wellness Index — no ring */}
+          <div
+            style={{
+              position: "relative",
+              overflow: "hidden",
+              borderRadius: 18,
+              padding: "16px 15px",
+              background: `linear-gradient(150deg, ${C.g1}, ${C.g2})`,
+              color: "#fff",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              boxShadow: "0 12px 28px -16px rgba(79,122,58,0.6)",
+            }}
+          >
+            <span aria-hidden="true" style={{ position: "absolute", right: -14, bottom: -18, fontSize: 92, opacity: 0.1, transform: "rotate(-12deg)", pointerEvents: "none" }}>🌿</span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, position: "relative" }}>
+              <span style={{ fontSize: 9.5, opacity: 0.82, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>Wellness Index</span>
+              {trends?.overall?.delta_percent != null && (
+                <span style={{ fontSize: 10, fontWeight: 800, background: "rgba(255,255,255,0.2)", borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>
+                  {trends.overall.delta_percent >= 0 ? "▲" : "▼"} {Math.abs(Math.round(trends.overall.delta_percent))}%
                 </span>
+              )}
+            </div>
+            <div style={{ position: "relative", margin: "8px 0 10px" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+                <span style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 0.9 }}>{overallWi > 0 ? overallWi : "—"}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.65 }}>/100</span>
               </div>
-            )}
-            <div
-              style={{
-                marginTop: 10,
-                marginLeft: 6,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                background: "rgba(255,255,255,.12)",
-                borderRadius: 20,
-                padding: "3px 10px",
-              }}
-            >
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
-                🔥 7-day streak
-              </span>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 9, fontSize: 13, fontWeight: 800, background: "rgba(255,255,255,0.16)", borderRadius: 999, padding: "4px 11px" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#BFF0A8", boxShadow: "0 0 0 3px rgba(191,240,168,0.25)" }} />
+                {band.label}
+              </div>
+            </div>
+            <div style={{ position: "relative" }}>
+              <div style={{ height: 8, borderRadius: 999, background: "rgba(255,255,255,0.22)", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${overallWi}%`, borderRadius: 999, background: "linear-gradient(90deg, #BFF0A8, #FFFFFF)" }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, fontSize: 10, opacity: 0.85, fontWeight: 600 }}>
+                <span>🔥 7-day streak</span>
+                <span>Top 8%</span>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Prakriti · Dosha profile (conic ring) */}
-      <div style={{ padding: "0 16px 20px" }}>
-        <SectionLabel>Prakriti · your dosha profile</SectionLabel>
-        <div
-          style={{
-            background: t.card,
-            borderRadius: 14,
-            border: `1px solid ${t.border}`,
-            padding: 18,
-            display: "flex",
-            gap: 18,
-            alignItems: "center",
-          }}
-        >
+          {/* Prakriti · BioType Profile */}
           {(() => {
             const data = [
               { l: "Vata", col: "#4A90C4", v: 30 },
               { l: "Pitta", col: "#E0935C", v: 34 },
               { l: "Kapha", col: "#4F9D5B", v: 36 },
             ];
-            const size = 116;
-            const sw = 14;
-            const r = (size - sw) / 2;
-            const cx = size / 2;
-            const Circ = 2 * Math.PI * r;
-            const total = data.reduce((acc, d) => acc + d.v, 0) || 1;
+            const size = 90, sw = 11, r = (size - sw) / 2, cx = size / 2, Circ = 2 * Math.PI * r;
+            const total = data.reduce((a, d) => a + d.v, 0) || 1;
             const gap = 5;
             let pos = 0;
-            const arcs = data.map((d) => {
-              const len = (d.v / total) * Circ;
-              const dash = Math.max(0.5, len - gap);
-              const seg = { ...d, dash, rest: Circ - dash, offset: -pos };
-              pos += len;
-              return seg;
-            });
+            const arcs = data.map((d) => { const len = (d.v / total) * Circ; const dash = Math.max(0.5, len - gap); const seg = { ...d, dash, rest: Circ - dash, offset: -pos }; pos += len; return seg; });
             const dom = data.reduce((a, b) => (b.v > a.v ? b : a), data[0]);
             return (
-              <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-                <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-                  <circle cx={cx} cy={cx} r={r} fill="none" stroke={t.track} strokeWidth={sw} />
-                  {arcs.map((a) => (
-                    <circle
-                      key={a.l}
-                      cx={cx}
-                      cy={cx}
-                      r={r}
-                      fill="none"
-                      stroke={a.col}
-                      strokeWidth={sw}
-                      strokeLinecap="round"
-                      strokeDasharray={`${a.dash} ${a.rest}`}
-                      strokeDashoffset={a.offset}
-                    />
-                  ))}
-                </svg>
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "grid",
-                    placeItems: "center",
-                    textAlign: "center",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: t.text, letterSpacing: "-0.02em", lineHeight: 1 }}>
-                      {dom.l}
+              <div style={{ background: t.card, borderRadius: 18, border: `1px solid ${t.border}`, padding: "13px 11px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ fontSize: 9, color: t.faint, textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: 9, alignSelf: "flex-start", lineHeight: 1.3 }}>Prakriti · BioType Profile</div>
+                <div style={{ position: "relative", width: size, height: size }}>
+                  <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+                    <circle cx={cx} cy={cx} r={r} fill="none" stroke={t.track} strokeWidth={sw} />
+                    {arcs.map((a) => (<circle key={a.l} cx={cx} cy={cx} r={r} fill="none" stroke={a.col} strokeWidth={sw} strokeLinecap="round" strokeDasharray={`${a.dash} ${a.rest}`} strokeDashoffset={a.offset} />))}
+                  </svg>
+                  <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: t.text, letterSpacing: "-0.02em", lineHeight: 1 }}>{dom.l}</div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: dom.col, marginTop: 2 }}>Dominant</div>
+                      <div onClick={() => setPlansOpen(true)} style={{ fontSize: 8.5, color: C.g1, marginTop: 2, fontWeight: 700, cursor: "pointer" }}>ayufinity.com ↗</div>
                     </div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: dom.col, marginTop: 2, letterSpacing: "0.03em" }}>
-                      Dominant
-                    </div>
-                    <div style={{ fontSize: 8.5, color: t.muted, marginTop: 1 }}>{dom.v}% balance</div>
                   </div>
                 </div>
+                <div style={{ display: "flex", justifyContent: "center", gap: 9, flexWrap: "wrap", marginTop: 12, marginBottom: 12 }}>
+                  {data.map((d) => (
+                    <span key={d.l} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: d.col, flexShrink: 0 }} />
+                      <span style={{ color: t.muted, fontWeight: 600 }}>{d.l[0]}</span>
+                      <span style={{ color: d.col, fontWeight: 800 }}>{d.v}%</span>
+                    </span>
+                  ))}
+                </div>
+                <button onClick={() => setPlansOpen(true)} style={{ width: "100%", marginTop: "auto", padding: "9px 8px", borderRadius: 10, border: `1px solid ${C.g3}`, background: `${C.g3}1f`, color: C.g1, fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>Explore Ayufinity Plans →</button>
               </div>
             );
           })()}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {[
-              { l: "Vata", col: "#4A90C4", v: 30 },
-              { l: "Pitta", col: "#E0935C", v: 34 },
-              { l: "Kapha", col: "#4F9D5B", v: 36 },
-            ].map(({ l, col, v }) => (
-              <div key={l} style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 11 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 3, background: col, flexShrink: 0 }} />
-                <span style={{ flex: 1, fontSize: 13, color: t.muted, fontWeight: 600 }}>{l}</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: col }}>{v}%</span>
-              </div>
-            ))}
-            <div style={{ marginTop: 3, fontSize: 11, color: t.muted, lineHeight: 1.45 }}>
-              Balanced tridoshic constitution — favour cooling, grounding routines.
-            </div>
-          </div>
         </div>
       </div>
 
+      {/* Today's Mood Check */}
+      {(() => {
+        const moods = [
+          { e: "😔", l: "Low", c: "#C0604A" },
+          { e: "😕", l: "Meh", c: "#D08A3A" },
+          { e: "😐", l: "Okay", c: "#C99A3F" },
+          { e: "🙂", l: "Good", c: "#4F9D5B" },
+          { e: "😄", l: "Great", c: "#3AA88A" },
+        ];
+        const m = mood != null ? moods[mood] : null;
+        return (
+          <div style={{ padding: "0 16px 20px" }}>
+            <div style={{ position: "relative", overflow: "hidden", borderRadius: 16, border: `1px solid ${t.border}`, background: m ? `linear-gradient(160deg, ${m.c}22, ${t.card} 70%)` : t.card, padding: "14px 15px", transition: "background .3s" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: t.faint, textTransform: "uppercase", letterSpacing: "0.08em" }}>Today's Mood Check</span>
+                {m ? (
+                  <span style={{ fontSize: 11, fontWeight: 800, color: m.c, background: `${m.c}24`, borderRadius: 999, padding: "3px 10px" }}>{m.l} · +10 XP ✓</span>
+                ) : (
+                  <span style={{ fontSize: 11, color: t.faint }}>How are you feeling?</span>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
+                {moods.map((mo, k) => {
+                  const sel = mood === k;
+                  return (
+                    <button key={mo.l} onClick={() => setMood(k)} aria-label={mo.l} style={{ flex: 1, aspectRatio: "1 / 1", border: "none", cursor: "pointer", fontFamily: "inherit", borderRadius: 14, fontSize: 26, lineHeight: 1, display: "grid", placeItems: "center", background: sel ? `${mo.c}2e` : t.inset, outline: sel ? `2px solid ${mo.c}` : "2px solid transparent", transform: sel ? "translateY(-3px) scale(1.12)" : "none", filter: mood != null && !sel ? "grayscale(0.5) opacity(0.55)" : "none", transition: "all .2s cubic-bezier(.34,1.4,.5,1)", boxShadow: sel ? `0 8px 16px -6px ${mo.c}99` : "none" }}>{mo.e}</button>
+                  );
+                })}
+              </div>
+              {m && (
+                <div style={{ marginTop: 12, fontSize: 12, color: t.muted, lineHeight: 1.5 }}>
+                  {mood >= 3 ? (<>Lovely — your <b style={{ color: t.text }}>{m.l.toLowerCase()}</b> mood is logged. Keep the streak going 🌿</>) : (<>Thanks for checking in. Try a <b style={{ color: C.g1 }}>2-min breathing</b> reset from Challenges 🧘</>)}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
       {/* KPI Metrics grid */}
       {loading && items.length === 0 && (
         <div style={{ padding: "0 16px 16px", fontSize: 12, color: t.muted }}>
