@@ -846,6 +846,20 @@ export default function Wellness() {
         </div>
       )}
 
+      {/* Suggestions empty state — section never silently vanishes */}
+      {!suggestionsLoading && suggItems.length === 0 && (
+        <div style={{ padding: "0 16px 16px" }}>
+          <SectionLabel>🌿 Suggestions this week</SectionLabel>
+          <div style={{ background: t.card, borderRadius: 14, border: `1px dashed ${t.border}`, padding: "20px 18px", textAlign: "center" }}>
+            <div style={{ fontSize: 26, marginBottom: 8 }}>🌱</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.sub, marginBottom: 4 }}>No suggestions yet</div>
+            <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.5 }}>
+              Complete this week's wellness check-in and your personalised suggestions will appear here.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Ayufinity Plans sheet */}
       {plansOpen && (
         <PlansSheet t={t} dosha="Kapha" onClose={() => setPlansOpen(false)} />
