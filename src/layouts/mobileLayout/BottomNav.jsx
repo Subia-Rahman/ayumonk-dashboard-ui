@@ -13,7 +13,7 @@ function injectNotchStyles() {
   notchStylesInjected = true;
 }
 
-export default function BottomNav({ items, active, onNav, accent, notch = false, centerBadge }) {
+export default function BottomNav({ items, active, onNav, accent, accentDark, notch = false, centerBadge }) {
   const { palette, isDark } = useMobileTheme();
   const resolvedAccent = accent || palette.g3;
 
@@ -25,6 +25,7 @@ export default function BottomNav({ items, active, onNav, accent, notch = false,
         items={items}
         active={active}
         onNav={onNav}
+        accentDark={accentDark}
         palette={palette}
         isDark={isDark}
         acc={resolvedAccent}
@@ -108,7 +109,7 @@ export default function BottomNav({ items, active, onNav, accent, notch = false,
 }
 
 // ── Notched nav implementation ────────────────────────────────────────────────
-function NotchNav({ items, active, onNav, palette, isDark, acc, centerBadge }) {
+function NotchNav({ items, active, onNav, palette, isDark, acc, accentDark, centerBadge }) {
   const W = 375;
   const n = items.length;
   const ci = Math.floor(n / 2); // middle item is the anchor
@@ -117,7 +118,7 @@ function NotchNav({ items, active, onNav, palette, isDark, acc, centerBadge }) {
   const cx = colW * ci + colW / 2;
   const cOn = active === center.id;
   const faint = isDark ? "rgba(255,255,255,.34)" : "rgba(31,30,29,.42)";
-  const accDark = isDark ? acc : palette.g1;
+  const accDark = accentDark || (isDark ? acc : palette.g1);
 
   const d =
     `M0,16 L${cx - 46},16 ` +
@@ -290,11 +291,34 @@ function NotchNav({ items, active, onNav, palette, isDark, acc, centerBadge }) {
                   style={{
                     fontSize: 19,
                     lineHeight: 1,
+                    position: "relative",
                     transition: "transform .25s cubic-bezier(.3,1.5,.5,1)",
                     transform: on ? "translateY(-4px) scale(1.14)" : "none",
                   }}
                 >
                   {it.icon}
+                  {it.badge != null && it.badge !== "" && it.badge !== 0 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: -7,
+                        right: -9,
+                        background: "#C0604A",
+                        color: "#fff",
+                        fontSize: 8.5,
+                        fontWeight: 800,
+                        minWidth: 14,
+                        height: 14,
+                        padding: "0 3px",
+                        borderRadius: 999,
+                        display: "grid",
+                        placeItems: "center",
+                        border: `1.5px solid ${palette.card}`,
+                      }}
+                    >
+                      {it.badge}
+                    </span>
+                  )}
                 </span>
                 <span style={{ fontSize: 10, fontWeight: on ? 800 : 500, color: on ? accDark : faint }}>
                   {it.label}

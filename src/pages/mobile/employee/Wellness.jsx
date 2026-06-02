@@ -80,11 +80,120 @@ function SectionLabel({ children }) {
   );
 }
 
+// Ayufinity Plans bottom sheet — opened from the "Plans for Your Dosha" card.
+function PlansSheet({ t, dosha = "Kapha", onClose }) {
+  const plans = [
+    { icon: "🥗", title: "Aahar Diet Plan", c: "#4F9D5B", desc: `${dosha}-pacifying warm, light meals. Seasonal greens, ginger, turmeric, barley.` },
+    { icon: "🧘", title: "Vihar Yoga Flow", c: "#4A90C4", desc: `Dynamic Surya Namaskar, Kapalabhati pranayama, vigorous movement to balance ${dosha} sluggishness.` },
+    { icon: "🌿", title: "Aushadh Herb Pack", c: "#C99A3F", desc: "Trikatu (ginger + pepper + pippali), Guggul, Kutki. Stimulates metabolism and circulation." },
+    { icon: "🧑‍⚕️", title: "1:1 Consultation", c: "#8B6FCB", desc: "30-min video consultation with an Ayurvedic practitioner. Personalised treatment plan." },
+  ];
+  const go = () => window.open("https://ayufinity.com", "_blank", "noopener");
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200 }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(15,20,12,0.5)" }} />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: t.card2,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          borderTop: `2px solid ${t.g3}`,
+          maxHeight: "86%",
+          overflowY: "auto",
+          paddingBottom: 30,
+        }}
+      >
+        <div style={{ width: 38, height: 4.5, borderRadius: 999, background: t.border, margin: "10px auto 6px" }} />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            padding: "6px 20px 16px",
+            borderBottom: `1px solid ${t.border}`,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: t.g3 }}>🌿 Ayufinity Plans</div>
+            <div style={{ fontSize: 11.5, color: t.faint, marginTop: 2 }}>
+              Personalised for {dosha} dosha
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 9,
+              border: `1px solid ${t.border}`,
+              background: t.inset,
+              color: t.muted,
+              fontSize: 14,
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        <div style={{ padding: "14px 16px 8px", display: "flex", flexDirection: "column", gap: 12 }}>
+          {plans.map((p) => (
+            <div
+              key={p.title}
+              style={{
+                border: `1px solid ${p.c}4d`,
+                borderRadius: 14,
+                padding: "14px 15px",
+                background: `${p.c}0d`,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 7 }}>
+                <span style={{ fontSize: 20, lineHeight: 1 }}>{p.icon}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: p.c }}>{p.title}</span>
+              </div>
+              <div style={{ fontSize: 12.5, color: t.sub, lineHeight: 1.5, marginBottom: 12 }}>
+                {p.desc}
+              </div>
+              <button
+                type="button"
+                onClick={go}
+                style={{
+                  width: "100%",
+                  textAlign: "center",
+                  background: `${p.c}1a`,
+                  border: `1px solid ${p.c}4d`,
+                  color: p.c,
+                  fontWeight: 700,
+                  fontSize: 12.5,
+                  borderRadius: 10,
+                  padding: "10px",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Explore on Ayufinity →
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Wellness() {
   const t = useTokens();
   const dispatch = useDispatch();
   const [activeKpi, setActiveKpi] = useState(null);
   const [planned, setPlanned] = useState({});
+  const [plansOpen, setPlansOpen] = useState(false);
 
   const { items, loading, error, suggestions, suggestionsLoading, trends } =
     useSelector((s) => s.dashboard);
@@ -491,6 +600,101 @@ export default function Wellness() {
         </div>
       )}
 
+      {/* Plans for Your Dosha */}
+      <div style={{ padding: "0 16px 20px" }}>
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            background: `linear-gradient(135deg, ${t.g1}, ${t.g2})`,
+            borderRadius: 18,
+            padding: "16px 17px",
+            boxShadow: "0 14px 30px -16px rgba(79,122,58,0.55)",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              right: -10,
+              bottom: -16,
+              fontSize: 78,
+              opacity: 0.12,
+              transform: "rotate(-12deg)",
+              pointerEvents: "none",
+            }}
+          >
+            🌿
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 8,
+              position: "relative",
+            }}
+          >
+            <div style={{ fontSize: 14.5, fontWeight: 800, color: "#fff" }}>
+              🌿 Plans for Your Dosha
+            </div>
+            <button
+              type="button"
+              onClick={() => window.open("https://ayufinity.com", "_blank", "noopener")}
+              style={{
+                background: "rgba(255,255,255,0.2)",
+                border: "none",
+                color: "#fff",
+                fontSize: 11.5,
+                fontWeight: 700,
+                borderRadius: 999,
+                padding: "4px 12px",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Open ↗
+            </button>
+          </div>
+          <div
+            style={{
+              fontSize: 12.5,
+              color: "rgba(255,255,255,0.86)",
+              lineHeight: 1.55,
+              marginBottom: 13,
+              position: "relative",
+            }}
+          >
+            You're <b style={{ color: "#fff" }}>Kapha-dominant</b>. A personalised
+            Aahar diet, Kapha-balancing yoga, and an Aushadh herb pack are ready
+            for you.
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", position: "relative" }}>
+            {["🥗 Aahar Plan", "🧘 Yoga Flow", "🌿 Herb Pack"].map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPlansOpen(true)}
+                style={{
+                  background: "rgba(255,255,255,0.12)",
+                  border: "1px solid rgba(255,255,255,0.38)",
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  borderRadius: 10,
+                  padding: "7px 13px",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Lifestyle Suggestions */}
       {suggestionsLoading && (
         <div style={{ padding: "0 16px 16px", fontSize: 12, color: t.muted }}>
@@ -694,6 +898,11 @@ export default function Wellness() {
             })}
           </div>
         </div>
+      )}
+
+      {/* Ayufinity Plans sheet */}
+      {plansOpen && (
+        <PlansSheet t={t} dosha="Kapha" onClose={() => setPlansOpen(false)} />
       )}
 
       {/* KPI detail bottom sheet */}

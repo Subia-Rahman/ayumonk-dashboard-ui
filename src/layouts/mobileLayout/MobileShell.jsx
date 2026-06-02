@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DARK, LIGHT, MOBILE_GLOBAL_CSS, MobileThemeContext } from "../../components/mobile/palette";
+import { THEMES, LIGHT, normalizeThemeKey, MOBILE_GLOBAL_CSS, MobileThemeContext } from "../../components/mobile/palette";
 import BottomNav from "./BottomNav";
 import MobileHeader from "./MobileHeader";
 
@@ -19,6 +19,7 @@ export default function MobileShell({
   activeTab,
   onNav,
   accent,
+  accentDark,
   roleLabel = "WELLNESS PLATFORM",
   roleLabelColor,
   badgeColor,
@@ -26,19 +27,23 @@ export default function MobileShell({
   notch = false,
   centerBadge,
 }) {
-  const [isDark, setIsDark] = useState(
-    () => typeof localStorage !== "undefined" && localStorage.getItem("ayumonk-theme") === "dark",
+  const [themeKey, setThemeKey] = useState(() =>
+    normalizeThemeKey(
+      typeof localStorage !== "undefined" ? localStorage.getItem("ayumonk-theme") : "sage",
+    ),
   );
 
-  const palette = isDark ? DARK : LIGHT;
+  const palette = THEMES[themeKey] || LIGHT;
+  const isDark = palette.isDark;
 
-  const toggle = () => {
-    setIsDark((prev) => {
-      const next = !prev;
-      localStorage.setItem("ayumonk-theme", next ? "dark" : "light");
-      return next;
-    });
+  const setTheme = (key) => {
+    const k = normalizeThemeKey(key);
+    if (typeof localStorage !== "undefined") localStorage.setItem("ayumonk-theme", k);
+    setThemeKey(k);
   };
+
+  // header button toggles between the two base themes (Sage ↔ Forest)
+  const toggle = () => setTheme(isDark ? "sage" : "forest");
 
   useEffect(() => {
     injectGlobalStyles();
@@ -47,11 +52,12 @@ export default function MobileShell({
   const resolvedAccent = accent || palette.g3;
 
   return (
-    <MobileThemeContext.Provider value={{ palette, isDark, toggle }}>
+    <MobileThemeContext.Provider value={{ palette, isDark, themeKey, setTheme, toggle }}>
       <div
         className="ayumonk-mobile"
         style={{
-          height: "100dvh",
+          position: "fixed",
+          inset: 0,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -86,6 +92,7 @@ export default function MobileShell({
             active={activeTab}
             onNav={onNav}
             accent={resolvedAccent}
+            accentDark={accentDark}
             notch={notch}
             centerBadge={centerBadge}
           />

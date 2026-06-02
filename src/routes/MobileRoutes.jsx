@@ -2,6 +2,8 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 import EmployeeApp from "../pages/mobile/employee/EmployeeApp";
+import AdminApp from "../pages/mobile/admin/AdminApp";
+import HrApp from "../pages/mobile/hr/HrApp";
 import Login from "../pages/auth/Login";
 import AccessDenied from "../pages/common/AccessDenied";
 import AppRoutes from "./AppRoutes";
@@ -76,6 +78,26 @@ export default function MobileRoutes() {
         element={
           <Protected codename="sessions:read">
             <EmployeeApp defaultTab="responses" />
+          </Protected>
+        }
+      />
+
+      {/* Admin — mobile-specific UX. */}
+      <Route
+        path="/admin/dashboard"
+        element={
+          <Protected>
+            <AdminApp />
+          </Protected>
+        }
+      />
+
+      {/* HR — mobile-specific UX. */}
+      <Route
+        path="/admin/hr-dashboard"
+        element={
+          <Protected>
+            <HrApp />
           </Protected>
         }
       />
