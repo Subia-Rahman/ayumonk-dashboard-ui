@@ -9,20 +9,59 @@ import {
 import ReminderSettings from "./ReminderSettings";
 import { ACCENT, useClientPalette } from "../../utils/clientPalette";
 
-// Default dark palette retained for module-level helpers (challengeBadges,
-// leaderboard) that need accent colour shorthand at parse time. Inside the
+// Default dark palette retained for module-level helpers (leaderboard, badge
+// level/icon maps) that need accent colour shorthand at parse time. Inside the
 // component we shadow `C` with `useClientPalette()` so the outer wrapper
 // adapts to the active theme mode.
 const C = { ...ACCENT, bg: "#0b160c", card: "#111e12", border: "#1e3d20", muted: "#6B8F60" };
 
-const challengeBadges = [
-  { id: "h1", label: "Hydration Hero", icon: "💧", earned: true, level: "Gold", color: "#0284c7" },
-  { id: "s1", label: "Sleep Master", icon: "🌙", earned: true, level: "Silver", color: "#7c3aed" },
-  { id: "st", label: "Stress Buster", icon: "🧘", earned: false, level: "Bronze", color: "#ea580c" },
-  { id: "g1", label: "Green Eater", icon: "🥗", earned: true, level: "Bronze", color: "#16a34a" },
-  { id: "a1", label: "Active Star", icon: "🏃", earned: false, level: "Silver", color: "#f59e0b" },
-  { id: "b1", label: "Banyan Legend", icon: "🌳", earned: false, level: "Legend", color: "#ca8a04" },
-];
+const BADGE_ICON_EMOJI = {
+  sprout: "🌱",
+  medal: "🏅",
+  trophy: "🏆",
+  star: "⭐",
+  fire: "🔥",
+  crown: "👑",
+  heart: "❤️",
+  leaf: "🍃",
+  flame: "🔥",
+  shield: "🛡️",
+  water: "💧",
+  moon: "🌙",
+  meditation: "🧘",
+  salad: "🥗",
+  runner: "🏃",
+  tree: "🌳",
+  gem: "💎",
+  lightning: "⚡",
+  sun: "☀️",
+};
+
+const BADGE_LEVEL_COLOR = {
+  bronze: "#b45309",
+  silver: "#94a3b8",
+  gold: "#D4A843",
+  platinum: "#22d3ee",
+  legend: "#ca8a04",
+};
+
+const getBadgeEmoji = (icon) => {
+  const value = String(icon || "").trim();
+  if (!value) return "🏅";
+  // API returns the emoji directly (e.g. "🏆"). Use it as-is when it's not a
+  // plain ASCII keyword that needs mapping.
+  if (value.codePointAt(0) > 127) return value;
+  return BADGE_ICON_EMOJI[value.toLowerCase()] || "🏅";
+};
+
+const getBadgeColor = (level) =>
+  BADGE_LEVEL_COLOR[String(level || "").toLowerCase()] || "#6DB33F";
+
+const formatBadgeLevel = (level) => {
+  const value = String(level || "").trim();
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+};
 
 const leaderboard = [
   { rank: "1st", name: "Priya S.", dept: "Engineering", loc: "Delhi", pct: "+42%", col: C.gold },
@@ -35,14 +74,35 @@ const leaderboard = [
 const createChallengeStateFromItems = (challenges) =>
   challenges.reduce((accumulator, challenge) => {
     const challengeType = String(challenge.challenge_type || "").toLowerCase();
+    const isCompleted = Boolean(challenge.is_completed_today);
+    const loggedRaw = challenge.value_logged_today;
+    const loggedNumber = Number(loggedRaw);
+    const hasLogged =
+      loggedRaw !== null && loggedRaw !== undefined && Number.isFinite(loggedNumber);
+    const timerTarget = Math.max(1, Number(challenge.target_value) || 60);
 
-    accumulator[challenge.challenge_key] = {
-      count: 0,
-      done: false,
-      chosen: challengeType === "multi" ? [] : null,
-      timer: challengeType === "timer" ? Math.max(1, Number(challenge.target_value) || 60) : 0,
-      rating: null,
-    };
+    let count = 0;
+    let done = false;
+    let chosen = challengeType === "multi" ? [] : null;
+    let timer = challengeType === "timer" ? timerTarget : 0;
+    let rating = null;
+
+    if (challengeType === "counter") {
+      count = hasLogged ? Math.max(0, loggedNumber) : 0;
+    } else if (challengeType === "toggle") {
+      done = isCompleted;
+    } else if (challengeType === "choice") {
+      chosen = isCompleted && hasLogged ? loggedNumber : null;
+    } else if (challengeType === "multi") {
+      done = isCompleted;
+    } else if (challengeType === "timer") {
+      done = isCompleted;
+      timer = isCompleted ? 0 : timerTarget;
+    } else if (challengeType === "rating") {
+      rating = isCompleted && hasLogged ? loggedNumber : null;
+    }
+
+    accumulator[challenge.challenge_key] = { count, done, chosen, timer, rating };
 
     return accumulator;
   }, {});
@@ -104,7 +164,14 @@ function Btn({ children, active, color = C.g3, onClick, disabled, style = {} }) 
   );
 }
 
-export default function DashboardChallenges({ challenges, loading, error }) {
+export default function DashboardChallenges({
+  challenges,
+  loading,
+  error,
+  badges,
+  badgesLoading = false,
+  badgesError = "",
+}) {
   const dispatch = useDispatch();
   const themed = useClientPalette();
   const timerRef = useRef(null);
@@ -115,10 +182,18 @@ export default function DashboardChallenges({ challenges, loading, error }) {
   );
 
   useEffect(() => {
-    setChallengeState((current) => ({
-      ...createChallengeStateFromItems(challenges),
-      ...current,
-    }));
+    setChallengeState((current) => {
+      const base = createChallengeStateFromItems(challenges);
+      const merged = { ...base, ...current };
+      // Force server state to win for challenges the API marks complete today
+      // so the UI reflects the authoritative value_logged_today.
+      for (const challenge of challenges) {
+        if (challenge.is_completed_today) {
+          merged[challenge.challenge_key] = base[challenge.challenge_key];
+        }
+      }
+      return merged;
+    });
   }, [challenges]);
 
   useEffect(() => {
@@ -201,6 +276,8 @@ export default function DashboardChallenges({ challenges, loading, error }) {
   };
 
   const isDone = (challenge) => {
+    if (challenge.is_completed_today) return true;
+
     const state = challengeState[challenge.challenge_key];
     const challengeType = String(challenge.challenge_type || "").toLowerCase();
     const targetValue = Math.max(1, Number(challenge.target_value) || 1);
@@ -420,6 +497,7 @@ export default function DashboardChallenges({ challenges, loading, error }) {
             const actionLoading = Boolean(actionLoadingById[challenge.challenge_key]);
             const actionError = actionErrorById[challenge.challenge_key];
             const actionResult = actionResultById[challenge.challenge_key];
+            const completedToday = Boolean(challenge.is_completed_today);
 
             return (
               <ClientCard
@@ -510,9 +588,13 @@ export default function DashboardChallenges({ challenges, loading, error }) {
                       }}
                     >
                       <Btn
-                        active={state.count >= targetValue}
+                        active={state.count >= targetValue || completedToday}
                         color={color}
-                        disabled={state.count >= targetValue || actionLoading}
+                        disabled={
+                          completedToday ||
+                          state.count >= targetValue ||
+                          actionLoading
+                        }
                         onClick={async () => {
                           const nextCount = Math.min(targetValue, state.count + 1);
                           updateChallenge(challenge.challenge_key, { count: nextCount });
@@ -521,12 +603,12 @@ export default function DashboardChallenges({ challenges, loading, error }) {
                           });
                         }}
                       >
-                        {actionLoading ? "Saving…" : "+ 1"}
+                        {actionLoading ? "Saving…" : completedToday ? "Completed" : "+ 1"}
                       </Btn>
                       <span style={{ fontSize: 15, fontWeight: 800, color }}>
                         {state.count} / {targetValue}
                       </span>
-                      {state.count > 0 && (
+                      {state.count > 0 && !completedToday && (
                         <button
                           type="button"
                           disabled={actionLoading}
@@ -568,9 +650,9 @@ export default function DashboardChallenges({ challenges, loading, error }) {
                 {/* TOGGLE */}
                 {challengeType === "toggle" && (
                   <Btn
-                    active={state.done}
+                    active={state.done || completedToday}
                     color={color}
-                    disabled={actionLoading}
+                    disabled={completedToday || actionLoading}
                     onClick={async () => {
                       const nextDone = !state.done;
                       updateChallenge(challenge.challenge_key, { done: nextDone });
@@ -579,9 +661,11 @@ export default function DashboardChallenges({ challenges, loading, error }) {
                   >
                     {actionLoading
                       ? "Saving…"
-                      : state.done
-                        ? `✓ ${options[0]}`
-                        : `⬜ ${options[0]}`}
+                      : completedToday
+                        ? `✓ Completed`
+                        : state.done
+                          ? `✓ ${options[0]}`
+                          : `⬜ ${options[0]}`}
                   </Btn>
                 )}
 
@@ -593,7 +677,7 @@ export default function DashboardChallenges({ challenges, loading, error }) {
                         key={opt}
                         active={state.chosen === i}
                         color={color}
-                        disabled={actionLoading}
+                        disabled={completedToday || actionLoading}
                         onClick={async () => {
                           const nextChoice = state.chosen === i ? null : i;
                           updateChallenge(challenge.challenge_key, { chosen: nextChoice });
@@ -618,7 +702,7 @@ export default function DashboardChallenges({ challenges, loading, error }) {
                           key={opt}
                           active={selected}
                           color={color}
-                          disabled={actionLoading}
+                          disabled={completedToday || actionLoading}
                           onClick={async () => {
                             const arr = state.chosen || [];
                             const nextValues = selected
@@ -640,12 +724,16 @@ export default function DashboardChallenges({ challenges, loading, error }) {
                   <div
                     style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
                   >
-                    {!state.done ? (
+                    {!state.done && !completedToday ? (
                       <>
                         <Btn
                           active={activeTimerKey === challenge.challenge_key}
                           color={color}
-                          disabled={Boolean(activeTimerKey) || actionLoading}
+                          disabled={
+                            completedToday ||
+                            Boolean(activeTimerKey) ||
+                            actionLoading
+                          }
                           onClick={() => setActiveTimerKey(challenge.challenge_key)}
                         >
                           {activeTimerKey === challenge.challenge_key
@@ -689,36 +777,40 @@ export default function DashboardChallenges({ challenges, loading, error }) {
                 {/* RATING */}
                 {challengeType === "rating" && (
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {options.map((em, i) => (
-                      <button
-                        key={em}
-                        type="button"
-                        disabled={actionLoading}
-                        onClick={async () => {
-                          updateChallenge(challenge.challenge_key, { rating: i });
-                          await handleChallengeAction(challenge, {
-                            rating_value: i,
-                            value_logged: i,
-                          });
-                        }}
-                        style={{
-                          fontSize: 24,
-                          border: "none",
-                          background:
-                            state.rating === i
-                              ? "rgba(52,211,153,0.25)"
-                              : "transparent",
-                          cursor: actionLoading ? "not-allowed" : "pointer",
-                          borderRadius: 8,
-                          padding: "4px 6px",
-                          outline:
-                            state.rating === i ? `2px solid ${color}` : "none",
-                          transition: "all 0.15s",
-                        }}
-                      >
-                        {em}
-                      </button>
-                    ))}
+                    {options.map((em, i) => {
+                      const ratingDisabled = completedToday || actionLoading;
+                      return (
+                        <button
+                          key={em}
+                          type="button"
+                          disabled={ratingDisabled}
+                          onClick={async () => {
+                            updateChallenge(challenge.challenge_key, { rating: i });
+                            await handleChallengeAction(challenge, {
+                              rating_value: i,
+                              value_logged: i,
+                            });
+                          }}
+                          style={{
+                            fontSize: 24,
+                            border: "none",
+                            background:
+                              state.rating === i
+                                ? "rgba(52,211,153,0.25)"
+                                : "transparent",
+                            cursor: ratingDisabled ? "not-allowed" : "pointer",
+                            borderRadius: 8,
+                            padding: "4px 6px",
+                            outline:
+                              state.rating === i ? `2px solid ${color}` : "none",
+                            opacity: ratingDisabled && state.rating !== i ? 0.5 : 1,
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          {em}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </ClientCard>
@@ -735,40 +827,97 @@ export default function DashboardChallenges({ challenges, loading, error }) {
           }}
         >
           <ClientCard>
-            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12 }}>
-              🏅 My Badges
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {challengeBadges.map((b) => (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700 }}>🏅 My Badges</div>
+              {badges && (badges.total_count || 0) > 0 && (
                 <div
-                  key={b.id}
                   style={{
-                    background: b.earned ? b.color + "22" : "rgba(255,255,255,0.02)",
-                    border: `1px solid ${b.earned ? b.color + "55" : "rgba(255,255,255,0.06)"}`,
-                    borderRadius: 10,
-                    padding: "8px 12px",
-                    textAlign: "center",
-                    minWidth: 90,
-                    opacity: b.earned ? 1 : 0.4,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    color: C.g3,
+                    background: "rgba(107,179,63,0.12)",
+                    border: "1px solid rgba(107,179,63,0.3)",
+                    borderRadius: 8,
+                    padding: "3px 8px",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  <div style={{ fontSize: 22, marginBottom: 3 }}>{b.icon}</div>
-                  <div
-                    style={{
-                      fontSize: 9,
-                      fontWeight: 700,
-                      color: b.earned ? b.color : "rgba(255,255,255,0.35)",
-                    }}
-                  >
-                    {b.label}
-                  </div>
-                  <div style={{ fontSize: 8, color: "rgba(255,255,255,0.28)" }}>
-                    {b.level}
-                    {!b.earned && " 🔒"}
-                  </div>
+                  {badges.earned_count || 0} / {badges.total_count} earned
                 </div>
-              ))}
+              )}
             </div>
+
+            {badgesLoading && (
+              <div style={{ fontSize: 11, color: C.muted }}>Loading badges…</div>
+            )}
+
+            {!badgesLoading && badgesError && (
+              <Alert severity="error" sx={{ py: 0, fontSize: 11 }}>
+                {badgesError}
+              </Alert>
+            )}
+
+            {!badgesLoading && !badgesError && (!badges?.items || badges.items.length === 0) && (
+              <div style={{ fontSize: 10, color: C.muted }}>
+                No badges available yet.
+              </div>
+            )}
+
+            {!badgesLoading && !badgesError && Array.isArray(badges?.items) && badges.items.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {badges.items.map((b) => {
+                  const color = getBadgeColor(b.level);
+                  const emoji = getBadgeEmoji(b.icon);
+                  const sublabel =
+                    b.kpi_display_name ||
+                    formatBadgeLevel(b.level) ||
+                    formatBadgeLevel(b.trigger_type);
+
+                  return (
+                    <div
+                      key={b.badge_key}
+                      title={
+                        b.earned && b.earned_at
+                          ? `Earned ${new Date(b.earned_at).toLocaleDateString()}`
+                          : `Locked${b.trigger_value ? ` · target ${b.trigger_value}` : ""}`
+                      }
+                      style={{
+                        background: b.earned ? color + "22" : "rgba(255,255,255,0.02)",
+                        border: `1px solid ${b.earned ? color + "55" : "rgba(255,255,255,0.06)"}`,
+                        borderRadius: 10,
+                        padding: "8px 12px",
+                        textAlign: "center",
+                        minWidth: 90,
+                        opacity: b.earned ? 1 : 0.4,
+                      }}
+                    >
+                      <div style={{ fontSize: 22, marginBottom: 3 }}>{emoji}</div>
+                      <div
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 700,
+                          color: b.earned ? color : "rgba(255,255,255,0.35)",
+                        }}
+                      >
+                        {b.label}
+                      </div>
+                      <div style={{ fontSize: 8, color: "rgba(255,255,255,0.28)" }}>
+                        {sublabel}
+                        {!b.earned && " 🔒"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </ClientCard>
 
           <ClientCard>
