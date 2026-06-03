@@ -40,7 +40,30 @@ const initialState = {
   },
   badgesLoading: false,
   badgesError: "",
+  leaderboard: {
+    week_start: "",
+    week_end: "",
+    items: [],
+    your_position: null,
+  },
+  leaderboardLoading: false,
+  leaderboardError: "",
 };
+
+const normalizeLeaderboardEntry = (entry = {}) => ({
+  rank: Number(entry?.rank) || 0,
+  rank_label: entry?.rank_label || "",
+  user_id: entry?.user_id ?? null,
+  display_name: entry?.display_name || "",
+  subtext: entry?.subtext || "",
+  xp_this_week: Number(entry?.xp_this_week) || 0,
+  xp_last_week: Number(entry?.xp_last_week) || 0,
+  display_change: entry?.display_change || "",
+  change_type: entry?.change_type || "",
+  current_level: Number(entry?.current_level) || 0,
+  level_label: entry?.level_label || "",
+  is_current_user: Boolean(entry?.is_current_user),
+});
 
 const normalizeBadge = (badge = {}) => ({
   badge_key: badge?.badge_key || "",
@@ -215,6 +238,36 @@ export const fetchDashboardBadges = createAsyncThunk(
   },
 );
 
+export const fetchDashboardLeaderboard = createAsyncThunk(
+  "dashboard/fetchDashboardLeaderboard",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get(API_URLS.dashboardLeaderboard);
+      const payload = response?.data || {};
+
+      if (!payload?.success) {
+        return rejectWithValue(payload?.message || "Failed to fetch leaderboard.");
+      }
+
+      const data = payload?.data || {};
+      return {
+        week_start: data?.week_start || "",
+        week_end: data?.week_end || "",
+        items: Array.isArray(data?.leaderboard)
+          ? data.leaderboard.map(normalizeLeaderboardEntry)
+          : [],
+        your_position: data?.your_position
+          ? normalizeLeaderboardEntry(data.your_position)
+          : null,
+      };
+    } catch (error) {
+      return rejectWithValue(
+        getApiErrorMessage(error, "Failed to fetch leaderboard due to server/network error."),
+      );
+    }
+  },
+);
+
 export const fetchSessionSuggestions = createAsyncThunk(
   "dashboard/fetchSessionSuggestions",
   async (sessionId, { rejectWithValue }) => {
@@ -322,6 +375,18 @@ const dashboardSlice = createSlice({
       .addCase(fetchDashboardBadges.rejected, (state, action) => {
         state.badgesLoading = false;
         state.badgesError = action.payload || "Failed to fetch badges.";
+      })
+      .addCase(fetchDashboardLeaderboard.pending, (state) => {
+        state.leaderboardLoading = true;
+        state.leaderboardError = "";
+      })
+      .addCase(fetchDashboardLeaderboard.fulfilled, (state, action) => {
+        state.leaderboardLoading = false;
+        state.leaderboard = action.payload;
+      })
+      .addCase(fetchDashboardLeaderboard.rejected, (state, action) => {
+        state.leaderboardLoading = false;
+        state.leaderboardError = action.payload || "Failed to fetch leaderboard.";
       })
       .addCase(fetchSessionSuggestions.pending, (state) => {
         state.suggestionsLoading = true;

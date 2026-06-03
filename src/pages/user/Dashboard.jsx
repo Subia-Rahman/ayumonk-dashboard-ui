@@ -46,7 +46,11 @@ import {
 import Layout from "../../layouts/commonLayout/Layout";
 import DashboardChallenges from "./DashboardChallenges";
 import DashboardWellness from "./DashboardWellness";
-import { fetchDashboardBadges, fetchDashboardKpis } from "../../store/dashboardSlice";
+import {
+  fetchDashboardBadges,
+  fetchDashboardKpis,
+  fetchDashboardLeaderboard,
+} from "../../store/dashboardSlice";
 import { getRaisedGradient, getSurfaceBackground } from "../../theme";
 
 const METRIC_ICON_SET = [
@@ -1154,6 +1158,9 @@ export default function Dashboard() {
     badges,
     badgesLoading,
     badgesError,
+    leaderboard,
+    leaderboardLoading,
+    leaderboardError,
   } = useSelector((state) => state.dashboard);
 
   useEffect(() => {
@@ -1163,6 +1170,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (activeTab === "challenges") {
       dispatch(fetchDashboardBadges());
+      dispatch(fetchDashboardLeaderboard());
     }
   }, [dispatch, activeTab]);
 
@@ -1209,6 +1217,9 @@ export default function Dashboard() {
             badges={badges}
             badgesLoading={badgesLoading}
             badgesError={badgesError}
+            leaderboard={leaderboard}
+            leaderboardLoading={leaderboardLoading}
+            leaderboardError={leaderboardError}
           />
         )}
       </Stack>
