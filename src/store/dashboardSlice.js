@@ -33,7 +33,27 @@ const initialState = {
   },
   trendsLoading: false,
   trendsError: "",
+  badges: {
+    earned_count: 0,
+    total_count: 0,
+    items: [],
+  },
+  badgesLoading: false,
+  badgesError: "",
 };
+
+const normalizeBadge = (badge = {}) => ({
+  badge_key: badge?.badge_key || "",
+  label: badge?.label || "",
+  icon: badge?.icon || "",
+  level: String(badge?.level || "").toLowerCase(),
+  trigger_type: badge?.trigger_type || "",
+  trigger_value: Number(badge?.trigger_value) || 0,
+  kpi_key: badge?.kpi_key ?? null,
+  kpi_display_name: badge?.kpi_display_name || "",
+  earned: Boolean(badge?.earned),
+  earned_at: badge?.earned_at || null,
+});
 
 const normalizeTrendPoint = (point = {}) => ({
   bucket_label: point?.bucket_label || "",
@@ -174,6 +194,27 @@ export const fetchWellnessTrends = createAsyncThunk(
   },
 );
 
+export const fetchDashboardBadges = createAsyncThunk(
+  "dashboard/fetchDashboardBadges",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get(API_URLS.dashboardMyBadges);
+      const payload = response?.data || {};
+      const data = payload?.data || payload || {};
+
+      return {
+        earned_count: Number(data?.earned_count) || 0,
+        total_count: Number(data?.total_count) || 0,
+        items: Array.isArray(data?.badges) ? data.badges.map(normalizeBadge) : [],
+      };
+    } catch (error) {
+      return rejectWithValue(
+        getApiErrorMessage(error, "Failed to fetch badges due to server/network error."),
+      );
+    }
+  },
+);
+
 export const fetchSessionSuggestions = createAsyncThunk(
   "dashboard/fetchSessionSuggestions",
   async (sessionId, { rejectWithValue }) => {
@@ -269,6 +310,18 @@ const dashboardSlice = createSlice({
       .addCase(fetchWellnessTrends.rejected, (state, action) => {
         state.trendsLoading = false;
         state.trendsError = action.payload || "Failed to fetch wellness trends.";
+      })
+      .addCase(fetchDashboardBadges.pending, (state) => {
+        state.badgesLoading = true;
+        state.badgesError = "";
+      })
+      .addCase(fetchDashboardBadges.fulfilled, (state, action) => {
+        state.badgesLoading = false;
+        state.badges = action.payload;
+      })
+      .addCase(fetchDashboardBadges.rejected, (state, action) => {
+        state.badgesLoading = false;
+        state.badgesError = action.payload || "Failed to fetch badges.";
       })
       .addCase(fetchSessionSuggestions.pending, (state) => {
         state.suggestionsLoading = true;

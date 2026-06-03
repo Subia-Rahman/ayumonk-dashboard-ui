@@ -210,6 +210,7 @@ const superAdminItems = [
     to: "/super-admin/challenges",
     icon: <EmojiEventsIcon />,
   },
+  { label: "Badges", to: "/super-admin/badges", icon: <BadgeOutlinedIcon /> },
   { label: "Sessions", to: "/super-admin/sessions", icon: <EventIcon /> },
   {
     label: "Suggestion Master",

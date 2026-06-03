@@ -24,6 +24,9 @@ import KpiView from "../pages/admin/KpiView";
 import Challenges from "../pages/admin/Challenges";
 import ChallengeForm from "../pages/admin/ChallengeForm";
 import ChallengeView from "../pages/admin/ChallengeView";
+import Badges from "../pages/admin/Badges";
+import BadgeForm from "../pages/admin/BadgeForm";
+import BadgeView from "../pages/admin/BadgeView";
 import Login from "../pages/auth/Login";
 import Profile from "../pages/common/Profile";
 import SessionForm from "../pages/common/SessionForm";
@@ -286,6 +289,38 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/admin/badges"
+        element={
+          <ProtectedRoute codename="badges:read">
+            <Badges role="admin" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/badges/add"
+        element={
+          <ProtectedRoute codename="badges:read">
+            <BadgeForm mode="add" role="admin" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/badges/:id"
+        element={
+          <ProtectedRoute codename="badges:read">
+            <BadgeView role="admin" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/badges/:id/edit"
+        element={
+          <ProtectedRoute codename="badges:read">
+            <BadgeForm mode="edit" role="admin" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/sessions"
         element={
           <ProtectedRoute codename="sessions:read">
@@ -540,6 +575,38 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute codename="challenges:read">
             <ChallengeForm mode="edit" role="superadmin" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/badges"
+        element={
+          <ProtectedRoute codename="badges:read">
+            <Badges role="superadmin" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/badges/add"
+        element={
+          <ProtectedRoute codename="badges:read">
+            <BadgeForm mode="add" role="superadmin" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/badges/:id"
+        element={
+          <ProtectedRoute codename="badges:read">
+            <BadgeView role="superadmin" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/badges/:id/edit"
+        element={
+          <ProtectedRoute codename="badges:read">
+            <BadgeForm mode="edit" role="superadmin" />
           </ProtectedRoute>
         }
       />
