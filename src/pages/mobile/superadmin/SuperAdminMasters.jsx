@@ -891,10 +891,12 @@ function Simple({ kind }){
 const LIST_KINDS = ["company-data","sessions","kpis","challenges","questions","themes","suggestions","company-users","policies","permissions","menus","mapping","kpi-suggestion-mapping"];
 const SLUG_ALIAS = { "suggestion-master":"suggestions", "kpi-suggestion-mapping":"mapping", "role-assignments":"assignments", "cxo-metrics":"cxo", "wellness-dimensions":"dimensions" };
 
-export default function SuperAdminMasters({ slug = "dashboard" }) {
+export default function SuperAdminMasters({ slug = "dashboard", onNavigate }) {
   injectSaCss();
   const navigate = useNavigate();
   const go = (id) => {
+    const kindId = { users: "company-users" }[id] || id;
+    if (onNavigate) { onNavigate(kindId); return; }
     const map = {
       "company-data":"/super-admin/company-data", "company-users":"/super-admin/company-users",
       themes:"/super-admin/themes", questions:"/super-admin/questions", challenges:"/super-admin/challenges",

@@ -43,7 +43,7 @@ export default function SuperAdminApp({ defaultTab = "dashboard" }) {
       onProfileShortcut={() => route("dashboard")}
     >
       <div key={tab} className="ayumonk-anim">
-        <SuperAdminMasters slug={tab} />
+        <SuperAdminMasters slug={tab} onNavigate={route} />
       </div>
 
       {drawer && (
