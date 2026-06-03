@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import EmployeeApp from "../pages/mobile/employee/EmployeeApp";
 import AdminApp from "../pages/mobile/admin/AdminApp";
 import HrApp from "../pages/mobile/hr/HrApp";
+import SuperAdminApp from "../pages/mobile/superadmin/SuperAdminApp";
 import Login from "../pages/auth/Login";
 import AccessDenied from "../pages/common/AccessDenied";
 import AppRoutes from "./AppRoutes";
@@ -29,9 +30,6 @@ function LoginRoute({ fallback }) {
   const isPlatformAdmin = useSelector((state) => state.auth.isPlatformAdmin);
   const rawRole = useSelector((state) => state.auth.rawRole);
   const fromPath = location.state?.from?.pathname;
-  // See Login.jsx for the same guard — `from` may be a stale URL pointing at
-  // a different role's home, in which case we anchor on the new user's own
-  // fallback instead of bouncing them onto the previous account's dashboard.
   const honorFrom =
     fromPath &&
     isPathAllowedForRole(fromPath, { role, isPlatformAdmin }) &&
@@ -42,13 +40,30 @@ function LoginRoute({ fallback }) {
   return authenticated ? <Navigate to={redirectTarget} replace /> : <Login />;
 }
 
-// Mobile route tree. The only paths handled here are the ones with a
-// hand-designed mobile UX (the employee Wellness/Challenges/Responses tabs)
-// and the login surface. Everything else falls through to <AppRoutes /> via
-// the wildcard route below, so admin and super-admin URLs render the same
-// desktop pages they do on a wide viewport — Layout / AdminTopLayout already
-// adapt to narrow viewports and include a mobile bottom nav driven by the
-// same /accessible-menus list the desktop sidebar uses.
+// super-admin slug → SuperAdminApp defaultTab. Every super-admin URL gets a
+// mobile route so it renders SuperAdminApp (full mobile UX) instead of falling
+// through to the squeezed desktop pages via the wildcard.
+const SA_TABS = {
+  dashboard: "dashboard",
+  "company-data": "company-data",
+  "company-users": "company-users",
+  departments: "departments",
+  questions: "questions",
+  themes: "themes",
+  kpis: "kpis",
+  challenges: "challenges",
+  sessions: "sessions",
+  "suggestion-master": "suggestion-master",
+  "kpi-suggestion-mapping": "kpi-suggestion-mapping",
+  roles: "roles",
+  permissions: "permissions",
+  policies: "policies",
+  "role-assignments": "role-assignments",
+  "cxo-metrics": "cxo-metrics",
+  "wellness-dimensions": "wellness-dimensions",
+  menus: "menus",
+};
+
 export default function MobileRoutes() {
   const role = useSelector((state) => state.auth.role);
   const rawRole = useSelector((state) => state.auth.rawRole);
@@ -102,12 +117,29 @@ export default function MobileRoutes() {
         }
       />
 
+      {/* Super Admin — mobile-specific UX. Each list/detail URL renders
+          SuperAdminApp with the matching tab so the bottom nav + screens work.
+          Add/edit sub-paths (e.g. /super-admin/questions/add) also land on the
+          parent tab where the mobile Add sheet lives. */}
+      {Object.entries(SA_TABS).map(([slug, tab]) => (
+        <Route
+          key={slug}
+          path={`/super-admin/${slug}/*`}
+          element={
+            <Protected>
+              <SuperAdminApp defaultTab={tab} />
+            </Protected>
+          }
+        />
+      ))}
+      <Route
+        path="/super-admin"
+        element={<Navigate to="/super-admin/dashboard" replace />}
+      />
+
       <Route path="/access-denied" element={<AccessDenied />} />
 
-      {/* Anything else (every /admin/* and /super-admin/* path, /profile,
-          /sessions/:id/form, etc.) is routed by the regular AppRoutes — the
-          desktop components are already responsive and the layouts now render
-          a mobile bottom nav in place of the sidebar on narrow viewports. */}
+      {/* Anything else falls through to the responsive desktop AppRoutes. */}
       <Route
         path="*"
         element={
