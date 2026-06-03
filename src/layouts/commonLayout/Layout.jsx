@@ -124,10 +124,6 @@ const ICON_BY_SLUG = {
 
 export const iconForSlug = (slug) => ICON_BY_SLUG[slug] || <LabelOutlinedIcon />;
 
-// Backend-driven icon lookup. Values are MUI icon component names (without the
-// "Icon" suffix) stored in the `menus.icon` column. The lookup is case-insensitive
-// and tolerates a trailing "Icon" so a DB value of either "Dashboard" or
-// "DashboardIcon" resolves the same component.
 const ICON_BY_NAME = {
   dashboard: <DashboardIcon />,
   business: <BusinessIcon />,
@@ -167,9 +163,6 @@ const adminItems = [
     icon: <BusinessIcon />,
   },
   { label: "Company Users", to: "/admin/company-users", icon: <PeopleIcon /> },
-  // { label: "Themes", to: "/admin/themes", icon: <CategoryIcon /> },
-  // { label: "KPIs", to: "/admin/kpis", icon: <AssessmentIcon /> },
-  // { label: "Challenges", to: "/admin/challenges", icon: <EmojiEventsIcon /> },
 ];
 
 const userItems = [
@@ -242,7 +235,7 @@ const superAdminItems = [
     to: "/super-admin/cxo-metrics",
     icon: <InsightsOutlinedIcon />,
   },
-    {
+  {
     label: "Wellness Dimensions",
     to: "/super-admin/wellness-dimensions",
     icon: <InsightsOutlinedIcon />,
@@ -272,12 +265,6 @@ export default function Layout({ children, role, title }) {
   const effectiveRole = stateRole || role || "admin";
   const isUserLayout = effectiveRole === "user";
   const isDarkMode = theme.palette.mode === "dark";
-  // Light-mode counterpart for the brand-dark user surface — keeps the
-  // wellness-product feel without making the page unreadable when the user
-  // toggles the theme switcher.
-  // Mirrors LIGHT_PALETTE.bg in src/utils/clientPalette.js — a medium-dark
-  // sage-slate that lets the existing white-text components remain readable
-  // even when the user toggles out of full dark mode.
   const userSurfaceBg = isDarkMode ? USER_NAV_BG : "#34433a";
 
   const activeUserTab = useMemo(() => {
@@ -308,9 +295,6 @@ export default function Layout({ children, role, title }) {
     .map((menu) => ({
       label: menu.menu_name,
       to: resolveRouteForSlug(menu.slug, effectiveRole, { isPlatformAdmin }),
-      // Prefer the backend-supplied icon name from the menus table; fall back
-      // to the slug-based map (and ultimately a label icon) so legacy menus
-      // without an `icon` value still render something sensible.
       icon: iconForName(menu.icon) || iconForSlug(menu.slug),
       slug: menu.slug,
     }));
@@ -322,11 +306,6 @@ export default function Layout({ children, role, title }) {
         ? superAdminItems
         : adminItems;
 
-  // Platform admins (Super Admin / Ayumonk Admin) bypass RBAC entirely
-  // (per spec §1) — they always see the complete super-admin sidebar
-  // regardless of what /users/me/accessible-menus returns.
-  // Tenant users get their menus strictly from the API once bootstrap
-  // resolves; until then a fallback is shown so the layout isn't empty.
   let navItems;
   if (isPlatformAdmin) {
     navItems = [
@@ -356,10 +335,6 @@ export default function Layout({ children, role, title }) {
   const handleLogout = () => {
     dispatch(logout());
     handleMenuClose();
-    // Pass state: null explicitly so any prior history-state (including a
-    // `from` redirect set by RouteGuard while logout is propagating) cannot
-    // leak into the next login attempt and bounce the next user into the
-    // previous role's URL.
     navigate("/login", { replace: true, state: null });
   };
 
@@ -381,18 +356,12 @@ export default function Layout({ children, role, title }) {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
-  // Company Admin / HR / CXO get the sidebar-free AdminTopLayout. Platform
-  // admins keep the existing super-admin sidebar because they still need the
-  // deeper RBAC / platform-config nav. Delegating here (after every hook is
-  // called) means every admin page that already wraps in `<Layout role="admin">`
-  // automatically picks up the new shell — no individual page edits required.
   if (effectiveRole === "admin" && !isPlatformAdmin) {
     return <AdminTopLayout title={title}>{children}</AdminTopLayout>;
   }
 
   const drawer = (
     <Box sx={{ height: "100%", p: 2.5 }}>
-      {/* Sidebar Header */}
       <Box
         sx={{
           display: "flex",
@@ -409,13 +378,6 @@ export default function Layout({ children, role, title }) {
             Ayumonk
           </Typography>
         )}
-
-        {/* <IconButton
-          onClick={() => setSidebarCollapsed((prev) => !prev)}
-          size="small"
-        >
-          {sidebarCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-        </IconButton> */}
       </Box>
 
       {!sidebarCollapsed && (
@@ -461,14 +423,10 @@ export default function Layout({ children, role, title }) {
               >
                 {item.icon}
               </ListItemIcon>
-
-              {/* TEXT */}
               {!sidebarCollapsed && (
                 <ListItemText
                   primary={item.label}
-                  sx={{
-                    opacity: sidebarCollapsed ? 0 : 1,
-                  }}
+                  sx={{ opacity: sidebarCollapsed ? 0 : 1 }}
                 />
               )}
             </ListItemButton>
@@ -494,14 +452,12 @@ export default function Layout({ children, role, title }) {
         bgcolor: isUserLayout ? userSurfaceBg : "transparent",
       }}
     >
+      {/* ── AppBar — logo + right controls only (tabs removed for user layout) ── */}
       <AppBar
         color="transparent"
         elevation={0}
         sx={{
-          width: isUserLayout
-            ? "100%"
-            : { md: `calc(100% - ${activeDrawerWidth}px)` },
-          ml: isUserLayout ? 0 : { md: `${activeDrawerWidth}px` },
+          width: "100%",
           borderBottom: "1px solid",
           borderColor: isUserLayout
             ? isDarkMode
@@ -517,18 +473,12 @@ export default function Layout({ children, role, title }) {
               ? "#fff"
               : theme.palette.text.primary
             : "inherit",
-          transition: (theme) =>
-            theme.transitions.create(["width", "margin-left"], {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.shorter,
-            }),
         }}
       >
         <Toolbar
           sx={{
             minHeight: { xs: 64, sm: 72 },
             gap: 1.5,
-            flexWrap: { xs: "wrap", md: "nowrap" },
           }}
         >
           {!isUserLayout && (
@@ -577,75 +527,9 @@ export default function Layout({ children, role, title }) {
             </Typography>
           )}
 
-          {isUserLayout && (
-            <Box
-              sx={{
-                display: "flex",
-                flexGrow: 1,
-                justifyContent: { xs: "flex-start", md: "center" },
-                order: { xs: 3, md: 0 },
-                width: { xs: "100%", md: "auto" },
-                mx: { xs: 0, md: 2 },
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: "4px",
-                  background: "rgba(0,0,0,0.4)",
-                  borderRadius: "12px",
-                  padding: "4px",
-                }}
-              >
-                {USER_TOP_TABS.map((tab) => {
-                  const active = activeUserTab?.key === tab.key;
-                  return (
-                    <Button
-                      key={tab.key}
-                      component={Link}
-                      to={tab.to}
-                      disableRipple
-                      startIcon={
-                        <Box component="span" sx={{ fontSize: 13, lineHeight: 1 }}>
-                          {tab.icon}
-                        </Box>
-                      }
-                      sx={{
-                        textTransform: "none",
-                        fontWeight: 600,
-                        borderRadius: "9px",
-                        px: "16px",
-                        py: "7px",
-                        minHeight: 0,
-                        minWidth: 0,
-                        fontSize: 11,
-                        lineHeight: 1,
-                        color: active ? "#fff" : "rgba(255,255,255,0.38)",
-                        background: active
-                          ? `linear-gradient(135deg, ${USER_NAV_ACCENT_DARK}, ${USER_NAV_ACCENT})`
-                          : "transparent",
-                        boxShadow: "none",
-                        transition: "all 0.25s",
-                        "&:hover": {
-                          background: active
-                            ? `linear-gradient(135deg, ${USER_NAV_ACCENT_DARK}, ${USER_NAV_ACCENT})`
-                            : "transparent",
-                          color: active ? "#fff" : "rgba(255,255,255,0.7)",
-                        },
-                        "& .MuiButton-startIcon": { mr: "6px", ml: 0 },
-                      }}
-                    >
-                      {tab.label}
-                    </Button>
-                  );
-                })}
-              </Box>
-            </Box>
-          )}
-
           <Box
             sx={{
-              ml: isUserLayout ? 0 : "auto",
+              ml: "auto",
               display: "flex",
               alignItems: "center",
               gap: 1.2,
@@ -730,18 +614,11 @@ export default function Layout({ children, role, title }) {
               }}
             >
               <Typography
-                sx={{
-                  fontWeight: 700,
-                  fontSize: 13,
-                  color: "#fff",
-                  letterSpacing: 0.3,
-                }}
+                sx={{ fontWeight: 700, fontSize: 13, color: "#fff", letterSpacing: 0.3 }}
               >
                 {displayName}
               </Typography>
-              <Typography
-                sx={{ fontSize: 11, color: "#fff", mt: 0.3 }}
-              >
+              <Typography sx={{ fontSize: 11, color: "#fff", mt: 0.3 }}>
                 {profile?.email || "No email"}
               </Typography>
             </Box>
@@ -761,115 +638,171 @@ export default function Layout({ children, role, title }) {
         </Toolbar>
       </AppBar>
 
-      {!isUserLayout && (
-        <Box
-          component="nav"
-          sx={{ width: { md: activeDrawerWidth }, flexShrink: { md: 0 } }}
-        >
-          <Drawer
-            variant="temporary"
-            open={mobileOpen}
-            onClose={() => setMobileOpen(false)}
-            ModalProps={{ keepMounted: true }}
+      {/* ── Body row: sidebar + main ── */}
+      <Box sx={{ display: "flex", width: "100%", mt: { xs: "64px", sm: "72px" } }}>
+
+        {/* User/Employee vertical sidebar — desktop only */}
+        {isUserLayout && (
+          <Box
+            component="nav"
             sx={{
-              display: { xs: "block", md: "none" },
-              "& .MuiDrawer-paper": {
-                width: drawerWidth,
-                boxSizing: "border-box",
-                scrollbarWidth: "thin",
-                scrollbarColor: `${alpha(theme.palette.text.primary, 0.18)} transparent`,
-                "&::-webkit-scrollbar": { width: 6 },
-                "&::-webkit-scrollbar-track": { background: "transparent" },
-                "&::-webkit-scrollbar-thumb": {
-                  background: alpha(theme.palette.text.primary, 0.18),
-                  borderRadius: 999,
-                },
-                "&::-webkit-scrollbar-thumb:hover": {
-                  background: alpha(theme.palette.text.primary, 0.32),
-                },
-              },
+              width: { xs: 0, md: 200 },
+              flexShrink: 0,
+              display: { xs: "none", md: "flex" },
+              flexDirection: "column",
+              bgcolor: userSurfaceBg,
+              borderRight: "1px solid rgba(255,255,255,0.06)",
+              pt: 1,
+              pb: 2,
+              px: "10px",
+              gap: "2px",
+              position: "sticky",
+              top: { md: "72px" },
+              height: { md: "calc(100vh - 72px)" },
+              overflowY: "auto",
+              scrollbarWidth: "none",
+              "&::-webkit-scrollbar": { display: "none" },
             }}
           >
-            {drawer}
-          </Drawer>
-
-          <Drawer
-            variant="permanent"
-            open
-            sx={{
-              display: { xs: "none", md: "block" },
-              "& .MuiDrawer-paper": {
-                width: activeDrawerWidth,
-                boxSizing: "border-box",
-                borderRight: "1px solid",
-                borderColor: "divider",
-                bgcolor: alpha(theme.palette.background.paper, 0.78),
-                backdropFilter: "blur(8px)",
-                overflowX: "hidden",
-                transition: (theme) =>
-                  theme.transitions.create("width", {
-                    easing: theme.transitions.easing.sharp,
-                    duration: theme.transitions.duration.shorter,
-                  }),
-                scrollbarWidth: "thin",
-                scrollbarColor: `${alpha(theme.palette.text.primary, 0.18)} transparent`,
-                "&::-webkit-scrollbar": { width: 6 },
-                "&::-webkit-scrollbar-track": { background: "transparent" },
-                "&::-webkit-scrollbar-thumb": {
-                  background: alpha(theme.palette.text.primary, 0.18),
-                  borderRadius: 999,
-                },
-                "&::-webkit-scrollbar-thumb:hover": {
-                  background: alpha(theme.palette.text.primary, 0.32),
-                },
-              },
-            }}
-          >
-            {drawer}
-          </Drawer>
-        </Box>
-      )}
-
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          minWidth: 0,
-          p: { xs: 2, sm: 3 },
-          // Reserve room for the mobile bottom nav on small viewports so the
-          // last bit of content isn't hidden behind the fixed bar.
-          pb: !isUserLayout
-            ? {
-                xs: "calc(72px + env(safe-area-inset-bottom))",
-                md: 3,
-              }
-            : { xs: 2, sm: 3 },
-          mt: { xs: isUserLayout ? 10 : 8, sm: isUserLayout ? 11 : 9 },
-          ...(isUserLayout
-            ? {
-                bgcolor: userSurfaceBg,
-                color: isDarkMode ? "#fff" : theme.palette.text.primary,
-                colorScheme: isDarkMode ? "dark" : "light",
-                minHeight: {
-                  xs: "calc(100vh - 80px)",
-                  sm: "calc(100vh - 88px)",
-                },
-              }
-            : {}),
-        }}
-      >
-        {effectiveRole === "user" && (
-          <PWAInstallBanner darkSurface={isDarkMode} />
+            {USER_TOP_TABS.map((tab) => {
+              const active = activeUserTab?.key === tab.key;
+              return (
+                <Box
+                  key={tab.key}
+                  component={Link}
+                  to={tab.to}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    px: "14px",
+                    py: "9px",
+                    borderRadius: "9px",
+                    fontSize: 12,
+                    fontWeight: active ? 700 : 500,
+                    background: active
+                      ? `linear-gradient(135deg,${USER_NAV_ACCENT_DARK},${USER_NAV_ACCENT})`
+                      : "transparent",
+                    color: active ? "#fff" : "rgba(255,255,255,0.5)",
+                    textDecoration: "none",
+                    transition: "all 0.18s",
+                    whiteSpace: "nowrap",
+                    "&:hover": {
+                      background: active
+                        ? `linear-gradient(135deg,${USER_NAV_ACCENT_DARK},${USER_NAV_ACCENT})`
+                        : "rgba(109,179,63,0.08)",
+                      color: active ? "#fff" : "rgba(255,255,255,0.85)",
+                    },
+                  }}
+                >
+                  <Box component="span" sx={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>
+                    {tab.icon}
+                  </Box>
+                  {tab.label}
+                </Box>
+              );
+            })}
+          </Box>
         )}
-        {children}
+
+        {/* Superadmin/admin MUI Drawer sidebar */}
+        {!isUserLayout && (
+          <Box
+            component="nav"
+            sx={{ width: { md: activeDrawerWidth }, flexShrink: { md: 0 } }}
+          >
+            <Drawer
+              variant="temporary"
+              open={mobileOpen}
+              onClose={() => setMobileOpen(false)}
+              ModalProps={{ keepMounted: true }}
+              sx={{
+                display: { xs: "block", md: "none" },
+                "& .MuiDrawer-paper": {
+                  width: drawerWidth,
+                  boxSizing: "border-box",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: `${alpha(theme.palette.text.primary, 0.18)} transparent`,
+                  "&::-webkit-scrollbar": { width: 6 },
+                  "&::-webkit-scrollbar-track": { background: "transparent" },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: alpha(theme.palette.text.primary, 0.18),
+                    borderRadius: 999,
+                  },
+                  "&::-webkit-scrollbar-thumb:hover": {
+                    background: alpha(theme.palette.text.primary, 0.32),
+                  },
+                },
+              }}
+            >
+              {drawer}
+            </Drawer>
+
+            <Drawer
+              variant="permanent"
+              open
+              sx={{
+                display: { xs: "none", md: "block" },
+                "& .MuiDrawer-paper": {
+                  width: activeDrawerWidth,
+                  boxSizing: "border-box",
+                  borderRight: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: alpha(theme.palette.background.paper, 0.78),
+                  backdropFilter: "blur(8px)",
+                  overflowX: "hidden",
+                  transition: (theme) =>
+                    theme.transitions.create("width", {
+                      easing: theme.transitions.easing.sharp,
+                      duration: theme.transitions.duration.shorter,
+                    }),
+                  scrollbarWidth: "thin",
+                  scrollbarColor: `${alpha(theme.palette.text.primary, 0.18)} transparent`,
+                  "&::-webkit-scrollbar": { width: 6 },
+                  "&::-webkit-scrollbar-track": { background: "transparent" },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: alpha(theme.palette.text.primary, 0.18),
+                    borderRadius: 999,
+                  },
+                  "&::-webkit-scrollbar-thumb:hover": {
+                    background: alpha(theme.palette.text.primary, 0.32),
+                  },
+                },
+              }}
+            >
+              {drawer}
+            </Drawer>
+          </Box>
+        )}
+
+        {/* Main content */}
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            minWidth: 0,
+            p: { xs: 2, sm: 3 },
+            pb: !isUserLayout
+              ? { xs: "calc(72px + env(safe-area-inset-bottom))", md: 3 }
+              : { xs: 2, sm: 3 },
+            ...(isUserLayout
+              ? {
+                  bgcolor: userSurfaceBg,
+                  color: isDarkMode ? "#fff" : theme.palette.text.primary,
+                  colorScheme: isDarkMode ? "dark" : "light",
+                  minHeight: "calc(100vh - 72px)",
+                }
+              : {}),
+          }}
+        >
+          {effectiveRole === "user" && (
+            <PWAInstallBanner darkSurface={isDarkMode} />
+          )}
+          {children}
+        </Box>
       </Box>
 
-      {/* Mobile bottom nav — only on xs/sm, only outside the user layout
-          (the user layout already has its own top-tab nav inside the AppBar).
-          Mirrors the same RBAC-filtered `navItems` the sidebar uses so the
-          two stay in sync; each tap is a Link, just like the desktop tabs in
-          AdminTopLayout. Items overflow horizontally for platform admins who
-          see 15+ menus. */}
+      {/* Mobile bottom nav — superadmin/admin only on xs/sm */}
       {!isUserLayout && navItems.length > 0 && (
         <Box
           component="nav"
