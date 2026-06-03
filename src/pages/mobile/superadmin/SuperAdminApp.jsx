@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import MobileShell from "../../../layouts/mobileLayout/MobileShell";
 import { C } from "../../../components/mobile/palette";
 import SuperAdminMasters from "./SuperAdminMasters";
@@ -24,6 +24,13 @@ const DRAWER = [
 export default function SuperAdminApp({ defaultTab = "dashboard" }) {
   const [tab, setTab] = useState(defaultTab);
   const [drawer, setDrawer] = useState(false);
+
+  // Scroll the content area back to the top whenever the active tab changes,
+  // so opening a Quick Manage / nav section always starts from the beginning.
+  useEffect(() => {
+    const el = document.querySelector(".ayumonk-mobile > div");
+    if (el) el.scrollTop = 0;
+  }, [tab]);
 
   const route = (id) => { setDrawer(false); setTab(id); };
   const onNav = (id) => { if (id === "more") setDrawer(true); else route(id); };
