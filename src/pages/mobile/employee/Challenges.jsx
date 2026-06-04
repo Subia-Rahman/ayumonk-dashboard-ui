@@ -9,6 +9,7 @@ import {
 } from "../../../store/dashboardSlice";
 import { dimHue } from "../../../components/mobile/dimensionColors";
 import { useTokens } from "../../../components/mobile/useTokens";
+import { WEARABLES_LIVE } from "../../../features/wearables/flags";
 
 
 const BADGES = [
@@ -237,9 +238,15 @@ function StepsSheet({ t, onClose }) {
         </div>
         <div style={{ padding: "4px 20px 0" }}>
           {!synced ? (
-            <button type="button" onClick={connect} disabled={phase === "connecting"} style={{ width: "100%", border: "none", cursor: "pointer", fontFamily: "inherit", background: "linear-gradient(135deg,#E0935C,#C99A3F)", color: "#fff", fontSize: 14, fontWeight: 800, borderRadius: 13, padding: 14, boxShadow: "0 10px 22px -8px rgba(224,147,92,0.7)", opacity: phase === "connecting" ? 0.7 : 1 }}>
-              {phase === "connecting" ? "Connecting to Health…" : "🔗 Connect Health"}
-            </button>
+            WEARABLES_LIVE ? (
+              <button type="button" onClick={connect} disabled={phase === "connecting"} style={{ width: "100%", border: "none", cursor: "pointer", fontFamily: "inherit", background: "linear-gradient(135deg,#E0935C,#C99A3F)", color: "#fff", fontSize: 14, fontWeight: 800, borderRadius: 13, padding: 14, boxShadow: "0 10px 22px -8px rgba(224,147,92,0.7)", opacity: phase === "connecting" ? 0.7 : 1 }}>
+                {phase === "connecting" ? "Connecting to Health…" : "🔗 Connect Health"}
+              </button>
+            ) : (
+              <button type="button" disabled style={{ width: "100%", border: "none", cursor: "not-allowed", fontFamily: "inherit", background: "#D4C9BC", color: "#9B9590", fontSize: 14, fontWeight: 800, borderRadius: 13, padding: 14 }}>
+                Coming soon
+              </button>
+            )
           ) : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(79,157,91,0.1)", border: "1px solid rgba(79,157,91,0.3)", borderRadius: 13, padding: "12px 15px" }}>
               <span style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 700, fontSize: 12.5, color: "#4F9D5B" }}><span style={{ fontSize: 15 }}>✓</span> Synced with Apple Health</span>
@@ -508,30 +515,50 @@ export default function Challenges() {
       {/* Step sync — connected activity */}
       <div style={{ padding: "0 16px 20px" }}>
         <SectionLabel>📲 Connected activity</SectionLabel>
-        <div
-          onClick={() => setStepsOpen(true)}
-          role="button"
-          tabIndex={0}
-          style={{ background: t.card, border: "1px solid rgba(224,147,92,0.32)", borderRadius: 16, padding: "15px 16px", cursor: "pointer" }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-            <div style={{ width: 46, height: 46, borderRadius: 14, flexShrink: 0, background: "linear-gradient(135deg, rgba(224,147,92,0.18), rgba(201,154,63,0.18))", display: "grid", placeItems: "center", fontSize: 24 }}>🏃</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontSize: 15, fontWeight: 800, color: t.text }}>8,000 Steps</span>
-                <span style={{ fontSize: 20, fontWeight: 800, color: "#E0935C", lineHeight: 1 }}>6,240<span style={{ fontSize: 11, color: t.faint, fontWeight: 600 }}> /8,000</span></span>
+        {WEARABLES_LIVE ? (
+          <div
+            onClick={() => setStepsOpen(true)}
+            role="button"
+            tabIndex={0}
+            style={{ background: t.card, border: "1px solid rgba(224,147,92,0.32)", borderRadius: 16, padding: "15px 16px", cursor: "pointer" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 14, flexShrink: 0, background: "linear-gradient(135deg, rgba(224,147,92,0.18), rgba(201,154,63,0.18))", display: "grid", placeItems: "center", fontSize: 24 }}>🏃</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: t.text }}>8,000 Steps</span>
+                  <span style={{ fontSize: 20, fontWeight: 800, color: "#E0935C", lineHeight: 1 }}>6,240<span style={{ fontSize: 11, color: t.faint, fontWeight: 600 }}> /8,000</span></span>
+                </div>
+                <span style={{ display: "inline-block", marginTop: 5, fontSize: 11, fontWeight: 600, color: "#C0844A", background: "rgba(224,147,92,0.12)", borderRadius: 6, padding: "2px 8px" }}>▢ Enable sync to auto-complete</span>
               </div>
-              <span style={{ display: "inline-block", marginTop: 5, fontSize: 11, fontWeight: 600, color: "#C0844A", background: "rgba(224,147,92,0.12)", borderRadius: 6, padding: "2px 8px" }}>▢ Enable sync to auto-complete</span>
+            </div>
+            <div style={{ height: 9, borderRadius: 7, background: t.track, marginTop: 13, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: "78%", borderRadius: 7, background: "linear-gradient(90deg,#C99A3F,#E0935C)" }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 9, gap: 8 }}>
+              <span style={{ fontSize: 10.5, color: t.faint }}>Manual tracking not available — enable health sync</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: C.g3, whiteSpace: "nowrap" }}>Tap to sync →</span>
             </div>
           </div>
-          <div style={{ height: 9, borderRadius: 7, background: t.track, marginTop: 13, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: "78%", borderRadius: 7, background: "linear-gradient(90deg,#C99A3F,#E0935C)" }} />
+        ) : (
+          <div
+            onClick={() => setStepsOpen(true)}
+            role="button"
+            tabIndex={0}
+            style={{ background: t.card, border: "1px solid rgba(224,147,92,0.32)", borderRadius: 16, padding: "15px 16px", cursor: "pointer" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 14, flexShrink: 0, background: "linear-gradient(135deg, rgba(224,147,92,0.18), rgba(201,154,63,0.18))", display: "grid", placeItems: "center", fontSize: 24 }}>🏃</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: t.text }}>8,000 Steps</span>
+                  <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.06em", color: "#C0844A", background: "rgba(224,147,92,0.14)", borderRadius: 999, padding: "2px 8px" }}>Coming soon</span>
+                </div>
+                <span style={{ fontSize: 11.5, color: t.muted }}>Connect a device to see your activity.</span>
+              </div>
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 9, gap: 8 }}>
-            <span style={{ fontSize: 10.5, color: t.faint }}>Manual tracking not available — enable health sync</span>
-            <span style={{ fontSize: 11, fontWeight: 800, color: C.g3, whiteSpace: "nowrap" }}>Tap to sync →</span>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Challenge cards */}

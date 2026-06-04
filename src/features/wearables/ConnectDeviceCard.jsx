@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Box, Typography, Button, CircularProgress } from "@mui/material";
 import { connectDevice, getStatus } from "./wearableApi";
+import { WEARABLES_LIVE } from "./flags";
 
 const CREAM = "#FBF9F4";
 const SAGE = "#6B7F5C";
@@ -30,6 +31,56 @@ export default function ConnectDeviceCard() {
 
   function handleDisconnect() {
     setStatus({ connected: false });
+  }
+
+  if (!WEARABLES_LIVE) {
+    return (
+      <Box
+        sx={{
+          bgcolor: CREAM,
+          borderRadius: 3,
+          p: 3,
+          border: "1px solid #E8E3DA",
+          maxWidth: 480,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+          <Typography variant="h6" sx={{ color: TEXT_PRIMARY, fontWeight: 700 }}>
+            Connect a wearable
+          </Typography>
+          <Box
+            component="span"
+            sx={{
+              fontSize: "0.68rem",
+              fontWeight: 800,
+              letterSpacing: "0.06em",
+              color: "#C0844A",
+              bgcolor: "rgba(224,147,92,0.14)",
+              borderRadius: 999,
+              px: 1,
+              py: 0.25,
+            }}
+          >
+            Coming soon
+          </Box>
+        </Box>
+        <Typography variant="body2" sx={{ color: TEXT_SECONDARY, mb: 2.5 }}>
+          Connect your smartwatch — coming soon. Sync steps, sleep and activity
+          from Garmin, Fitbit and more.
+        </Typography>
+        <Button
+          variant="contained"
+          disabled
+          sx={{
+            fontWeight: 600,
+            borderRadius: 2,
+            textTransform: "none",
+          }}
+        >
+          Coming soon
+        </Button>
+      </Box>
+    );
   }
 
   return (

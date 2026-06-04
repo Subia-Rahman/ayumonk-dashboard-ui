@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Box, Typography, Stack } from "@mui/material";
 import { getTodayMetrics } from "./wearableApi";
+import { WEARABLES_LIVE } from "./flags";
 
 const CREAM = "#FBF9F4";
 const TEXT_PRIMARY = "#1F1E1D";
@@ -30,7 +31,7 @@ export default function WatchTodayTile() {
     getTodayMetrics().then(setMetrics).catch(() => {});
   }, []);
 
-  if (!metrics) return null;
+  if (!WEARABLES_LIVE || !metrics) return null;
 
   const sleepHrs = (metrics.sleepMinutes / 60).toFixed(1);
 
