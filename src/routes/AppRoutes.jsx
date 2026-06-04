@@ -58,6 +58,7 @@ import CxoMetricsConfig from "../pages/superadmin/CxoMetricsConfig";
 import WellnessDimensionsConfig from "../pages/superadmin/WellnessDimensionsConfig";
 import ClientPage from "../pages/hidden/ClientPage";
 import PwaMobile from "../pages/hidden/PwaMobile";
+import WearablesPreview from "../pages/hidden/WearablesPreview";
 import AccessDenied from "../pages/common/AccessDenied";
 import RouteGuard from "./RouteGuard";
 import {
@@ -907,6 +908,7 @@ export default function AppRoutes() {
       />
       <Route path="/access-denied" element={<AccessDenied />} />
       <Route path="/vault/ink-room-7f3a" element={<SketchLab />} />
+      <Route path="/wearables-preview" element={<WearablesPreview />} />
 
       <Route
         path="*"
