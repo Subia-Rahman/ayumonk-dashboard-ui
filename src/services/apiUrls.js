@@ -121,6 +121,11 @@ export const API_URLS = {
 
   dashboardKpis: "/config/api/v1/dashboard/kpis",
   dashboardChallengeAction: "/config/api/v1/dashboard/challenges/action",
+  // Undo a previously-completed daily challenge so the tile reverts to
+  // "pending" and the user's XP/level is adjusted (the response carries an
+  // `xp` block, possibly including a level decrease).
+  //   POST /config/api/v1/dashboard/challenges/undo  body: { challenge_id }
+  dashboardChallengeUndo: "/config/api/v1/dashboard/challenges/undo",
   dashboardWellnessTrends: "/config/api/v1/dashboard/wellness-trends",
   // Caller's badge cabinet (earned + locked). JWT-authenticated.
   //   GET /config/api/v1/dashboard/me/badges

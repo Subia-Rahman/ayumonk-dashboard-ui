@@ -5,6 +5,7 @@ import {
   clearDashboardChallengeActionError,
   fetchDashboardKpis,
   postDashboardChallengeAction,
+  postDashboardChallengeUndo,
 } from "../../store/dashboardSlice";
 import ReminderSettings from "./ReminderSettings";
 import { ACCENT, useClientPalette } from "../../utils/clientPalette";
@@ -130,7 +131,10 @@ const createChallengeStateFromItems = (challenges) =>
     return accumulator;
   }, {});
 
-const getChallengeTypeOptions = (challengeType) => {
+// Per-type fallbacks used only when the API hasn't populated `options` yet.
+// Choice/Multi now receive `options: list[str]` from /dashboard/kpis via
+// KPIChallengeBrief.options — when present, those labels are rendered directly.
+const getChallengeTypeOptionsFallback = (challengeType) => {
   const type = String(challengeType || "").toLowerCase();
 
   if (type === "choice") return ["Option 1", "Option 2", "Option 3"];
@@ -139,6 +143,12 @@ const getChallengeTypeOptions = (challengeType) => {
   if (type === "toggle") return ["Mark Complete"];
 
   return [];
+};
+
+const resolveOptions = (challenge) => {
+  const fromApi = Array.isArray(challenge?.options) ? challenge.options : [];
+  if (fromApi.length > 0) return fromApi;
+  return getChallengeTypeOptionsFallback(challenge?.challenge_type);
 };
 
 function ClientCard({ children, style = {}, borderColor, onClick }) {
@@ -203,6 +213,9 @@ export default function DashboardChallenges({
   const timerRef = useRef(null);
   const [activeTimerKey, setActiveTimerKey] = useState("");
   const [challengeState, setChallengeState] = useState({});
+  // Per-challenge inline validation message (currently used by multi tiles
+  // when the employee hits "Complete" without selecting every option).
+  const [validationById, setValidationById] = useState({});
   const { actionLoadingById, actionErrorById, actionResultById } = useSelector(
     (state) => state.dashboard,
   );
@@ -301,6 +314,33 @@ export default function DashboardChallenges({
     return result;
   };
 
+  // Undoes a previously-completed daily challenge. On success we revert the
+  // local tile to "pending" and refresh the dashboard so the XP/level cards
+  // pick up the (possibly decreased) values from the response's xp block.
+  const handleChallengeUndo = async (challenge) => {
+    dispatch(clearDashboardChallengeActionError(challenge.challenge_key));
+    const result = await dispatch(
+      postDashboardChallengeUndo({ challenge_id: challenge.challenge_key }),
+    );
+    if (postDashboardChallengeUndo.fulfilled.match(result)) {
+      updateChallenge(challenge.challenge_key, {
+        done: false,
+        count: 0,
+        chosen:
+          String(challenge.challenge_type || "").toLowerCase() === "multi"
+            ? []
+            : null,
+        rating: null,
+        timer:
+          String(challenge.challenge_type || "").toLowerCase() === "timer"
+            ? Math.max(1, Number(challenge.target_value) || 60)
+            : 0,
+      });
+      dispatch(fetchDashboardKpis());
+    }
+    return result;
+  };
+
   const isDone = (challenge) => {
     if (challenge.is_completed_today) return true;
 
@@ -312,7 +352,10 @@ export default function DashboardChallenges({
     if (challengeType === "counter") return state.count >= targetValue;
     if (challengeType === "toggle") return state.done;
     if (challengeType === "choice") return state.chosen !== null;
-    if (challengeType === "multi") return state.chosen.length > 0;
+    // Multi is only "done" after the server confirms (is_completed_today,
+    // already handled above) — partial selections must NOT mark the tile
+    // complete, otherwise the per-option taps would auto-finish it.
+    if (challengeType === "multi") return state.done;
     if (challengeType === "timer") return state.done;
     if (challengeType === "rating") return state.rating !== null;
     return false;
@@ -322,10 +365,15 @@ export default function DashboardChallenges({
     if (!isDone(challenge)) return 0;
 
     if (String(challenge.challenge_type || "").toLowerCase() === "multi") {
-      const optionCount = Math.max(getChallengeTypeOptions(challenge.challenge_type).length, 1);
+      // Multi requires the employee to select every option before completing,
+      // so once `done` the chosen array is full and we award full XP. The
+      // proportional fallback below stays as a safety net for legacy state.
+      const optionCount = Math.max(resolveOptions(challenge).length, 1);
+      const chosenCount =
+        challengeState[challenge.challenge_key]?.chosen?.length || optionCount;
       return Math.round(
         (Number(challenge.xp_reward) || 0) *
-          ((challengeState[challenge.challenge_key]?.chosen?.length || 0) / optionCount),
+          Math.min(chosenCount / optionCount, 1),
       );
     }
 
@@ -512,7 +560,7 @@ export default function DashboardChallenges({
         >
           {challenges.map((challenge) => {
             const challengeType = String(challenge.challenge_type || "").toLowerCase();
-            const options = getChallengeTypeOptions(challenge.challenge_type);
+            const options = resolveOptions(challenge);
             const targetValue = Math.max(1, Number(challenge.target_value) || 1);
             const state =
               challengeState[challenge.challenge_key] ||
@@ -675,24 +723,52 @@ export default function DashboardChallenges({
 
                 {/* TOGGLE */}
                 {challengeType === "toggle" && (
-                  <Btn
-                    active={state.done || completedToday}
-                    color={color}
-                    disabled={completedToday || actionLoading}
-                    onClick={async () => {
-                      const nextDone = !state.done;
-                      updateChallenge(challenge.challenge_key, { done: nextDone });
-                      await handleChallengeAction(challenge, { toggle_value: nextDone });
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
                     }}
                   >
-                    {actionLoading
-                      ? "Saving…"
-                      : completedToday
-                        ? `✓ Completed`
-                        : state.done
-                          ? `✓ ${options[0]}`
+                    <Btn
+                      active={state.done || completedToday}
+                      color={color}
+                      disabled={completedToday || state.done || actionLoading}
+                      onClick={async () => {
+                        updateChallenge(challenge.challenge_key, { done: true });
+                        await handleChallengeAction(challenge, {
+                          toggle_value: true,
+                        });
+                      }}
+                    >
+                      {actionLoading
+                        ? "Saving…"
+                        : completedToday || state.done
+                          ? `✓ Completed`
                           : `⬜ ${options[0]}`}
-                  </Btn>
+                    </Btn>
+                    {(completedToday || state.done) && (
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleChallengeUndo(challenge)}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid rgba(255,255,255,0.18)",
+                          color: "rgba(255,255,255,0.62)",
+                          borderRadius: 9,
+                          padding: "6px 12px",
+                          fontSize: 10,
+                          fontWeight: 600,
+                          cursor: actionLoading ? "not-allowed" : "pointer",
+                          opacity: actionLoading ? 0.5 : 1,
+                        }}
+                      >
+                        ↩ Undo
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {/* CHOICE */}
@@ -720,28 +796,94 @@ export default function DashboardChallenges({
 
                 {/* MULTI */}
                 {challengeType === "multi" && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {options.map((opt, i) => {
-                      const selected = (state.chosen || []).includes(i);
-                      return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {options.map((opt, i) => {
+                        const selected = (state.chosen || []).includes(i);
+                        return (
+                          <Btn
+                            key={opt}
+                            active={selected || completedToday}
+                            color={color}
+                            disabled={completedToday || actionLoading}
+                            onClick={() => {
+                              const arr = state.chosen || [];
+                              const nextValues = selected
+                                ? arr.filter((x) => x !== i)
+                                : [...arr, i];
+                              updateChallenge(challenge.challenge_key, {
+                                chosen: nextValues,
+                              });
+                              setValidationById((current) => {
+                                if (!current[challenge.challenge_key]) return current;
+                                const next = { ...current };
+                                delete next[challenge.challenge_key];
+                                return next;
+                              });
+                            }}
+                          >
+                            {opt}
+                          </Btn>
+                        );
+                      })}
+                    </div>
+                    {!completedToday && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          flexWrap: "wrap",
+                        }}
+                      >
                         <Btn
-                          key={opt}
-                          active={selected}
                           color={color}
-                          disabled={completedToday || actionLoading}
+                          active
+                          disabled={actionLoading}
                           onClick={async () => {
-                            const arr = state.chosen || [];
-                            const nextValues = selected
-                              ? arr.filter((x) => x !== i)
-                              : [...arr, i];
-                            updateChallenge(challenge.challenge_key, { chosen: nextValues });
-                            await handleChallengeAction(challenge, { multi_values: nextValues });
+                            const chosenArr = state.chosen || [];
+                            if (chosenArr.length === 0) {
+                              setValidationById((current) => ({
+                                ...current,
+                                [challenge.challenge_key]:
+                                  "Select at least one option that applies before completing.",
+                              }));
+                              return;
+                            }
+                            setValidationById((current) => {
+                              if (!current[challenge.challenge_key]) return current;
+                              const next = { ...current };
+                              delete next[challenge.challenge_key];
+                              return next;
+                            });
+                            const result = await handleChallengeAction(challenge, {
+                              multi_values: chosenArr,
+                            });
+                            if (
+                              postDashboardChallengeAction.fulfilled.match(result)
+                            ) {
+                              updateChallenge(challenge.challenge_key, { done: true });
+                            }
                           }}
                         >
-                          {opt}
+                          {actionLoading ? "Saving…" : "Complete"}
                         </Btn>
-                      );
-                    })}
+                        <span style={{ fontSize: 10, color: C.muted }}>
+                          Select all that apply · {(state.chosen || []).length}/{options.length} chosen
+                        </span>
+                      </div>
+                    )}
+                    {validationById[challenge.challenge_key] && (
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: "#fca5a5",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {validationById[challenge.challenge_key]}
+                      </div>
+                    )}
                   </div>
                 )}
 
