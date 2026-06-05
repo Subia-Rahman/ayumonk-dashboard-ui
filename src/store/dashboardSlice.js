@@ -178,6 +178,38 @@ export const postDashboardChallengeAction = createAsyncThunk(
   },
 );
 
+export const postDashboardChallengeUndo = createAsyncThunk(
+  "dashboard/postDashboardChallengeUndo",
+  async ({ challenge_id }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(API_URLS.dashboardChallengeUndo, {
+        challenge_id,
+      });
+      const responsePayload = response?.data || {};
+
+      if (!responsePayload?.success) {
+        return rejectWithValue({
+          challengeId: challenge_id,
+          message: responsePayload?.message || "Failed to undo challenge.",
+        });
+      }
+
+      return {
+        challengeId: challenge_id,
+        payload: responsePayload?.data || {},
+      };
+    } catch (error) {
+      return rejectWithValue({
+        challengeId: challenge_id,
+        message: getApiErrorMessage(
+          error,
+          "Failed to undo challenge due to server/network error.",
+        ),
+      });
+    }
+  },
+);
+
 export const fetchWellnessTrends = createAsyncThunk(
   "dashboard/fetchWellnessTrends",
   async ({ period = "weekly", bucket_count } = {}, { rejectWithValue }) => {
@@ -351,6 +383,26 @@ const dashboardSlice = createSlice({
         state.actionLoadingById[challengeId] = false;
         state.actionErrorById[challengeId] =
           action.payload?.message || "Failed to submit challenge action.";
+      })
+      .addCase(postDashboardChallengeUndo.pending, (state, action) => {
+        const challengeId = action.meta.arg?.challenge_id;
+        if (!challengeId) return;
+
+        state.actionLoadingById[challengeId] = true;
+        delete state.actionErrorById[challengeId];
+      })
+      .addCase(postDashboardChallengeUndo.fulfilled, (state, action) => {
+        const { challengeId, payload } = action.payload;
+        state.actionLoadingById[challengeId] = false;
+        state.actionResultById[challengeId] = payload;
+      })
+      .addCase(postDashboardChallengeUndo.rejected, (state, action) => {
+        const challengeId = action.payload?.challengeId || action.meta.arg?.challenge_id;
+        if (!challengeId) return;
+
+        state.actionLoadingById[challengeId] = false;
+        state.actionErrorById[challengeId] =
+          action.payload?.message || "Failed to undo challenge.";
       })
       .addCase(fetchWellnessTrends.pending, (state) => {
         state.trendsLoading = true;

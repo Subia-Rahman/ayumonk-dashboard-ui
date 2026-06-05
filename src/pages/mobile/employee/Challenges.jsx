@@ -5,6 +5,7 @@ import {
   clearDashboardChallengeActionError,
   fetchDashboardKpis,
   postDashboardChallengeAction,
+  postDashboardChallengeUndo,
 } from "../../../store/dashboardSlice";
 import { dimHue } from "../../../components/mobile/dimensionColors";
 import { useTokens } from "../../../components/mobile/useTokens";
@@ -39,6 +40,8 @@ const FALLBACK_CHALLENGES = [
   { demo: true, challenge_key: "demo_greens", challenge_type: "multi", name: "Eat Your Greens", description: "Add greens to each meal you log today.", icon: "🥗", xp_reward: 55, target_value: 1, kpi_name: "Nutrition", displayColor: "#C99A3F", options: ["Breakfast", "Lunch", "Dinner"] },
 ];
 
+// Per-type fallbacks used only when the API hasn't populated `options` yet.
+// Choice/Multi now receive option labels directly via KPIChallengeBrief.options.
 const getOptions = (type) => {
   const t = String(type || "").toLowerCase();
   if (t === "choice") return ["Option 1", "Option 2", "Option 3"];
@@ -46,6 +49,12 @@ const getOptions = (type) => {
   if (t === "rating") return ["😞", "😕", "😐", "🙂", "😄"];
   if (t === "toggle") return ["Mark Complete"];
   return [];
+};
+
+const resolveOptions = (ch) => {
+  const fromApi = Array.isArray(ch?.options) ? ch.options : [];
+  if (fromApi.length > 0) return fromApi;
+  return getOptions(ch?.challenge_type);
 };
 
 const initState = (challenges) =>
@@ -282,6 +291,7 @@ export default function Challenges() {
   const [activeTimerKey, setActiveTimerKey] = useState("");
   const [challengeState, setChallengeState] = useState({});
   const [stepsOpen, setStepsOpen] = useState(false);
+  const [validationById, setValidationById] = useState({});
 
   const {
     items: dashboardItems,
@@ -360,6 +370,25 @@ export default function Challenges() {
     return result;
   };
 
+  // Undoes a completed toggle so the tile reverts to "pending" and the
+  // dashboard refresh picks up the (possibly decreased) XP/level from the
+  // response's xp block. Demo items are reset locally only.
+  const undo = async (ch) => {
+    if (ch.demo) {
+      patch(ch.challenge_key, { done: false });
+      return undefined;
+    }
+    dispatch(clearDashboardChallengeActionError(ch.challenge_key));
+    const result = await dispatch(
+      postDashboardChallengeUndo({ challenge_id: ch.challenge_key }),
+    );
+    if (postDashboardChallengeUndo.fulfilled.match(result)) {
+      patch(ch.challenge_key, { done: false });
+      dispatch(fetchDashboardKpis());
+    }
+    return result;
+  };
+
   const isDone = (ch) => {
     const st = challengeState[ch.challenge_key];
     if (!st) return false;
@@ -368,7 +397,10 @@ export default function Challenges() {
     if (t === "counter") return st.count >= tv;
     if (t === "toggle") return st.done;
     if (t === "choice") return st.chosen !== null;
-    if (t === "multi") return st.chosen.length > 0;
+    // Multi is only complete after the Complete CTA flips st.done — partial
+    // selections must NOT mark the tile done, otherwise the per-option taps
+    // would prematurely award XP and disable the tile.
+    if (t === "multi") return st.done;
     if (t === "timer") return st.done;
     if (t === "rating") return st.rating !== null;
     return false;
@@ -377,11 +409,9 @@ export default function Challenges() {
   const getXp = (ch) => {
     if (!isDone(ch)) return 0;
     if (String(ch.challenge_type || "").toLowerCase() === "multi") {
-      const opts = Math.max((ch.options || getOptions(ch.challenge_type)).length, 1);
-      return Math.round(
-        (Number(ch.xp_reward) || 0) *
-          ((challengeState[ch.challenge_key]?.chosen?.length || 0) / opts),
-      );
+      const opts = Math.max(resolveOptions(ch).length, 1);
+      const chosen = challengeState[ch.challenge_key]?.chosen?.length || opts;
+      return Math.round((Number(ch.xp_reward) || 0) * Math.min(chosen / opts, 1));
     }
     return Number(ch.xp_reward) || 0;
   };
@@ -510,7 +540,7 @@ export default function Challenges() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {challengeItems.map((ch) => {
             const type = String(ch.challenge_type || "").toLowerCase();
-            const opts = ch.options || getOptions(ch.challenge_type);
+            const opts = resolveOptions(ch);
             const tv = Math.max(1, Number(ch.target_value) || 1);
             const st = challengeState[ch.challenge_key] || initState([ch])[ch.challenge_key];
             const done = isDone(ch);
@@ -665,18 +695,47 @@ export default function Challenges() {
 
                 {/* ── TOGGLE ── */}
                 {type === "toggle" && (
-                  <ActionBtn
-                    active={st.done}
-                    color={color}
-                    disabled={busy}
-                    onClick={async () => {
-                      const next = !st.done;
-                      patch(ch.challenge_key, { done: next });
-                      await act(ch, { toggle_value: next });
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      flexWrap: "wrap",
                     }}
                   >
-                    {busy ? "Saving…" : st.done ? `✓ ${opts[0]}` : `⬜ ${opts[0]}`}
-                  </ActionBtn>
+                    <ActionBtn
+                      active={st.done}
+                      color={color}
+                      disabled={busy || st.done}
+                      onClick={async () => {
+                        patch(ch.challenge_key, { done: true });
+                        await act(ch, { toggle_value: true });
+                      }}
+                    >
+                      {busy ? "Saving…" : st.done ? `✓ Completed` : `⬜ ${opts[0]}`}
+                    </ActionBtn>
+                    {st.done && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => undo(ch)}
+                        style={{
+                          background: "transparent",
+                          border: `1px solid ${t.border}`,
+                          color: t.muted,
+                          borderRadius: 9,
+                          padding: "7px 14px",
+                          fontSize: 11.5,
+                          fontWeight: 600,
+                          cursor: busy ? "not-allowed" : "pointer",
+                          opacity: busy ? 0.5 : 1,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        ↩ Undo
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {/* ── CHOICE ── */}
@@ -702,26 +761,95 @@ export default function Challenges() {
 
                 {/* ── MULTI ── */}
                 {type === "multi" && (
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {opts.map((opt, i) => {
-                      const sel = (st.chosen || []).includes(i);
-                      return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {opts.map((opt, i) => {
+                        const sel = (st.chosen || []).includes(i);
+                        return (
+                          <ActionBtn
+                            key={opt}
+                            active={sel || done}
+                            color={color}
+                            disabled={busy || done}
+                            onClick={() => {
+                              const arr = st.chosen || [];
+                              const next = sel
+                                ? arr.filter((x) => x !== i)
+                                : [...arr, i];
+                              patch(ch.challenge_key, { chosen: next });
+                              setValidationById((current) => {
+                                if (!current[ch.challenge_key]) return current;
+                                const cleared = { ...current };
+                                delete cleared[ch.challenge_key];
+                                return cleared;
+                              });
+                            }}
+                          >
+                            {opt}
+                          </ActionBtn>
+                        );
+                      })}
+                    </div>
+                    {!done && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          flexWrap: "wrap",
+                        }}
+                      >
                         <ActionBtn
-                          key={opt}
-                          active={sel}
+                          active
                           color={color}
                           disabled={busy}
                           onClick={async () => {
                             const arr = st.chosen || [];
-                            const next = sel ? arr.filter((x) => x !== i) : [...arr, i];
-                            patch(ch.challenge_key, { chosen: next });
-                            await act(ch, { multi_values: next });
+                            if (arr.length === 0) {
+                              setValidationById((current) => ({
+                                ...current,
+                                [ch.challenge_key]:
+                                  "Select at least one option that applies before completing.",
+                              }));
+                              return;
+                            }
+                            setValidationById((current) => {
+                              if (!current[ch.challenge_key]) return current;
+                              const cleared = { ...current };
+                              delete cleared[ch.challenge_key];
+                              return cleared;
+                            });
+                            if (ch.demo) {
+                              patch(ch.challenge_key, { chosen: arr, done: true });
+                              return;
+                            }
+                            const result = await act(ch, { multi_values: arr });
+                            if (
+                              result &&
+                              postDashboardChallengeAction.fulfilled.match(result)
+                            ) {
+                              patch(ch.challenge_key, { done: true });
+                            }
                           }}
                         >
-                          {opt}
+                          {busy ? "Saving…" : "Complete"}
                         </ActionBtn>
-                      );
-                    })}
+                        <span style={{ fontSize: 11.5, color: t.muted }}>
+                          Select all that apply · {(st.chosen || []).length}/{opts.length} chosen
+                        </span>
+                      </div>
+                    )}
+                    {validationById[ch.challenge_key] && (
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: "#dc4f4f",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {validationById[ch.challenge_key]}
+                      </div>
+                    )}
                   </div>
                 )}
 
