@@ -129,6 +129,16 @@ export const API_URLS = {
   //         kpi_key, kpi_display_name, earned, earned_at }
   //     ] } }
   dashboardMyBadges: "/config/api/v1/dashboard/me/badges",
+  // Weekly leaderboard for the caller's company. JWT-authenticated.
+  //   GET /config/api/v1/dashboard/leaderboard
+  //   → { data: {
+  //       week_start, week_end,
+  //       leaderboard: [{ rank, rank_label, user_id, display_name, subtext,
+  //         xp_this_week, xp_last_week, display_change, change_type,
+  //         current_level, level_label, is_current_user }, ... up to 10],
+  //       your_position: null | { ...same shape, is_current_user: true }
+  //     } }
+  dashboardLeaderboard: "/config/api/v1/dashboard/leaderboard",
   sessionSuggestions: (sessionId) => `/config/api/v1/sessions/${sessionId}/suggestions`,
 
   kpis: "/config/api/v1/kpi",
