@@ -194,7 +194,8 @@ export default function QuestionWorkflowForm({ mode, role = "admin" }) {
         await dispatch(createQuestion({ ...payload, companyId: resolvedCompanyId || undefined })).unwrap();
       }
 
-      navigate("/admin/questions", {
+      //navigate("/admin/questions", {
+        navigate(role === "superadmin" ? "/super-admin/questions" : "/admin/questions", {
         replace: true,
         state: {
           feedback: {
@@ -252,7 +253,9 @@ export default function QuestionWorkflowForm({ mode, role = "admin" }) {
         </Box>
         <Button
           startIcon={<ArrowBackRoundedIcon />}
-          onClick={() => navigate("/admin/questions")}
+          onClick={() => 
+            //navigate("/admin/questions")}
+            navigate(role === "superadmin" ? "/super-admin/questions" : "/admin/questions")}
         >
           Back to list
         </Button>
@@ -501,7 +504,10 @@ export default function QuestionWorkflowForm({ mode, role = "admin" }) {
                 : "Create Question"}
           </Button>
         )}
-        <Button variant="outlined" onClick={() => navigate("/admin/questions")}>
+        <Button variant="outlined" onClick={() => 
+          //navigate("/admin/questions")}
+          navigate(role === "superadmin" ? "/super-admin/questions" : "/admin/questions")}
+          >
           Cancel
         </Button>
       </Stack>

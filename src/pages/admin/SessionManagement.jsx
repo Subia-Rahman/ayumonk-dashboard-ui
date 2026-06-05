@@ -639,15 +639,15 @@ export default function SessionManagement() {
                       renderValue={(selected) =>
                         selected.length
                           ? themeItems
-                              .filter((themeItem) =>
-                                selected.includes(themeItem.theme_key),
-                              )
-                              .map(
-                                (themeItem) =>
-                                  themeItem.theme_display_name ||
-                                  themeItem.theme_key,
-                              )
-                              .join(", ")
+                            .filter((themeItem) =>
+                              selected.includes(themeItem.theme_key),
+                            )
+                            .map(
+                              (themeItem) =>
+                                themeItem.theme_display_name ||
+                                themeItem.theme_key,
+                            )
+                            .join(", ")
                           : "Select Theme"
                       }
                     >
@@ -678,12 +678,12 @@ export default function SessionManagement() {
                       renderValue={(selected) =>
                         selected.length
                           ? kpiOptions
-                              .filter((kpi) => selected.includes(kpi.selectionKey))
-                              .map(
-                                (kpi) =>
-                                  `${kpi.display_name || kpi.kpi_key} (${kpi.themeDisplayName})`,
-                              )
-                              .join(", ")
+                            .filter((kpi) => selected.includes(kpi.selectionKey))
+                            .map(
+                              (kpi) =>
+                                `${kpi.display_name || kpi.kpi_key} (${kpi.themeDisplayName})`,
+                            )
+                            .join(", ")
                           : "Select KPI"
                       }
                     >
@@ -880,7 +880,8 @@ export default function SessionManagement() {
                     >
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Typography variant="body2" noWrap>
-                          {item.display_order}. {item.question_text}
+                          {/* {item.display_order}. {item.question_text} */}
+                          {index + 1}. {item.question_text}
                         </Typography>
                         {!!item.question_code && (
                           <Typography variant="caption" color="text.secondary">
@@ -1064,7 +1065,8 @@ export default function SessionManagement() {
                 </Box>
               </Paper>
 
-              {(sessionPreview.questions || []).map((question) => (
+              {/* {(sessionPreview.questions || []).map((question) => ( */}
+              {(sessionPreview.questions || []).map((question, index) => (
                 <Paper
                   key={question.question_id}
                   elevation={0}
@@ -1083,7 +1085,8 @@ export default function SessionManagement() {
                     >
                       <Box>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                          {question.display_order}. {question.question_text}
+                          {/* {question.display_order}. {question.question_text} */}
+                          {index + 1}. {question.question_text}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {question.theme_display_name} • {question.kpi_display_name}
@@ -1145,9 +1148,9 @@ export default function SessionManagement() {
             </Stack>
           )}
         </DialogContent>
-        <DialogActions>
+        {/* <DialogActions>
           <Button onClick={handleClosePreviewDialog}>Close</Button>
-        </DialogActions>
+        </DialogActions> */}
       </Dialog>
     </Layout>
   );

@@ -92,6 +92,22 @@ export const API_URLS = {
   challengeKpiMappings: (challengeKey) =>
     `/config/api/v1/challenges/${challengeKey}/kpi-mappings`,
 
+  // Badge master — platform-level badge taxonomy. Five admin endpoints all
+  // gated by RBAC permission strings (badges:read, badges:create,
+  // badges:update, badges:delete). Soft-delete only — DELETE flips
+  // is_active=false / is_deleted=true so user_badges.badge_id history is
+  // preserved. badge_key is immutable on update. To clear kpi_key on an
+  // update, send `clear_kpi_key: true` (Pydantic v1 cannot distinguish
+  // "not sent" from "sent as null").
+  //
+  //   GET    /badges            ?skip=&limit=&kpi_key=&trigger_type=&level=&is_active=&search=
+  //   GET    /badges/{badge_id}
+  //   POST   /badges
+  //   PUT    /badges/{badge_id}
+  //   DELETE /badges/{badge_id}
+  badges: "/config/api/v1/badges",
+  badgeById: (badgeId) => `/config/api/v1/badges/${badgeId}`,
+
   departments: "/config/api/v1/departments",
   departmentById: (deptId) => `/config/api/v1/departments/${deptId}`,
 
@@ -106,6 +122,23 @@ export const API_URLS = {
   dashboardKpis: "/config/api/v1/dashboard/kpis",
   dashboardChallengeAction: "/config/api/v1/dashboard/challenges/action",
   dashboardWellnessTrends: "/config/api/v1/dashboard/wellness-trends",
+  // Caller's badge cabinet (earned + locked). JWT-authenticated.
+  //   GET /config/api/v1/dashboard/me/badges
+  //   → { data: { earned_count, total_count, badges: [
+  //       { badge_key, label, icon, level, trigger_type, trigger_value,
+  //         kpi_key, kpi_display_name, earned, earned_at }
+  //     ] } }
+  dashboardMyBadges: "/config/api/v1/dashboard/me/badges",
+  // Weekly leaderboard for the caller's company. JWT-authenticated.
+  //   GET /config/api/v1/dashboard/leaderboard
+  //   → { data: {
+  //       week_start, week_end,
+  //       leaderboard: [{ rank, rank_label, user_id, display_name, subtext,
+  //         xp_this_week, xp_last_week, display_change, change_type,
+  //         current_level, level_label, is_current_user }, ... up to 10],
+  //       your_position: null | { ...same shape, is_current_user: true }
+  //     } }
+  dashboardLeaderboard: "/config/api/v1/dashboard/leaderboard",
   sessionSuggestions: (sessionId) => `/config/api/v1/sessions/${sessionId}/suggestions`,
 
   kpis: "/config/api/v1/kpi",

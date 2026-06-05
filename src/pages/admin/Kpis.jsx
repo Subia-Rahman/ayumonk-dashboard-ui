@@ -88,6 +88,14 @@ export default function Kpis({ role = "admin" }) {
     [themeItems],
   );
 
+  const filteredThemeItems = useMemo(
+    () =>
+      filters.companyId
+        ? themeItems.filter((item) => item.company_id === filters.companyId)
+        : themeItems,
+    [filters.companyId, themeItems],
+  );
+
   const companyNameById = useMemo(
     () =>
       companies.reduce((accumulator, company) => {
@@ -102,13 +110,8 @@ export default function Kpis({ role = "admin" }) {
   }, [dispatch]);
 
   useEffect(() => {
-    dispatch(
-      fetchThemes({
-        isActive: true,
-        companyId: filters.companyId || undefined,
-      }),
-    );
-  }, [filters.companyId, dispatch]);
+    dispatch(fetchThemes({ limit: 500, isActive: true }));
+  }, [dispatch]);
 
   useEffect(() => {
     dispatch(
@@ -130,12 +133,7 @@ export default function Kpis({ role = "admin" }) {
 
   const handleRefresh = () => {
     dispatch(fetchCompanies());
-    dispatch(
-      fetchThemes({
-        isActive: true,
-        companyId: appliedFilters.companyId || undefined,
-      }),
-    );
+    dispatch(fetchThemes({ limit: 500, isActive: true }));
     dispatch(
       fetchKpis({
         search: appliedFilters.search.trim(),
@@ -393,36 +391,33 @@ export default function Kpis({ role = "admin" }) {
               gridTemplateColumns: {
                 xs: "1fr",
                 sm: "repeat(2, minmax(0, 1fr))",
-                lg: role === "superadmin"
-                  ? "repeat(4, minmax(0, 1fr)) auto auto"
-                  : "repeat(3, minmax(0, 1fr)) auto auto",
+                lg: "repeat(4, minmax(0, 1fr)) auto auto",
               },
               alignItems: { lg: "end" },
             }}
           >
-            {role === "superadmin" && (
-              <TextField
-                label="Company"
-                select
-                value={filters.companyId}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    companyId: event.target.value,
-                    themeKey: "",
-                  }))
-                }
-                fullWidth
-                sx={filterFieldSx}
-              >
-                <MenuItem value="">All Companies</MenuItem>
-                {companies.map((company) => (
-                  <MenuItem key={company.id} value={company.id}>
-                    {company.company_name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
+            <TextField
+              label="Company"
+              select
+              value={filters.companyId}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  companyId: event.target.value,
+                  themeKey: "",
+                }))
+              }
+              disabled={role === "admin"}
+              fullWidth
+              sx={filterFieldSx}
+            >
+              <MenuItem value="">All Companies</MenuItem>
+              {companies.map((company) => (
+                <MenuItem key={company.id} value={company.id}>
+                  {company.company_name}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               label="Theme"
               select
@@ -433,11 +428,12 @@ export default function Kpis({ role = "admin" }) {
                   themeKey: event.target.value,
                 }))
               }
+              disabled={!filters.companyId}
               fullWidth
               sx={filterFieldSx}
             >
               <MenuItem value="">All Themes</MenuItem>
-              {themeItems.map((item) => (
+              {filteredThemeItems.map((item) => (
                 <MenuItem key={item.theme_key} value={item.theme_key}>
                   {item.theme_display_name}
                 </MenuItem>

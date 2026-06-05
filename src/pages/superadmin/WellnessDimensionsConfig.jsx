@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import {
+import { 
   Alert,
   Autocomplete,
   Box,
@@ -543,9 +543,16 @@ export default function WellnessDimensionsConfig() {
               <CircularProgress size={16} />
               <Typography variant="body2">Loading dimensions...</Typography>
             </Stack>
-          ) : dimensions.length === 0 ? (
+          /* ) : dimensions.length === 0 ? (
             <Alert severity="info">
               No wellness dimensions yet. Click "Create dimension" to add one.
+            </Alert>
+          ) : ( */
+            ) : !selectedCompanyId || dimensions.length === 0 ? (
+            <Alert severity="info">
+              {!selectedCompanyId
+                ? "Select a company to display wellness dimensions."
+                : "No wellness dimensions yet. Click \"Create dimension\" to add one."}
             </Alert>
           ) : (
             <Table size="small">

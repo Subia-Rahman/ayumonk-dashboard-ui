@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Alert,
@@ -16,6 +16,7 @@ import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import Layout from "../../layouts/commonLayout/Layout";
 import { fetchThemes } from "../../store/themeSlice";
 import { fetchKpis } from "../../store/kpiSlice";
+import { fetchCompanies } from "../../store/companySlice";
 import {
   clearQuestionDetailState,
   fetchQuestionById,
@@ -23,13 +24,16 @@ import {
 import usePermissions from "../../hooks/usePermissions";
 import { getSurfaceBackground } from "../../theme";
 
-export default function QuestionsView() {
+export default function QuestionsView({ role = "admin" }) {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
+  const companyId = location.state?.companyId;
   const { items: themeItems } = useSelector((state) => state.theme);
   const { items: kpiItems } = useSelector((state) => state.kpi);
+  const { companies } = useSelector((state) => state.company);
   const { selectedQuestion, detailLoading, detailError } = useSelector(
     (state) => state.question,
   );
@@ -40,6 +44,7 @@ export default function QuestionsView() {
     dispatch(fetchQuestionById(id));
     dispatch(fetchThemes({ isActive: true }));
     dispatch(fetchKpis({ isActive: true }));
+    dispatch(fetchCompanies());
 
     return () => {
       dispatch(clearQuestionDetailState());
@@ -58,6 +63,13 @@ export default function QuestionsView() {
       kpiItems.find((item) => item.kpi_key === selectedQuestion?.kpi_key)
         ?.display_name,
     [kpiItems, selectedQuestion?.kpi_key],
+  );
+
+  const companyName = useMemo(
+    () =>
+      companies.find((company) => company.id === selectedQuestion?.company_id)
+        ?.company_name || selectedQuestion?.company_id || "-",
+    [companies, selectedQuestion?.company_id],
   );
 
   if (detailLoading) {
@@ -108,7 +120,12 @@ export default function QuestionsView() {
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Button
               startIcon={<ArrowBackRoundedIcon />}
-              onClick={() => navigate("/admin/questions")}
+              onClick={() =>
+                navigate(
+                  role === "admin" ? "/admin/questions" : "/super-admin/questions",
+                  { state: companyId ? { companyId } : undefined },
+                )
+              }
             >
               Back to list
             </Button>
@@ -116,7 +133,14 @@ export default function QuestionsView() {
               <Button
                 variant="contained"
                 startIcon={<EditRoundedIcon />}
-                onClick={() => navigate(`/admin/questions/${id}/edit`)}
+                onClick={() =>
+                  navigate(
+                    role === "admin"
+                      ? `/admin/questions/${id}/edit`
+                      : `/super-admin/questions/${id}/edit`,
+                    { state: companyId ? { companyId } : undefined },
+                  )
+                }
               >
                 Edit
               </Button>
@@ -140,6 +164,7 @@ export default function QuestionsView() {
               }}
             >
               {[
+                ["Company", companyName],
                 ["Question Code", selectedQuestion.question_code],
                 ["Theme", themeName || selectedQuestion.theme_key],
                 ["KPI", kpiName || selectedQuestion.kpi_key],

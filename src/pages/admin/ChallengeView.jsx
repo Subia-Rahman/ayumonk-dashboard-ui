@@ -112,7 +112,9 @@ export default function ChallengeView({ role = "superadmin" }) {
             <Stack direction="row" spacing={1}>
               <Button
                 startIcon={<ArrowBackRoundedIcon />}
-                onClick={() => navigate("/admin/challenges")}
+                onClick={() => 
+                  //navigate("/admin/challenges")}
+                  navigate(role === "superadmin" ? "/super-admin/challenges" : "/admin/challenges")}
               >
                 Back to list
               </Button>

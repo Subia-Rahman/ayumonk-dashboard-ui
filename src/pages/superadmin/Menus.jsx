@@ -56,6 +56,7 @@ function SectionCard({ children, sx }) {
   );
 }
 
+
 export default function Menus() {
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -70,9 +71,12 @@ export default function Menus() {
   const canCreateMenus = canCreate("menus");
   const canEditMenus = canEdit("menus");
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [parentFilter, setParentFilter] = useState("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [statusFilterInput, setStatusFilterInput] = useState("all");
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState("all");
+  const [parentFilterInput, setParentFilterInput] = useState("all");
+  const [appliedParentFilter, setAppliedParentFilter] = useState("all");
 
   useEffect(() => {
     dispatch(fetchMenus());
@@ -88,10 +92,20 @@ export default function Menus() {
     dispatch(fetchMenus());
   };
 
+  const handleApplyFilters = () => {
+    setAppliedSearch(searchInput);
+    setAppliedStatusFilter(statusFilterInput);
+    setAppliedParentFilter(parentFilterInput);
+  };
+
   const resetFilters = () => {
-    setSearch("");
-    setStatusFilter("all");
-    setParentFilter("all");
+    setSearchInput("");
+    setStatusFilterInput("all");
+    setParentFilterInput("all");
+    setAppliedSearch("");
+    setAppliedStatusFilter("all");
+    setAppliedParentFilter("all");
+    dispatch(clearMenuMasterListState());
   };
 
   const nameById = useMemo(() => {
@@ -101,7 +115,7 @@ export default function Menus() {
   }, [items]);
 
   const filteredRows = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const term = appliedSearch.trim().toLowerCase();
     return items.filter((item) => {
       const matchesSearch =
         !term ||
@@ -109,14 +123,14 @@ export default function Menus() {
           .filter(Boolean)
           .some((value) => value.toLowerCase().includes(term));
       const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" ? item.is_active : !item.is_active);
+        appliedStatusFilter === "all" ||
+        (appliedStatusFilter === "active" ? item.is_active : !item.is_active);
       const matchesParent =
-        parentFilter === "all" ||
-        (parentFilter === "root" ? !item.parent_id : Boolean(item.parent_id));
+        appliedParentFilter === "all" ||
+        (appliedParentFilter === "root" ? !item.parent_id : Boolean(item.parent_id));
       return matchesSearch && matchesStatus && matchesParent;
     });
-  }, [items, parentFilter, search, statusFilter]);
+  }, [items, appliedParentFilter, appliedSearch, appliedStatusFilter]);
 
   const columns = useMemo(
     () => [
@@ -311,16 +325,16 @@ export default function Menus() {
             >
               <TextField
                 label="Search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
                 fullWidth
                 sx={filterFieldSx}
               />
               <TextField
                 label="Hierarchy"
                 select
-                value={parentFilter}
-                onChange={(event) => setParentFilter(event.target.value)}
+                value={parentFilterInput}
+                onChange={(event) => setParentFilterInput(event.target.value)}
                 fullWidth
                 sx={filterFieldSx}
               >
@@ -331,8 +345,8 @@ export default function Menus() {
               <TextField
                 label="Status"
                 select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
+                value={statusFilterInput}
+                onChange={(event) => setStatusFilterInput(event.target.value)}
                 fullWidth
                 sx={filterFieldSx}
               >
@@ -342,7 +356,7 @@ export default function Menus() {
               </TextField>
               <Button
                 variant="outlined"
-                onClick={refresh}
+                onClick={handleApplyFilters}
                 disabled={listLoading}
                 sx={{ minHeight: 56, px: 3, whiteSpace: "nowrap" }}
               >

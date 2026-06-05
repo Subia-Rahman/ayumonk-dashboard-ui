@@ -231,7 +231,7 @@ export default function SessionManage() {
 
     try {
       await dispatch(addQuestionsToSession({ sessionId: id, questionIds: selectedQuestions })).unwrap();
-    } catch {}
+    } catch { }
   };
 
   const handleSetQuestions = async () => {
@@ -241,7 +241,7 @@ export default function SessionManage() {
 
     try {
       await dispatch(setSessionQuestions({ sessionId: id, questionIds: selectedQuestions })).unwrap();
-    } catch {}
+    } catch { }
   };
 
   const handleRemoveSelectedQuestions = async () => {
@@ -259,7 +259,7 @@ export default function SessionManage() {
 
     try {
       await dispatch(removeSessionQuestions({ sessionId: id, questionIds: removableQuestionIds })).unwrap();
-    } catch {}
+    } catch { }
   };
 
   const handleRemoveAllQuestions = async () => {
@@ -277,14 +277,14 @@ export default function SessionManage() {
         questionIds: sessionQuestions.map((question) => question.question_id),
       })).unwrap();
       setSelectedQuestions([]);
-    } catch {}
+    } catch { }
   };
 
   const handleRemoveSingleQuestion = async (questionId) => {
     try {
       await dispatch(removeSingleSessionQuestion({ sessionId: id, questionId })).unwrap();
       setSelectedQuestions((current) => current.filter((item) => String(item) !== String(questionId)));
-    } catch {}
+    } catch { }
   };
 
   const handleMoveQuestion = async (questionId, direction) => {
@@ -312,21 +312,21 @@ export default function SessionManage() {
           })),
         }),
       ).unwrap();
-    } catch {}
+    } catch { }
   };
 
   const handlePreviewSession = async () => {
     setPreviewDialogOpen(true);
     try {
       await dispatch(fetchSessionPreview(id)).unwrap();
-    } catch {}
+    } catch { }
   };
 
   const handlePublishSession = async () => {
     if (!sessionPreview?.session_id) return;
     try {
       await dispatch(publishSession(sessionPreview.session_id)).unwrap();
-    } catch {}
+    } catch { }
   };
 
   return (
@@ -415,9 +415,9 @@ export default function SessionManage() {
                         renderValue={(selected) =>
                           selected.length
                             ? questionHierarchy
-                                .filter((theme) => selected.includes(theme.theme_key))
-                                .map((theme) => theme.theme_display_name || theme.theme_key)
-                                .join(", ")
+                              .filter((theme) => selected.includes(theme.theme_key))
+                              .map((theme) => theme.theme_display_name || theme.theme_key)
+                              .join(", ")
                             : "Select Theme"
                         }
                       >
@@ -443,9 +443,9 @@ export default function SessionManage() {
                         renderValue={(selected) =>
                           selected.length
                             ? kpiOptions
-                                .filter((kpi) => selected.includes(kpi.selectionKey))
-                                .map((kpi) => `${kpi.display_name || kpi.kpi_key} (${kpi.themeDisplayName})`)
-                                .join(", ")
+                              .filter((kpi) => selected.includes(kpi.selectionKey))
+                              .map((kpi) => `${kpi.display_name || kpi.kpi_key} (${kpi.themeDisplayName})`)
+                              .join(", ")
                             : "Select KPI"
                         }
                       >
@@ -564,7 +564,8 @@ export default function SessionManage() {
                       <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
                         <Box sx={{ minWidth: 0, flex: 1 }}>
                           <Typography variant="body2" noWrap>
-                            {item.display_order}. {item.question_text}
+                            {/* {item.display_order}. {item.question_text} */}
+                            {index + 1}. {item.question_text}
                           </Typography>
                           {!!item.question_code && (
                             <Typography variant="caption" color="text.secondary">
@@ -648,7 +649,8 @@ export default function SessionManage() {
                 </Box>
               </Paper>
 
-              {(sessionPreview.questions || []).map((question) => (
+              {/* {(sessionPreview.questions || []).map((question) => ( */}
+                {(sessionPreview.questions || []).map((question, index) => (
                 <Paper
                   key={question.question_id}
                   elevation={0}
@@ -658,7 +660,8 @@ export default function SessionManage() {
                     <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
                       <Box>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                          {question.display_order}. {question.question_text}
+                          {/* {question.display_order}. {question.question_text} */}
+                          {index + 1}. {question.question_text}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {question.theme_display_name} • {question.kpi_display_name}

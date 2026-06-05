@@ -201,6 +201,7 @@ const roleSlice = createSlice({
         state.items.find((item) => item.id === id) || null;
     },
     clearRoleListState(state) {
+      state.items = [];
       state.listError = "";
       state.createError = "";
       state.createMessage = "";

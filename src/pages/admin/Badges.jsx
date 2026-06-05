@@ -23,13 +23,13 @@ import PreviewRoundedIcon from "@mui/icons-material/PreviewRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import Layout from "../../layouts/commonLayout/Layout";
 import usePermissions from "../../hooks/usePermissions";
-import { fetchCompanies } from "../../store/companySlice";
 import {
-  clearChallengeDeleteState,
-  clearChallengeListError,
-  deleteChallenge,
-  fetchChallenges,
-} from "../../store/challengeSlice";
+  clearBadgeDeleteState,
+  clearBadgeListError,
+  deleteBadge,
+  fetchBadges,
+} from "../../store/badgeSlice";
+import { fetchCompanies } from "../../store/companySlice";
 import { fetchKpis } from "../../store/kpiSlice";
 import { fetchThemes } from "../../store/themeSlice";
 import { getCompanyId } from "../../utils/roleHelper";
@@ -42,19 +42,45 @@ const filterFieldSx = {
   },
 };
 
-export default function Challenges({ role = "admin" }) {
+const TRIGGER_TYPE_OPTIONS = [
+  { value: "streak", label: "Streak" },
+  { value: "kpi_completions", label: "KPI Completions" },
+  { value: "level", label: "Level" },
+];
+
+const LEVEL_OPTIONS = [
+  { value: "bronze", label: "Bronze" },
+  { value: "silver", label: "Silver" },
+  { value: "gold", label: "Gold" },
+  { value: "legend", label: "Legend" },
+  { value: "platinum", label: "Platinum" },
+];
+
+const LEVEL_COLORS = {
+  bronze: "warning",
+  silver: "default",
+  gold: "warning",
+  legend: "secondary",
+  platinum: "primary",
+};
+
+const basePathFor = (role) =>
+  role === "superadmin" ? "/super-admin/badges" : "/admin/badges";
+
+export default function Badges({ role = "admin" }) {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const feedback = location.state?.feedback;
   const { canCreate, canEdit, canDelete } = usePermissions();
-  const canCreateChallenges = canCreate("challenges");
-  const canEditChallenges = canEdit("challenges");
-  const canDeleteChallenges = canDelete("challenges");
+  const canCreateBadges = canCreate("badges");
+  const canEditBadges = canEdit("badges");
+  const canDeleteBadges = canDelete("badges");
+  const basePath = basePathFor(role);
   const { companies } = useSelector((state) => state.company);
-  const { items: kpiItems } = useSelector((state) => state.kpi);
   const { items: themeItems } = useSelector((state) => state.theme);
+  const { items: kpiItems } = useSelector((state) => state.kpi);
   const {
     items,
     total,
@@ -63,44 +89,41 @@ export default function Challenges({ role = "admin" }) {
     deleteLoading,
     deleteError,
     deleteMessage,
-  } = useSelector((state) => state.challenge);
-  const [filters, setFilters] = useState({
-    companyId: role === "admin" ? getCompanyId() : "",
-    search: "",
-    status: "all",
-    themeKey: "",
-    kpiKey: "",
-    startDate: "",
-    endDate: "",
-  });
-  const [appliedFilters, setAppliedFilters] = useState({
-    companyId: role === "admin" ? getCompanyId() : "",
-    search: "",
-    status: "all",
-    themeKey: "",
-    kpiKey: "",
-    startDate: "",
-    endDate: "",
-  });
+  } = useSelector((state) => state.badge);
+
+  const defaultFilters = useMemo(
+    () => ({
+      companyId: role === "admin" ? getCompanyId() : "",
+      themeKey: "",
+      search: "",
+      status: "all",
+      triggerType: "",
+      level: "",
+      kpiKey: "",
+    }),
+    [role],
+  );
+  const [filters, setFilters] = useState(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
 
   const isActive =
     appliedFilters.status === "all"
       ? undefined
       : appliedFilters.status === "active";
 
-  const challengeQuery = useMemo(
+  const badgeQuery = useMemo(
     () => ({
       isActive,
+      triggerType: appliedFilters.triggerType,
+      level: appliedFilters.level,
       kpiKey: appliedFilters.kpiKey,
-      startDate: appliedFilters.startDate,
-      endDate: appliedFilters.endDate,
-      companyId: appliedFilters.companyId || undefined,
+      search: appliedFilters.search,
     }),
     [
-      appliedFilters.companyId,
-      appliedFilters.endDate,
       appliedFilters.kpiKey,
-      appliedFilters.startDate,
+      appliedFilters.level,
+      appliedFilters.search,
+      appliedFilters.triggerType,
       isActive,
     ],
   );
@@ -129,36 +152,34 @@ export default function Challenges({ role = "admin" }) {
   }, [dispatch, filters.companyId, filters.themeKey]);
 
   useEffect(() => {
-    dispatch(fetchChallenges(challengeQuery));
-  }, [challengeQuery, dispatch]);
+    dispatch(fetchBadges(badgeQuery));
+  }, [badgeQuery, dispatch]);
 
   useEffect(() => {
     return () => {
-      dispatch(clearChallengeListError());
-      dispatch(clearChallengeDeleteState());
+      dispatch(clearBadgeListError());
+      dispatch(clearBadgeDeleteState());
     };
   }, [dispatch]);
 
-  const filteredItems = useMemo(() => {
-    const term = appliedFilters.search.trim().toLowerCase();
-    if (!term) {
-      return items;
-    }
-
-    return items.filter((item) =>
-      [item.name, item.description]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(term)),
-    );
-  }, [appliedFilters.search, items]);
-
-  const companyNameById = useMemo(
+  const filteredThemeItems = useMemo(
     () =>
-      companies.reduce((accumulator, company) => {
-        accumulator[company.id] = company.company_name;
-        return accumulator;
-      }, {}),
-    [companies],
+      filters.companyId
+        ? themeItems.filter(
+            (item) => String(item.company_id) === String(filters.companyId),
+          )
+        : themeItems,
+    [filters.companyId, themeItems],
+  );
+
+  const filteredKpiItems = useMemo(
+    () =>
+      filters.companyId
+        ? kpiItems.filter(
+            (item) => String(item.company_id) === String(filters.companyId),
+          )
+        : kpiItems,
+    [filters.companyId, kpiItems],
   );
 
   const themeNameByKey = useMemo(
@@ -170,134 +191,103 @@ export default function Challenges({ role = "admin" }) {
     [themeItems],
   );
 
-  const filteredThemeItems = useMemo(
+  const kpiNameByKey = useMemo(
     () =>
-      filters.companyId
-        ? themeItems.filter((item) => item.company_id === filters.companyId)
-        : themeItems,
-    [filters.companyId, themeItems],
+      kpiItems.reduce((accumulator, item) => {
+        accumulator[item.kpi_key] = item.display_name;
+        return accumulator;
+      }, {}),
+    [kpiItems],
   );
 
   const handleRefresh = () => {
-    dispatch(fetchChallenges(challengeQuery));
+    dispatch(fetchBadges(badgeQuery));
   };
 
-  const handleDelete = useCallback(async (challengeKey, challengeName) => {
-    if (!window.confirm(`Delete challenge "${challengeName}"?`)) return;
+  const handleDelete = useCallback(
+    async (badgeId, badgeLabel) => {
+      if (!window.confirm(`Delete badge "${badgeLabel}"?`)) return;
 
-    try {
-      await dispatch(deleteChallenge(challengeKey)).unwrap();
-      dispatch(fetchChallenges(challengeQuery));
-    } catch {
-      // Error is already handled in redux state.
-    }
-  }, [challengeQuery, dispatch]);
+      try {
+        await dispatch(deleteBadge(badgeId)).unwrap();
+        dispatch(fetchBadges(badgeQuery));
+      } catch {
+        // Error is already handled in redux state.
+      }
+    },
+    [badgeQuery, dispatch],
+  );
 
   const handleResetFilters = () => {
-    const defaultFilters = {
-      companyId: role === "admin" ? getCompanyId() : "",
-      search: "",
-      status: "all",
-      themeKey: "",
-      kpiKey: "",
-      startDate: "",
-      endDate: "",
-    };
-
     setFilters(defaultFilters);
     setAppliedFilters(defaultFilters);
-    dispatch(
-      fetchChallenges({
-        isActive: true,
-        kpiKey: "",
-        startDate: "",
-        endDate: "",
-        companyId: role === "admin" ? getCompanyId() : undefined,
-      }),
-    );
   };
 
   const handleApplyFilters = () => {
-    setAppliedFilters({
-      companyId: filters.companyId,
-      search: filters.search,
-      status: filters.status,
-      themeKey: filters.themeKey,
-      kpiKey: filters.kpiKey,
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-    });
+    setAppliedFilters({ ...filters });
   };
 
   const columns = useMemo(
     () => [
       {
-        field: "company_id",
-        headerName: "Company",
+        field: "badge_key",
+        headerName: "Badge Key",
         flex: 1,
-        minWidth: 220,
-        valueGetter: (_, row) => companyNameById[row.company_id] || row.company_id || "-",
+        minWidth: 180,
       },
       {
-        field: "name",
-        headerName: "Challenge Name",
+        field: "label",
+        headerName: "Label",
         flex: 1.2,
-        minWidth: 220,
+        minWidth: 200,
       },
       {
-        field: "description",
-        headerName: "Description",
-        flex: 1.6,
-        minWidth: 260,
-        valueGetter: (_, row) => row.description || "-",
+        field: "icon",
+        headerName: "Icon",
+        minWidth: 80,
+        renderCell: ({ value }) => (
+          <Typography sx={{ fontSize: 22, lineHeight: 1 }}>
+            {value || "—"}
+          </Typography>
+        ),
       },
       {
-        field: "challenge_type",
-        headerName: "Type",
-        minWidth: 150,
-        valueGetter: (_, row) => row.challenge_type || "-",
-      },
-      {
-        field: "target_value",
-        headerName: "Target",
-        minWidth: 110,
-        valueGetter: (_, row) => row.target_value ?? "-",
-      },
-      {
-        field: "xp_reward",
-        headerName: "XP Reward",
-        minWidth: 110,
-        valueGetter: (_, row) => row.xp_reward ?? "-",
-      },
-      {
-        field: "is_daily",
-        headerName: "Daily",
-        minWidth: 100,
+        field: "level",
+        headerName: "Level",
+        minWidth: 120,
         renderCell: ({ value }) => (
           <Chip
             size="small"
-            label={value ? "Yes" : "No"}
-            color={value ? "primary" : "default"}
-            variant={value ? "filled" : "outlined"}
+            label={value ? value.charAt(0).toUpperCase() + value.slice(1) : "-"}
+            color={LEVEL_COLORS[value] || "default"}
+            variant="filled"
           />
         ),
       },
       {
-        field: "start_date",
-        headerName: "Start Date",
-        minWidth: 130,
-        valueGetter: (_, row) => row.start_date || "-",
+        field: "trigger_type",
+        headerName: "Trigger Type",
+        minWidth: 150,
+        valueGetter: (_, row) => row.trigger_type || "-",
       },
       {
-        field: "end_date",
-        headerName: "End Date",
+        field: "trigger_value",
+        headerName: "Trigger Value",
         minWidth: 130,
-        valueGetter: (_, row) => row.end_date || "-",
+        valueGetter: (_, row) => row.trigger_value ?? "-",
+      },
+      {
+        field: "kpi_key",
+        headerName: "KPI",
+        flex: 1,
+        minWidth: 180,
+        valueGetter: (_, row) =>
+          row.kpi_key ? kpiNameByKey[row.kpi_key] || row.kpi_key : "—",
       },
       {
         field: "is_active",
         headerName: "Status",
-        minWidth: 130,
+        minWidth: 120,
         renderCell: ({ value }) => (
           <Chip
             size="small"
@@ -311,14 +301,14 @@ export default function Challenges({ role = "admin" }) {
         field: "created_at",
         headerName: "Created At",
         flex: 1,
-        minWidth: 190,
+        minWidth: 180,
         valueFormatter: (value) => formatDateTimeIST(value),
       },
       {
         field: "updated_at",
         headerName: "Updated At",
         flex: 1,
-        minWidth: 190,
+        minWidth: 180,
         valueFormatter: (value) => formatDateTimeIST(value),
       },
       {
@@ -327,69 +317,63 @@ export default function Challenges({ role = "admin" }) {
         sortable: false,
         filterable: false,
         minWidth: 170,
-        renderCell: ({ row }) => (
-          <Stack direction="row" spacing={0.5}>
-            <Tooltip title="View">
-              <IconButton
-                size="small"
-                onClick={() =>
-                navigate(
-                  role === "admin"
-                    ? `/admin/challenges/${row.challenge_key}`
-                    : `/super-admin/challenges/${row.challenge_key}`,
-                )
-                }
-              >
-                <PreviewRoundedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            {canEditChallenges && (
-              <Tooltip title="Edit">
+        renderCell: ({ row }) => {
+          const rowId = row.badge_id || row.badge_key;
+
+          return (
+            <Stack direction="row" spacing={0.5}>
+              <Tooltip title="View">
                 <IconButton
                   size="small"
-                  onClick={() =>
-                    navigate(`/super-admin/challenges/${row.challenge_key}/edit`)
-                  }
+                  onClick={() => navigate(`${basePath}/${rowId}`)}
                 >
-                  <EditRoundedIcon fontSize="small" />
+                  <PreviewRoundedIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-            )}
-            {canDeleteChallenges && (
-              <Tooltip title="Delete">
-                <span>
+              {canEditBadges && (
+                <Tooltip title="Edit">
                   <IconButton
                     size="small"
-                    color="error"
-                    disabled={deleteLoading}
-                    onClick={() => handleDelete(row.challenge_key, row.name)}
+                    onClick={() => navigate(`${basePath}/${rowId}/edit`)}
                   >
-                    <DeleteOutlineRoundedIcon fontSize="small" />
+                    <EditRoundedIcon fontSize="small" />
                   </IconButton>
-                </span>
-              </Tooltip>
-            )}
-          </Stack>
-        ),
+                </Tooltip>
+              )}
+              {canDeleteBadges && (
+                <Tooltip title="Delete">
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      disabled={deleteLoading || !row.is_active}
+                      onClick={() => handleDelete(rowId, row.label)}
+                    >
+                      <DeleteOutlineRoundedIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              )}
+            </Stack>
+          );
+        },
       },
     ],
     [
-      canDeleteChallenges,
-      canEditChallenges,
-      companyNameById,
+      basePath,
+      canDeleteBadges,
+      canEditBadges,
       deleteLoading,
       handleDelete,
+      kpiNameByKey,
       navigate,
-      role,
     ],
   );
 
   return (
-    <Layout role={role} title="Challenges">
+    <Layout role={role} title="Badges">
       <Stack spacing={2}>
-        {feedback && (
-          <Alert severity={feedback.severity}>{feedback.message}</Alert>
-        )}
+        {feedback && <Alert severity={feedback.severity}>{feedback.message}</Alert>}
         {listError && <Alert severity="error">{listError}</Alert>}
         {deleteError && <Alert severity="error">{deleteError}</Alert>}
         {deleteMessage && <Alert severity="success">{deleteMessage}</Alert>}
@@ -412,31 +396,25 @@ export default function Challenges({ role = "admin" }) {
           >
             <Box>
               <Typography variant="h5" sx={{ fontWeight: 750 }}>
-                Challenge Master
+                Badge Master
               </Typography>
               <Typography
                 color="text.secondary"
                 sx={{ mt: 0.75, maxWidth: 720 }}
               >
-                Create, review, update, and deactivate challenges with KPI
-                mappings.
+                Create, review, update, and deactivate platform badges with
+                level, trigger, and KPI configuration.
               </Typography>
             </Box>
 
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              {canCreateChallenges && (
+              {canCreateBadges && (
                 <Button
                   variant="contained"
                   startIcon={<AddRoundedIcon />}
-                  onClick={() =>
-                    navigate(
-                      role === "admin"
-                        ? "/admin/challenges/add"
-                        : "/super-admin/challenges/add",
-                    )
-                  }
+                  onClick={() => navigate(`${basePath}/add`)}
                 >
-                  Add Challenge
+                  Add Badge
                 </Button>
               )}
               <Button
@@ -458,9 +436,9 @@ export default function Challenges({ role = "admin" }) {
               gridTemplateColumns: {
                 xs: "1fr",
                 sm: "repeat(2, minmax(0, 1fr))",
-                md: "repeat(2, minmax(0, 1fr))",
+                md: "repeat(3, minmax(0, 1fr))",
                 lg: "repeat(4, minmax(0, 1fr))",
-                xl: "1.15fr 1fr 1fr 1fr 1fr 1.4fr 0.9fr auto auto",
+                xl: "1.1fr 1fr 1fr 1fr 1fr 1fr 0.9fr auto auto",
               },
               alignItems: { lg: "end" },
             }}
@@ -523,43 +501,15 @@ export default function Challenges({ role = "admin" }) {
               fullWidth
               sx={filterFieldSx}
             >
-              <MenuItem value="">All KPI</MenuItem>
-              {kpiItems.map((kpi) => (
+              <MenuItem value="">All KPIs</MenuItem>
+              {filteredKpiItems.map((kpi) => (
                 <MenuItem key={kpi.kpi_key} value={kpi.kpi_key}>
                   {`${themeNameByKey[kpi.theme_key] || kpi.theme_key || "Unknown Theme"} - ${kpi.display_name}`}
                 </MenuItem>
               ))}
             </TextField>
             <TextField
-              label="Start Date"
-              type="date"
-              value={filters.startDate}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  startDate: event.target.value,
-                }))
-              }
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-              sx={filterFieldSx}
-            />
-            <TextField
-              label="End Date"
-              type="date"
-              value={filters.endDate}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  endDate: event.target.value,
-                }))
-              }
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-              sx={filterFieldSx}
-            />
-            <TextField
-              label="Search Challenge"
+              label="Search (key or label)"
               value={filters.search}
               onChange={(event) =>
                 setFilters((current) => ({
@@ -570,6 +520,46 @@ export default function Challenges({ role = "admin" }) {
               fullWidth
               sx={filterFieldSx}
             />
+            <TextField
+              label="Trigger Type"
+              select
+              value={filters.triggerType}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  triggerType: event.target.value,
+                }))
+              }
+              fullWidth
+              sx={filterFieldSx}
+            >
+              <MenuItem value="">All Triggers</MenuItem>
+              {TRIGGER_TYPE_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Level"
+              select
+              value={filters.level}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  level: event.target.value,
+                }))
+              }
+              fullWidth
+              sx={filterFieldSx}
+            >
+              <MenuItem value="">All Levels</MenuItem>
+              {LEVEL_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               label="Status"
               select
@@ -605,13 +595,13 @@ export default function Challenges({ role = "admin" }) {
           </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Showing {filteredItems.length} of {total} challenges
+            Showing {items.length} of {total} badges
           </Typography>
 
           <Box sx={{ width: "100%", overflowX: "auto" }}>
             <Box sx={{ height: 560, width: "100%" }}>
               <DataGrid
-                rows={filteredItems}
+                rows={items}
                 columns={columns}
                 loading={listLoading}
                 disableRowSelectionOnClick

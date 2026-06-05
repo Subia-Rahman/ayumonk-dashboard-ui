@@ -606,7 +606,8 @@ export default function Sessions({ role = "admin" }) {
                 </Box>
               </Paper>
 
-              {(sessionPreview.questions || []).map((question) => (
+              {/* {(sessionPreview.questions || []).map((question) => ( */}
+              {(sessionPreview.questions || []).map((question, index) => (
                 <Paper
                   key={question.question_id}
                   elevation={0}
@@ -621,11 +622,12 @@ export default function Sessions({ role = "admin" }) {
                     <Stack
                       direction={{ xs: "column", sm: "row" }}
                       justifyContent="space-between"
-                      spacing={1}
+                       spacing={1}
                     >
                       <Box>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                          {question.display_order}. {question.question_text}
+                          {/* {question.display_order}. {question.question_text} */}
+                          {index + 1}. {question.question_text}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {question.theme_display_name} • {question.kpi_display_name}
@@ -687,9 +689,6 @@ export default function Sessions({ role = "admin" }) {
             </Stack>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClosePreviewDialog}>Close</Button>
-        </DialogActions>
       </Dialog>
     </Layout>
   );

@@ -78,6 +78,24 @@ export default function KpiForm({ mode, role = "superadmin" }) {
   }, [dispatch, id, mode, selectedCompanyId]);
 
   useEffect(() => {
+    if (mode === "edit" && selectedKpi) {
+      setForm({
+        displayName: selectedKpi.display_name || "",
+        themeKey: selectedKpi.theme_key || "",
+        domainCategory: selectedKpi.domain_category || "",
+        wiWeight:
+          selectedKpi.wi_weight === null || selectedKpi.wi_weight === undefined
+            ? ""
+            : String(selectedKpi.wi_weight),
+        startDate: selectedKpi.start_date || today,
+        endDate: selectedKpi.end_date || today,
+        isActive: Boolean(selectedKpi.is_active),
+        companyId: selectedKpi.company_id || "",
+      });
+    }
+  }, [mode, selectedKpi]);
+
+  useEffect(() => {
     return () => {
       dispatch(clearKpiCreateState());
       dispatch(clearKpiUpdateState());
@@ -87,27 +105,7 @@ export default function KpiForm({ mode, role = "superadmin" }) {
 
   const pageTitle = useMemo(() => (mode === "edit" ? "Edit KPI" : "Add KPI"), [mode]);
 
-  const resolvedForm = useMemo(() => {
-    if (mode !== "edit" || !selectedKpi) {
-      return form;
-    }
-
-    return {
-      displayName: form.displayName || selectedKpi.display_name || "",
-      themeKey: form.themeKey || selectedKpi.theme_key || "",
-      domainCategory: form.domainCategory || selectedKpi.domain_category || "",
-      wiWeight:
-        form.wiWeight !== ""
-          ? form.wiWeight
-          : selectedKpi.wi_weight === null || selectedKpi.wi_weight === undefined
-            ? ""
-            : String(selectedKpi.wi_weight),
-      startDate: form.startDate || selectedKpi.start_date || today,
-      endDate: form.endDate || selectedKpi.end_date || today,
-      isActive: form.isActive ?? Boolean(selectedKpi.is_active),
-      companyId: form.companyId || selectedKpi.company_id || "",
-    };
-  }, [form, mode, selectedKpi]);
+  const resolvedForm = useMemo(() => form, [form]);
 
   const handleSave = async () => {
     if (

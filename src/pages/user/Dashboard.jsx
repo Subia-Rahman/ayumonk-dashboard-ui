@@ -46,7 +46,11 @@ import {
 import Layout from "../../layouts/commonLayout/Layout";
 import DashboardChallenges from "./DashboardChallenges";
 import DashboardWellness from "./DashboardWellness";
-import { fetchDashboardKpis } from "../../store/dashboardSlice";
+import {
+  fetchDashboardBadges,
+  fetchDashboardKpis,
+  fetchDashboardLeaderboard,
+} from "../../store/dashboardSlice";
 import { getRaisedGradient, getSurfaceBackground } from "../../theme";
 
 const METRIC_ICON_SET = [
@@ -1151,11 +1155,24 @@ export default function Dashboard() {
     items: dashboardItems,
     loading: dashboardLoading,
     error: dashboardError,
+    badges,
+    badgesLoading,
+    badgesError,
+    leaderboard,
+    leaderboardLoading,
+    leaderboardError,
   } = useSelector((state) => state.dashboard);
 
   useEffect(() => {
     dispatch(fetchDashboardKpis());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (activeTab === "challenges") {
+      dispatch(fetchDashboardBadges());
+      dispatch(fetchDashboardLeaderboard());
+    }
+  }, [dispatch, activeTab]);
 
   const challengeItems = useMemo(
     () =>
@@ -1197,6 +1214,12 @@ export default function Dashboard() {
             challenges={challengeItems}
             loading={dashboardLoading}
             error={dashboardError}
+            badges={badges}
+            badgesLoading={badgesLoading}
+            badgesError={badgesError}
+            leaderboard={leaderboard}
+            leaderboardLoading={leaderboardLoading}
+            leaderboardError={leaderboardError}
           />
         )}
       </Stack>

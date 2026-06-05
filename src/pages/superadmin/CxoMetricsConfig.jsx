@@ -490,7 +490,15 @@ export default function CxoMetricsConfig() {
             onChange={handleSelectMetric}
           />
 
-          {!metricsMasterLoading && metricsMaster.length === 0 ? (
+          {/* {!metricsMasterLoading && metricsMaster.length === 0 ? (
+            <Alert severity="info">
+              Select company to display metrics data
+            </Alert>
+          ) : kpiMappingListError ? (
+            <Alert severity="error">{kpiMappingListError}</Alert>
+          ) : null} */}
+
+          {!selectedCompanyId ? (
             <Alert severity="info">
               Select company to display metrics data
             </Alert>
@@ -543,7 +551,7 @@ export default function CxoMetricsConfig() {
                 sx={{ mt: 0.5 }}
               >
                 Create and review the metric master rows backing the
-                configurations above. POST /admin/cxo-metrics.
+                configurations above.
               </Typography>
             </Box>
             {canEditConfig && (
@@ -571,10 +579,16 @@ export default function CxoMetricsConfig() {
                 Loading CXO metric definitions...
               </Typography>
             </Stack>
-          ) : metricsMaster.length === 0 ? (
+            /* ) : metricsMaster.length === 0 ? (
+              <Alert severity="info">
+                Select company to display metrics data.
+                one.
+              </Alert>
+            ) : ( */
+
+          ) : !selectedCompanyId || metricsMaster.length === 0 ? (
             <Alert severity="info">
               Select company to display metrics data.
-              one.
             </Alert>
           ) : (
             <Table size="small">
@@ -882,114 +896,114 @@ function PersistedKpiRowsTable({
   onDeleteRow,
 }) {
   return (
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>KPI</TableCell>
-            <TableCell sx={{ width: 160 }}>Weight</TableCell>
-            <TableCell sx={{ width: 130 }}>Status</TableCell>
-            <TableCell sx={{ width: 80, textAlign: "right" }}>Actions</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => {
-            const draftValue =
-              edits[row.mapping_id] != null ? edits[row.mapping_id] : row.weight;
-            const isDirty = Number(draftValue) !== Number(row.weight);
-            return (
-              <TableRow key={row.mapping_id} hover>
-                <TableCell>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    sx={{ minWidth: 0 }}
+    <Table size="small">
+      <TableHead>
+        <TableRow>
+          <TableCell>KPI</TableCell>
+          <TableCell sx={{ width: 160 }}>Weight</TableCell>
+          <TableCell sx={{ width: 130 }}>Status</TableCell>
+          <TableCell sx={{ width: 80, textAlign: "right" }}>Actions</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {rows.map((row) => {
+          const draftValue =
+            edits[row.mapping_id] != null ? edits[row.mapping_id] : row.weight;
+          const isDirty = Number(draftValue) !== Number(row.weight);
+          return (
+            <TableRow key={row.mapping_id} hover>
+              <TableCell>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  sx={{ minWidth: 0 }}
+                >
+                  <Typography
+                    sx={{ fontSize: 13, fontWeight: 600 }}
+                    noWrap
                   >
-                    <Typography
-                      sx={{ fontSize: 13, fontWeight: 600 }}
-                      noWrap
-                    >
-                      {row.kpi_name || "Unnamed KPI"}
-                    </Typography>
-                    {!row.is_active && (
-                      <Chip
-                        size="small"
-                        label="paused"
-                        color="warning"
-                        variant="outlined"
-                        sx={{ height: 18, fontSize: 10 }}
-                      />
-                    )}
-                  </Stack>
-                </TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={0.5} alignItems="center">
-                    <TextField
-                      type="number"
+                    {row.kpi_name || "Unnamed KPI"}
+                  </Typography>
+                  {!row.is_active && (
+                    <Chip
                       size="small"
-                      value={draftValue}
-                      onChange={(event) =>
-                        onChangeEdit(row.mapping_id, event.target.value)
-                      }
-                      inputProps={{ step: 0.1, min: 0, max: 5 }}
-                      sx={{ width: 90 }}
-                      disabled={updating || !row.is_active}
+                      label="paused"
+                      color="warning"
+                      variant="outlined"
+                      sx={{ height: 18, fontSize: 10 }}
                     />
-                    <Tooltip
-                      title={isDirty ? "Save weight" : "No changes"}
-                    >
-                      <span>
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          disabled={updating || !isDirty}
-                          onClick={() => {
-                            onSaveWeight(row.mapping_id, Number(draftValue));
-                            onClearEdit(row.mapping_id);
-                          }}
-                          aria-label={`Save weight for ${row.kpi_name || row.kpi_key}`}
-                        >
-                          <SaveRoundedIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  </Stack>
-                </TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={0.5} alignItems="center">
-                    <Switch
-                      size="small"
-                      checked={row.is_active}
-                      disabled={toggling}
-                      onChange={() => onToggleStatus(row)}
-                      inputProps={{
-                        "aria-label": `Toggle status for ${row.kpi_name || row.kpi_key}`,
-                      }}
-                    />
-                    <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                      {row.is_active ? "Active" : "Paused"}
-                    </Typography>
-                  </Stack>
-                </TableCell>
-                <TableCell sx={{ textAlign: "right" }}>
-                  <Tooltip title="Remove this KPI mapping">
+                  )}
+                </Stack>
+              </TableCell>
+              <TableCell>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <TextField
+                    type="number"
+                    size="small"
+                    value={draftValue}
+                    onChange={(event) =>
+                      onChangeEdit(row.mapping_id, event.target.value)
+                    }
+                    inputProps={{ step: 0.1, min: 0, max: 5 }}
+                    sx={{ width: 90 }}
+                    disabled={updating || !row.is_active}
+                  />
+                  <Tooltip
+                    title={isDirty ? "Save weight" : "No changes"}
+                  >
                     <span>
                       <IconButton
                         size="small"
-                        color="error"
-                        disabled={deleting}
-                        onClick={() => onDeleteRow(row.mapping_id)}
-                        aria-label={`Delete ${row.kpi_name || row.kpi_key}`}
+                        color="primary"
+                        disabled={updating || !isDirty}
+                        onClick={() => {
+                          onSaveWeight(row.mapping_id, Number(draftValue));
+                          onClearEdit(row.mapping_id);
+                        }}
+                        aria-label={`Save weight for ${row.kpi_name || row.kpi_key}`}
                       >
-                        <DeleteOutlineRoundedIcon fontSize="small" />
+                        <SaveRoundedIcon fontSize="small" />
                       </IconButton>
                     </span>
                   </Tooltip>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                </Stack>
+              </TableCell>
+              <TableCell>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Switch
+                    size="small"
+                    checked={row.is_active}
+                    disabled={toggling}
+                    onChange={() => onToggleStatus(row)}
+                    inputProps={{
+                      "aria-label": `Toggle status for ${row.kpi_name || row.kpi_key}`,
+                    }}
+                  />
+                  <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                    {row.is_active ? "Active" : "Paused"}
+                  </Typography>
+                </Stack>
+              </TableCell>
+              <TableCell sx={{ textAlign: "right" }}>
+                <Tooltip title="Remove this KPI mapping">
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      disabled={deleting}
+                      onClick={() => onDeleteRow(row.mapping_id)}
+                      aria-label={`Delete ${row.kpi_name || row.kpi_key}`}
+                    >
+                      <DeleteOutlineRoundedIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
