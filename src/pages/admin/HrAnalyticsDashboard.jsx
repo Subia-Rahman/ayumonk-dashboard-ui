@@ -7,6 +7,7 @@ import {
   fetchHrHeatmapLocationDept,
   fetchHrWellnessByDimension,
   fetchHrWellnessDimensions,
+  buildFilterParams,
 } from "../../store/hrAnalyticsSlice";
 import api from "../../services/api";
 import { API_URLS } from "../../services/apiUrls";
@@ -86,18 +87,18 @@ function Card({ children, style = {}, color, onClick }) {
       onMouseEnter={
         onClick
           ? (e) => {
-              e.currentTarget.style.borderColor = (color || "#6db33f") + "88";
-              e.currentTarget.style.transform = "translateY(-1px)";
-            }
+            e.currentTarget.style.borderColor = (color || "#6db33f") + "88";
+            e.currentTarget.style.transform = "translateY(-1px)";
+          }
           : undefined
       }
       onMouseLeave={
         onClick
           ? (e) => {
-              e.currentTarget.style.borderColor =
-                color || "rgba(255,255,255,0.07)";
-              e.currentTarget.style.transform = "";
-            }
+            e.currentTarget.style.borderColor =
+              color || "rgba(255,255,255,0.07)";
+            e.currentTarget.style.transform = "";
+          }
           : undefined
       }
     >
@@ -446,14 +447,14 @@ function HRDashboardContent() {
     if (!cxo) return;
     let cancelled = false;
     setCxoLoading(true);
-    setCxoError("");
     api
-      .get(API_URLS.hrCxoMetrics, { params: { metric: cxo } })
+      .get(API_URLS.hrCxoMetrics, { params: { metric: cxo, ...buildFilterParams(hrFilters) } })
       .then((response) => {
         if (cancelled) return;
         const payload = response?.data;
         if (payload?.success) {
           setCxoData(payload.data || null);
+          setCxoError("");
         } else {
           setCxoData(null);
           setCxoError(payload?.message || "Failed to load metric.");
@@ -466,9 +467,9 @@ function HRDashboardContent() {
         // the backend's "CXO metric not configured" message verbatim.
         setCxoError(
           error?.response?.data?.message ||
-            (error?.response?.status === 404
-              ? "CXO metric not configured."
-              : "Failed to load metric."),
+          (error?.response?.status === 404
+            ? "CXO metric not configured."
+            : "Failed to load metric."),
         );
       })
       .finally(() => {
@@ -477,7 +478,7 @@ function HRDashboardContent() {
     return () => {
       cancelled = true;
     };
-  }, [cxo]);
+  }, [cxo, hrFilters]);
 
   const cxoByDept = useMemo(
     () =>
@@ -557,7 +558,7 @@ function HRDashboardContent() {
         <Sel label="Gender" value={fG} onChange={setFG} opts={FORM_GENDERS} />
         <div style={{ marginLeft: "auto", fontSize: 11, color: C.muted }}>
           <span style={{ color: C.g3, fontWeight: 700, fontSize: 16 }}>
-            {filtered.length}
+            {companyMe?.no_of_employees ?? "—"}
           </span>{" "}
           employees selected
         </div>
@@ -714,7 +715,7 @@ function HRDashboardContent() {
               colors={[C.blue, C.orange, C.red, C.purple, C.gold, C.teal]}
             />
           </div>
-          {cxoLoading ? (
+          {cxoLoading && !cxoData ? (
             <div
               style={{
                 fontSize: 10,
@@ -1082,9 +1083,8 @@ function HRDashboardContent() {
                         >
                           <div
                             style={{
-                              background: `rgba(107,179,63,${
-                                inten * 0.65 + 0.1
-                              })`,
+                              background: `rgba(107,179,63,${inten * 0.65 + 0.1
+                                })`,
                               borderRadius: 6,
                               padding: "3px 0",
                               fontSize: 10,

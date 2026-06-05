@@ -59,6 +59,52 @@ const normalizeBucket = (item) => ({
       : Number(item.value),
 });
 
+const firstPresent = (...values) =>
+  values.find((value) => value !== undefined && value !== null && value !== "");
+
+const toNumberOrNull = (...values) => {
+  const value = firstPresent(...values);
+  return value == null || Number.isNaN(Number(value)) ? null : Number(value);
+};
+
+const getLocationLabel = (item) =>
+  firstPresent(
+    typeof item === "string" ? item : null,
+    item?.location,
+    item?.location_name,
+    item?.location_label,
+    item?.locationName,
+    item?.label,
+    item?.name,
+    item?.l,
+  ) || "";
+
+const getDepartmentLabel = (item) =>
+  firstPresent(
+    typeof item === "string" ? item : null,
+    item?.department,
+    item?.department_name,
+    item?.department_label,
+    item?.departmentName,
+    item?.label,
+    item?.name,
+    item?.d,
+  ) || "";
+
+const getHeatmapValue = (item) =>
+  toNumberOrNull(
+    item?.value,
+    item?.wellness_score,
+    item?.wellnessScore,
+    item?.wellness_index,
+    item?.wellnessIndex,
+    item?.score,
+    item?.avg_score,
+    item?.average_score,
+    item?.avg_wellness_score,
+    item?.average_wellness_score,
+  );
+
 const normalizeByDimensionPayload = (data, fallbackKey) => {
   const root =
     data && typeof data === "object" && (data.data || data.items)
@@ -80,48 +126,45 @@ const normalizeByDimensionPayload = (data, fallbackKey) => {
 // structure so the table renderer doesn't have to branch.
 const normalizeHeatmapPayload = (data) => {
   const root =
-    data && typeof data === "object" && (data.data || data.cells || data.rows)
-      ? data.data || data
+    data && typeof data === "object" && !Array.isArray(data) && data.data
+      ? data.data
       : data || {};
+  const source =
+    root && typeof root === "object" && !Array.isArray(root) && root.heatmap
+      ? root.heatmap
+      : root;
 
-  // Pre-declared header arrays in the response take precedence — those keep
-  // the column / row order the backend intends.
-  const declaredLocations = Array.isArray(root?.locations)
-    ? root.locations.map((l) => (typeof l === "string" ? l : l?.name || l?.label || ""))
+  const declaredLocations = Array.isArray(source?.locations)
+    ? source.locations.map(getLocationLabel).filter(Boolean)
     : [];
-  const declaredDepartments = Array.isArray(root?.departments)
-    ? root.departments.map((d) =>
-        typeof d === "string" ? d : d?.name || d?.label || "",
-      )
+  const declaredDepartments = Array.isArray(source?.departments)
+    ? source.departments.map(getDepartmentLabel).filter(Boolean)
     : [];
 
   let cells = [];
 
-  // Shape A: cells: [{ location, department, value }]
-  if (Array.isArray(root?.cells)) {
-    cells = root.cells.map((c) => ({
-      location: c?.location || c?.location_label || c?.l || "",
-      department: c?.department || c?.department_label || c?.d || "",
-      value:
-        c?.value == null || Number.isNaN(Number(c.value))
-          ? null
-          : Number(c.value),
+  if (Array.isArray(source?.cells)) {
+    cells = source.cells.map((c) => ({
+      location: getLocationLabel(c),
+      department: getDepartmentLabel(c),
+      value: getHeatmapValue(c),
     }));
-  }
-  // Shape B: rows: [{ location, cells: { department: value } }]
-  // Shape C: rows: [{ location, departments: [{ name, value }] }]
-  else if (Array.isArray(root?.rows)) {
-    root.rows.forEach((row) => {
-      const location = row?.location || row?.label || row?.name || "";
+  } else if (Array.isArray(source?.items) || Array.isArray(source?.results)) {
+    const items = Array.isArray(source?.items) ? source.items : source.results;
+    cells = items.map((c) => ({
+      location: getLocationLabel(c),
+      department: getDepartmentLabel(c),
+      value: getHeatmapValue(c),
+    }));
+  } else if (Array.isArray(source?.rows)) {
+    source.rows.forEach((row) => {
+      const location = getLocationLabel(row);
       if (Array.isArray(row?.departments)) {
         row.departments.forEach((dept) => {
           cells.push({
             location,
-            department: dept?.name || dept?.label || dept?.department || "",
-            value:
-              dept?.value == null || Number.isNaN(Number(dept.value))
-                ? null
-                : Number(dept.value),
+            department: getDepartmentLabel(dept),
+            value: getHeatmapValue(dept),
           });
         });
       } else if (row?.cells && typeof row.cells === "object") {
@@ -137,21 +180,26 @@ const normalizeHeatmapPayload = (data) => {
         });
       }
     });
-  }
-  // Shape D: raw array at the root.
-  else if (Array.isArray(data)) {
-    cells = data.map((c) => ({
-      location: c?.location || "",
-      department: c?.department || "",
-      value:
-        c?.value == null || Number.isNaN(Number(c.value))
-          ? null
-          : Number(c.value),
+  } else if (source?.matrix && typeof source.matrix === "object") {
+    Object.entries(source.matrix).forEach(([location, departments]) => {
+      if (!departments || typeof departments !== "object") return;
+      Object.entries(departments).forEach(([department, value]) => {
+        cells.push({
+          location,
+          department,
+          value:
+            value == null || Number.isNaN(Number(value)) ? null : Number(value),
+        });
+      });
+    });
+  } else if (Array.isArray(source)) {
+    cells = source.map((c) => ({
+      location: getLocationLabel(c),
+      department: getDepartmentLabel(c),
+      value: getHeatmapValue(c),
     }));
   }
 
-  // Derive headers from cells if the backend didn't declare them. Insertion
-  // order via Set preserves whatever the backend returned first.
   const locations =
     declaredLocations.length > 0
       ? declaredLocations
@@ -163,10 +211,9 @@ const normalizeHeatmapPayload = (data) => {
 
   return { locations, departments, cells };
 };
-
 // Build a query-param object from the page's filter state. Any value left as
 // "All" / "" is dropped so the backend sees a clean filter set.
-const buildFilterParams = (filters) => {
+export const buildFilterParams = (filters) => {
   const out = {};
   if (!filters) return out;
   if (filters.department) out.department = filters.department;
@@ -387,3 +434,4 @@ const slice = createSlice({
 
 export const { clearHrAnalyticsErrors } = slice.actions;
 export default slice.reducer;
+

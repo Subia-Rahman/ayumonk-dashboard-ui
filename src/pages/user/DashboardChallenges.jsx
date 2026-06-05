@@ -63,36 +63,13 @@ const formatBadgeLevel = (level) => {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 };
 
-const LEADERBOARD_RANK_COLORS = {
-  1: C.gold,
-  2: "#94a3b8",
-  3: C.orange,
-};
-
-const getLeaderboardRowColor = (entry) => {
-  if (entry?.is_current_user) return C.g3;
-  return LEADERBOARD_RANK_COLORS[entry?.rank] || "rgba(255,255,255,0.3)";
-};
-
-const getLeaderboardChangeColor = (entry) => {
-  const change = String(entry?.display_change || "").trim();
-  if (entry?.change_type === "absolute") return C.blue;
-  if (change.startsWith("+") && change !== "+0%") return "#4ade80";
-  if (change.startsWith("-")) return "#f87171";
-  return "rgba(255,255,255,0.4)";
-};
-
-const formatLeaderboardWeekRange = (start, end) => {
-  if (!start || !end) return "";
-  try {
-    const opts = { month: "short", day: "numeric" };
-    const startLabel = new Date(start).toLocaleDateString(undefined, opts);
-    const endLabel = new Date(end).toLocaleDateString(undefined, opts);
-    return `${startLabel} – ${endLabel}`;
-  } catch {
-    return `${start} – ${end}`;
-  }
-};
+const leaderboard = [
+  { rank: "1st", name: "Priya S.", dept: "Engineering", loc: "Delhi", pct: "+42%", col: C.gold },
+  { rank: "2nd", name: "Rahul M.", dept: "Product", loc: "Mumbai", pct: "+38%", col: "#94a3b8" },
+  { rank: "3rd", name: "Anjali K.", dept: "HR", loc: "BLR", pct: "+35%", col: C.orange },
+  { rank: "4th ⬅ You", name: "Amit R.", dept: "Finance", loc: "Delhi", pct: "+31%", col: C.g3, current: true },
+  { rank: "5th", name: "Sneha P.", dept: "Marketing", loc: "Pune", pct: "+28%", col: "rgba(255,255,255,0.3)" },
+];
 
 const createChallengeStateFromItems = (challenges) =>
   challenges.reduce((accumulator, challenge) => {
@@ -116,8 +93,14 @@ const createChallengeStateFromItems = (challenges) =>
       done = isCompleted;
     } else if (challengeType === "choice") {
       chosen = isCompleted && hasLogged ? loggedNumber : null;
+      /* } else if (challengeType === "multi") {
+        done = isCompleted; */
     } else if (challengeType === "multi") {
       done = isCompleted;
+      if (isCompleted && hasLogged) {
+        const total = Math.max(1, Number(challenge.target_value) || 1);
+        chosen = Array.from({ length: total }, (_, i) => i);
+      }
     } else if (challengeType === "timer") {
       done = isCompleted;
       timer = isCompleted ? 0 : timerTarget;
@@ -194,9 +177,6 @@ export default function DashboardChallenges({
   badges,
   badgesLoading = false,
   badgesError = "",
-  leaderboard,
-  leaderboardLoading = false,
-  leaderboardError = "",
 }) {
   const dispatch = useDispatch();
   const themed = useClientPalette();
@@ -322,10 +302,11 @@ export default function DashboardChallenges({
     if (!isDone(challenge)) return 0;
 
     if (String(challenge.challenge_type || "").toLowerCase() === "multi") {
-      const optionCount = Math.max(getChallengeTypeOptions(challenge.challenge_type).length, 1);
+      //const optionCount = Math.max(getChallengeTypeOptions(challenge.challenge_type).length, 1);
+      const optionCount = Math.max(Number(challenge.target_value) || 1, 1);
       return Math.round(
         (Number(challenge.xp_reward) || 0) *
-          ((challengeState[challenge.challenge_key]?.chosen?.length || 0) / optionCount),
+        ((challengeState[challenge.challenge_key]?.chosen?.length || 0) / optionCount),
       );
     }
 
@@ -947,196 +928,48 @@ export default function DashboardChallenges({
           </ClientCard>
 
           <ClientCard>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 8,
-                marginBottom: 12,
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 700 }}>
-                🏆 Weekly Leaderboard
-              </div>
-              {leaderboard?.week_start && leaderboard?.week_end && (
-                <div style={{ fontSize: 9, color: C.muted, whiteSpace: "nowrap" }}>
-                  {formatLeaderboardWeekRange(
-                    leaderboard.week_start,
-                    leaderboard.week_end,
-                  )}
-                </div>
-              )}
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12 }}>
+              🏆 Weekly Leaderboard
             </div>
-
-            {leaderboardLoading && (
-              <div style={{ fontSize: 11, color: C.muted }}>Loading leaderboard…</div>
-            )}
-
-            {!leaderboardLoading && leaderboardError && (
-              <Alert severity="error" sx={{ py: 0, fontSize: 11 }}>
-                {leaderboardError}
-              </Alert>
-            )}
-
-            {!leaderboardLoading &&
-              !leaderboardError &&
-              (!leaderboard?.items || leaderboard.items.length === 0) && (
-                <div style={{ fontSize: 10, color: C.muted }}>
-                  No leaderboard data yet for this week.
+            {leaderboard.map((row) => (
+              <div
+                key={row.rank}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "7px 0",
+                  borderBottom: "1px solid rgba(255,255,255,0.04)",
+                }}
+              >
+                <div
+                  style={{
+                    width: 80,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: row.col,
+                  }}
+                >
+                  {row.rank}
                 </div>
-              )}
-
-            {!leaderboardLoading &&
-              !leaderboardError &&
-              Array.isArray(leaderboard?.items) &&
-              leaderboard.items.length > 0 && (
-                <>
-                  {leaderboard.items.map((entry) => {
-                    const rowColor = getLeaderboardRowColor(entry);
-                    const changeColor = getLeaderboardChangeColor(entry);
-                    return (
-                      <div
-                        key={entry.user_id ?? `${entry.rank}-${entry.display_name}`}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          padding: "7px 0",
-                          borderBottom: "1px solid rgba(255,255,255,0.04)",
-                          background: entry.is_current_user
-                            ? "rgba(109,179,63,0.08)"
-                            : "transparent",
-                          borderRadius: entry.is_current_user ? 8 : 0,
-                          paddingLeft: entry.is_current_user ? 8 : 0,
-                          paddingRight: entry.is_current_user ? 8 : 0,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 80,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: rowColor,
-                          }}
-                        >
-                          {entry.rank_label || `${entry.rank}`}
-                          {entry.is_current_user && (
-                            <span style={{ marginLeft: 6 }}>⬅ You</span>
-                          )}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: entry.is_current_user ? C.g3 : "#fff",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                            title={entry.display_name}
-                          >
-                            {entry.display_name}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 9,
-                              color: C.muted,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {entry.subtext || entry.level_label || ""}
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            textAlign: "right",
-                            minWidth: 60,
-                          }}
-                        >
-                          <div
-                            style={{ fontSize: 13, fontWeight: 700, color: changeColor }}
-                          >
-                            {entry.display_change || "—"}
-                          </div>
-                          <div style={{ fontSize: 9, color: C.muted }}>
-                            {entry.xp_this_week} XP
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {leaderboard.your_position && (
-                    <>
-                      <div
-                        style={{
-                          fontSize: 9,
-                          color: C.muted,
-                          textAlign: "center",
-                          padding: "8px 0 4px",
-                          letterSpacing: 1,
-                        }}
-                      >
-                        • • •
-                      </div>
-                      {(() => {
-                        const entry = leaderboard.your_position;
-                        const changeColor = getLeaderboardChangeColor(entry);
-                        return (
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 10,
-                              padding: "8px",
-                              borderRadius: 8,
-                              background: "rgba(109,179,63,0.1)",
-                              border: `1px solid ${C.g3}55`,
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: 80,
-                                fontSize: 11,
-                                fontWeight: 700,
-                                color: C.g3,
-                              }}
-                            >
-                              {entry.rank_label || `${entry.rank}`}
-                              <span style={{ marginLeft: 6 }}>⬅ You</span>
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 11, color: C.g3 }}>
-                                {entry.display_name}
-                              </div>
-                              <div style={{ fontSize: 9, color: C.muted }}>
-                                {entry.subtext || entry.level_label || ""}
-                              </div>
-                            </div>
-                            <div style={{ textAlign: "right", minWidth: 60 }}>
-                              <div
-                                style={{
-                                  fontSize: 13,
-                                  fontWeight: 700,
-                                  color: changeColor,
-                                }}
-                              >
-                                {entry.display_change || "—"}
-                              </div>
-                              <div style={{ fontSize: 9, color: C.muted }}>
-                                {entry.xp_this_week} XP
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </>
-                  )}
-                </>
-              )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: row.current ? C.g3 : "#fff",
+                    }}
+                  >
+                    {row.name}
+                  </div>
+                  <div style={{ fontSize: 9, color: C.muted }}>
+                    {row.dept} · {row.loc}
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: row.col }}>
+                  {row.pct}
+                </div>
+              </div>
+            ))}
           </ClientCard>
         </div>
       </Box>
