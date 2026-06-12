@@ -274,4 +274,19 @@ export const API_URLS = {
   //     → 2D wellness scores. Accepts several response shapes; the slice
   //       normalizes to { locations: [...], departments: [...], cells: [{location, department, value}] }
   hrHeatmapLocationDept: "/config/api/v1/hr/heatmap/location-department",
+
+  challengeSchedule: "/config/api/v1/challenges/schedule",
+
+  reminderSettingsLog: "/config/api/v1/reminder-settings/log",
+
+  // Wellness Index — GET caller's computed wellness score + risk band
+  wellnessIndex: "/config/api/v1/wellness/index",
+
+  // Wellness Mood — POST a daily mood check-in (score 1–5)
+  wellnessMood: "/config/api/v1/wellness/mood",
+  wellnessMoodToday: "/config/api/v1/wellness/mood/today",
+
+  // User Suggestions — GET personalised suggestions, POST an action on one
+  userSuggestionsMy:    "/config/api/v1/suggestions/my",
+  userSuggestionAction: (logId) => `/config/api/v1/suggestions/${logId}/action`,
 };

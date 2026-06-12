@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import api, { getApiErrorMessage } from "../services/api";
 import { API_URLS } from "../services/apiUrls";
 import authService from "../services/authService";
+
 import {
   canonicaliseRawRole,
   clearAuthSession,
@@ -127,6 +128,8 @@ const authSlice = createSlice({
     clearAuthState(state) {
       clearAuthSession();
       authService.clear();
+      delete api.defaults.headers.common['Authorization'];
+      window.dispatchEvent(new StorageEvent('storage', { key: 'token', newValue: null }));
       state.isAuthenticated = false;
       state.role = null;
       state.rawRole = "";

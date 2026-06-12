@@ -9,6 +9,7 @@ import {
 } from "../../store/dashboardSlice";
 import ReminderSettings from "./ReminderSettings";
 import { ACCENT, useClientPalette } from "../../utils/clientPalette";
+import KpiScheduleTimeline from "../../components/KpiScheduleTimeline";
 
 // Default dark palette retained for module-level helpers (leaderboard, badge
 // level/icon maps) that need accent colour shorthand at parse time. Inside the
@@ -345,10 +346,11 @@ export default function DashboardChallenges({
     if (!isDone(challenge)) return 0;
 
     if (String(challenge.challenge_type || "").toLowerCase() === "multi") {
-      const optionCount = Math.max(getChallengeTypeOptions(challenge.challenge_type).length, 1);
+      //const optionCount = Math.max(getChallengeTypeOptions(challenge.challenge_type).length, 1);
+      const optionCount = Math.max(getChallengeTypeOptionsFallback(challenge.challenge_type).length, 1);
       return Math.round(
         (Number(challenge.xp_reward) || 0) *
-          ((challengeState[challenge.challenge_key]?.chosen?.length || 0) / optionCount),
+        ((challengeState[challenge.challenge_key]?.chosen?.length || 0) / optionCount),
       );
     }
 
@@ -844,7 +846,7 @@ export default function DashboardChallenges({
                           {actionLoading ? "Saving…" : "Complete"}
                         </Btn>
                         <span style={{ fontSize: 10, color: C.muted }}>
-                          Select all that apply · {(state.chosen || []).length}/{options.length} chosen
+                          Select all that applies · {(state.chosen || []).length}/{options.length} chosen
                         </span>
                       </div>
                     )}
@@ -960,6 +962,8 @@ export default function DashboardChallenges({
             );
           })}
         </div>
+        
+        <KpiScheduleTimeline />
 
         {/* BADGES + LEADERBOARD */}
         <div

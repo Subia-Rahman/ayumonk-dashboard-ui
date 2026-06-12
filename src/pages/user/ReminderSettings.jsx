@@ -7,6 +7,7 @@ import {
   clearSavedFlag,
   clearSnooze,
   fetchReminderSettings,
+  fetchReminderLog,
   flashSaved,
   snoozeReminders,
   toggleReminderField,
@@ -14,8 +15,6 @@ import {
 } from "../../store/reminderSettingsSlice";
 import { ACCENT, useClientPalette } from "../../utils/clientPalette";
 
-// Dark defaults retained for module-level helpers (Toggle, Notice) — the
-// component shadows `C` with the theme-aware palette below.
 const C = { ...ACCENT, bg: "#0b160c", card: "#111e12", border: "#1e3d20", muted: "#6B8F60" };
 
 const isIOSDevice = () =>
@@ -88,61 +87,18 @@ const PUSH_PLATFORM_NOTES = [
   ["iOS Safari < 16.4", "❌ Not supported — use Email channel instead"],
 ];
 
-const REMINDER_HISTORY = [
-  {
-    type: "daily_incomplete",
-    icon: "📋",
-    label: "Daily Challenge Reminder",
-    channel: "email",
-    time: "Yesterday 8:00 PM",
-    status: "sent",
-  },
-  {
-    type: "streak_risk",
-    icon: "🔥",
-    label: "Streak At Risk Alert",
-    channel: "push",
-    time: "2 days ago 9:00 PM",
-    status: "sent",
-  },
-  {
-    type: "window_closing",
-    icon: "📅",
-    label: "Hydration Program Closing",
-    channel: "email",
-    time: "3 days ago 8:00 AM",
-    status: "sent",
-  },
-  {
-    type: "daily_incomplete",
-    icon: "📋",
-    label: "Daily Challenge Reminder",
-    channel: "email",
-    time: "4 days ago 8:00 PM",
-    status: "suppressed",
-  },
-  {
-    type: "milestone_near",
-    icon: "🏅",
-    label: "Badge Milestone — 7-Day",
-    channel: "push",
-    time: "5 days ago 8:00 AM",
-    status: "sent",
-  },
-  {
-    type: "window_opening",
-    icon: "🌱",
-    label: "Sleep Program Starting Soon",
-    channel: "email",
-    time: "6 days ago 8:00 AM",
-    status: "failed",
-  },
-];
+const TYPE_ICONS = {
+  daily_challenge: "🎯",
+  streak_alert:    "🔥",
+  program_ending:  "⏰",
+  new_program:     "🆕",
+  badge_milestone: "🏅",
+};
 
 const STATUS_COLOR = {
-  sent: C.g3,
-  failed: C.red,
-  suppressed: C.muted,
+  sent:       C.g3,
+  failed:     "#f87171",
+  suppressed: "#6B8F60",
 };
 
 const pushNoteColor = (status) => {
@@ -180,74 +136,42 @@ function Toggle({ checked, onChange, size = "md", disabled = false }) {
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
       style={{
-        width: W,
-        height: H,
-        borderRadius: H / 2,
-        border: "none",
+        width: W, height: H, borderRadius: H / 2, border: "none",
         cursor: disabled ? "not-allowed" : "pointer",
         background: checked ? C.g2 : "rgba(255,255,255,0.12)",
-        position: "relative",
-        transition: "background 0.25s",
-        flexShrink: 0,
-        opacity: disabled ? 0.5 : 1,
+        position: "relative", transition: "background 0.25s",
+        flexShrink: 0, opacity: disabled ? 0.5 : 1,
       }}
       aria-pressed={checked}
     >
-      <span
-        style={{
-          position: "absolute",
-          top: inset,
-          borderRadius: knob / 2,
-          width: knob,
-          height: knob,
-          background: "#fff",
-          left: checked ? W - knob - inset : inset,
-          transition: "left 0.18s",
-          display: "block",
-        }}
-      />
+      <span style={{
+        position: "absolute", top: inset, borderRadius: knob / 2,
+        width: knob, height: knob, background: "#fff",
+        left: checked ? W - knob - inset : inset,
+        transition: "left 0.18s", display: "block",
+      }} />
     </button>
   );
 }
 
 function Notice({ tone = "info", children, onClose }) {
   const palette = {
-    info: { bg: "rgba(74,144,196,0.08)", border: "rgba(74,144,196,0.3)", color: C.blue },
-    error: { bg: "rgba(240,80,80,0.08)", border: "rgba(240,80,80,0.3)", color: "#f87171" },
-    warn: { bg: "rgba(212,168,67,0.08)", border: "rgba(212,168,67,0.3)", color: C.gold },
-  }[tone] || palette;
+    info:  { bg: "rgba(74,144,196,0.08)",  border: "rgba(74,144,196,0.3)",  color: C.blue },
+    error: { bg: "rgba(240,80,80,0.08)",   border: "rgba(240,80,80,0.3)",   color: "#f87171" },
+    warn:  { bg: "rgba(212,168,67,0.08)",  border: "rgba(212,168,67,0.3)",  color: C.gold },
+  }[tone];
   return (
-    <div
-      style={{
-        background: palette.bg,
-        border: `1px solid ${palette.border}`,
-        color: palette.color,
-        borderRadius: 8,
-        padding: "7px 12px",
-        fontSize: 10,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        marginBottom: 10,
-      }}
-    >
+    <div style={{
+      background: palette.bg, border: `1px solid ${palette.border}`,
+      color: palette.color, borderRadius: 8, padding: "7px 12px",
+      fontSize: 10, display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
+    }}>
       <span style={{ flex: 1 }}>{children}</span>
       {onClose && (
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "inherit",
-            cursor: "pointer",
-            fontSize: 12,
-            padding: 0,
-            lineHeight: 1,
-          }}
-        >
-          ✕
-        </button>
+        <button type="button" onClick={onClose} style={{
+          background: "transparent", border: "none", color: "inherit",
+          cursor: "pointer", fontSize: 12, padding: 0, lineHeight: 1,
+        }}>✕</button>
       )}
     </div>
   );
@@ -257,7 +181,7 @@ export default function ReminderSettings() {
   const dispatch = useDispatch();
   const themed = useClientPalette();
 
-  const { data, loading, error, mutationError, saved } = useSelector(
+  const { data, loading, error, mutationError, saved, reminderLog, logStatus } = useSelector(
     (state) => state.reminderSettings,
   );
 
@@ -283,36 +207,32 @@ export default function ReminderSettings() {
   useEffect(() => {
     if (pushError && pushError !== lastPushErrorRef.current) {
       lastPushErrorRef.current = pushError;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- ref-guarded sync from hook error → local dismissable note
       setPushDeniedNote(
-        pushError.message ||
-          "Could not enable browser push. Please try again.",
+        pushError.message || "Could not enable browser push. Please try again.",
       );
     }
   }, [pushError]);
 
+  useEffect(() => { dispatch(fetchReminderSettings()); }, [dispatch]);
+
+  // Point 8: lazy-fetch reminder log only when panel is opened for the first time
   useEffect(() => {
-    dispatch(fetchReminderSettings());
-  }, [dispatch]);
+    if (historyOpen && logStatus === "idle") {
+      dispatch(fetchReminderLog({ limit: 10 }));
+    }
+  }, [historyOpen, logStatus, dispatch]);
 
   useEffect(() => {
-    if (data?.reminder_time) {
-      setTimeDraft(toInputTime(data.reminder_time));
-    }
+    if (data?.reminder_time) setTimeDraft(toInputTime(data.reminder_time));
   }, [data?.reminder_time]);
 
   useEffect(() => {
-    if (data?.timezone) {
-      setTzDraft(data.timezone);
-    }
+    if (data?.timezone) setTzDraft(data.timezone);
   }, [data?.timezone]);
 
   useEffect(() => {
     if (!data || tzAutoSetRef.current) return;
-    if (data.timezone && data.timezone !== "UTC") {
-      tzAutoSetRef.current = true;
-      return;
-    }
+    if (data.timezone && data.timezone !== "UTC") { tzAutoSetRef.current = true; return; }
     const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (detected && detected !== data.timezone) {
       tzAutoSetRef.current = true;
@@ -328,23 +248,16 @@ export default function ReminderSettings() {
     return () => window.clearTimeout(timer);
   }, [saved, dispatch]);
 
-  useEffect(
-    () => () => {
-      if (timeDebounceRef.current) {
-        window.clearTimeout(timeDebounceRef.current);
-      }
-    },
-    [],
-  );
+  useEffect(() => () => {
+    if (timeDebounceRef.current) window.clearTimeout(timeDebounceRef.current);
+  }, []);
 
   const isSnoozing = useMemo(() => {
     if (!data?.snooze_until) return false;
     return new Date(data.snooze_until) > new Date();
   }, [data?.snooze_until]);
 
-  const snoozeEnds = isSnoozing
-    ? formatDateTimeISTShort(data.snooze_until)
-    : null;
+  const snoozeEnds = isSnoozing ? formatDateTimeISTShort(data.snooze_until) : null;
 
   const activeChannels = useMemo(() => {
     if (!data) return [];
@@ -413,9 +326,7 @@ export default function ReminderSettings() {
     const next = event.target.value;
     setTimeDraft(next);
     dispatch(clearMutationError());
-    if (timeDebounceRef.current) {
-      window.clearTimeout(timeDebounceRef.current);
-    }
+    if (timeDebounceRef.current) window.clearTimeout(timeDebounceRef.current);
     timeDebounceRef.current = window.setTimeout(() => {
       const apiTime = toApiTime(next);
       if (apiTime && apiTime !== data?.reminder_time) {
@@ -432,23 +343,13 @@ export default function ReminderSettings() {
     }
     const dirty = {};
     const desiredTime = toApiTime(timeDraft);
-    if (desiredTime && desiredTime !== data.reminder_time) {
-      dirty.reminder_time = desiredTime;
-    }
-    if (Object.keys(dirty).length === 0) {
-      dispatch(flashSaved());
-      return;
-    }
+    if (desiredTime && desiredTime !== data.reminder_time) dirty.reminder_time = desiredTime;
+    if (Object.keys(dirty).length === 0) { dispatch(flashSaved()); return; }
     dispatch(updateReminderSettings(dirty));
   };
 
-  const handleSnooze = (duration) => {
-    dispatch(snoozeReminders(duration));
-  };
-
-  const handleClearSnooze = () => {
-    dispatch(clearSnooze());
-  };
+  const handleSnooze = (duration) => { dispatch(snoozeReminders(duration)); };
+  const handleClearSnooze = () => { dispatch(clearSnooze()); };
 
   const handleTimezoneBlur = () => {
     const trimmed = tzDraft.trim();
@@ -459,17 +360,11 @@ export default function ReminderSettings() {
 
   if (loading && !data) {
     return (
-      <div
-        style={{
-          marginTop: 14,
-          background: "rgba(0,0,0,0.2)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 14,
-          padding: "14px 16px",
-          color: C.muted,
-          fontSize: 11,
-        }}
-      >
+      <div style={{
+        marginTop: 14, background: "rgba(0,0,0,0.2)",
+        border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14,
+        padding: "14px 16px", color: C.muted, fontSize: 11,
+      }}>
         Loading reminder settings…
       </div>
     );
@@ -477,38 +372,18 @@ export default function ReminderSettings() {
 
   if (error && !data) {
     return (
-      <div
-        style={{
-          marginTop: 14,
-          background: "rgba(240,80,80,0.08)",
-          border: "1px solid rgba(240,80,80,0.3)",
-          borderRadius: 14,
-          padding: "14px 16px",
-          color: "#f87171",
-          fontSize: 11,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-        }}
-      >
+      <div style={{
+        marginTop: 14, background: "rgba(240,80,80,0.08)",
+        border: "1px solid rgba(240,80,80,0.3)", borderRadius: 14,
+        padding: "14px 16px", color: "#f87171", fontSize: 11,
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+      }}>
         <span>{error}</span>
-        <button
-          type="button"
-          onClick={() => dispatch(fetchReminderSettings())}
-          style={{
-            background: "transparent",
-            border: "1px solid rgba(240,80,80,0.3)",
-            color: "#f87171",
-            borderRadius: 8,
-            padding: "4px 12px",
-            fontSize: 10,
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          Retry
-        </button>
+        <button type="button" onClick={() => dispatch(fetchReminderSettings())} style={{
+          background: "transparent", border: "1px solid rgba(240,80,80,0.3)",
+          color: "#f87171", borderRadius: 8, padding: "4px 12px",
+          fontSize: 10, cursor: "pointer", fontWeight: 600,
+        }}>Retry</button>
       </div>
     );
   }
@@ -516,43 +391,24 @@ export default function ReminderSettings() {
   if (!data) return null;
 
   return (
-    <div
-      style={{
-        marginTop: 14,
-        background: themed.isDark ? "rgba(0,0,0,0.2)" : "rgba(15,23,42,0.04)",
-        border: `1px solid ${data.is_enabled ? "rgba(107,179,63,0.3)" : themed.border}`,
-        borderRadius: 14,
-        padding: "14px 16px",
-        color: themed.text,
-      }}
-    >
+    <div style={{
+      marginTop: 14,
+      background: themed.isDark ? "rgba(0,0,0,0.2)" : "rgba(15,23,42,0.04)",
+      border: `1px solid ${data.is_enabled ? "rgba(107,179,63,0.3)" : themed.border}`,
+      borderRadius: 14, padding: "14px 16px", color: themed.text,
+    }}>
       {/* HEADER */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: expanded ? 18 : 0,
-          flexWrap: "wrap",
-        }}
-      >
+      <div style={{
+        display: "flex", alignItems: "center", gap: 12,
+        marginBottom: expanded ? 18 : 0, flexWrap: "wrap",
+      }}>
         <span style={{ fontSize: 20 }}>🔔</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
-            Reminder Settings
-          </div>
-          <div style={{ fontSize: 9, color: C.muted, marginTop: 2 }}>
-            {statusLine}
-          </div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>Reminder Settings</div>
+          <div style={{ fontSize: 9, color: C.muted, marginTop: 2 }}>{statusLine}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span
-            style={{
-              fontSize: 9,
-              color: data.is_enabled ? C.g3 : C.muted,
-              fontWeight: 600,
-            }}
-          >
+          <span style={{ fontSize: 9, color: data.is_enabled ? C.g3 : C.muted, fontWeight: 600 }}>
             {data.is_enabled ? "ON" : "OFF"}
           </span>
           <Toggle
@@ -560,33 +416,21 @@ export default function ReminderSettings() {
             onChange={(next) => handleToggleField("is_enabled", next)}
           />
         </div>
-        <button
-          type="button"
-          onClick={() => setExpanded((current) => !current)}
-          style={{
-            background: "transparent",
-            border: "1px solid rgba(255,255,255,0.1)",
-            color: C.muted,
-            borderRadius: 8,
-            padding: "4px 12px",
-            cursor: "pointer",
-            fontSize: 10,
-            marginLeft: 4,
-            fontWeight: 600,
-          }}
-        >
+        <button type="button" onClick={() => setExpanded((c) => !c)} style={{
+          background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
+          color: C.muted, borderRadius: 8, padding: "4px 12px",
+          cursor: "pointer", fontSize: 10, marginLeft: 4, fontWeight: 600,
+        }}>
           {expanded ? "▲ Collapse" : "▼ Configure"}
         </button>
       </div>
 
       {expanded && (
-        <div
-          style={{
-            opacity: data.is_enabled ? 1 : 0.38,
-            pointerEvents: data.is_enabled ? "auto" : "none",
-            transition: "opacity 0.2s",
-          }}
-        >
+        <div style={{
+          opacity: data.is_enabled ? 1 : 0.38,
+          pointerEvents: data.is_enabled ? "auto" : "none",
+          transition: "opacity 0.2s",
+        }}>
           {mutationError && (
             <Notice tone="error" onClose={() => dispatch(clearMutationError())}>
               {mutationError}
@@ -595,43 +439,27 @@ export default function ReminderSettings() {
 
           {/* DELIVERY CHANNEL */}
           <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                fontSize: 9,
-                fontWeight: 700,
-                color: C.muted,
-                textTransform: "uppercase",
-                letterSpacing: 0.8,
-                marginBottom: 8,
-              }}
-            >
+            <div style={{
+              fontSize: 9, fontWeight: 700, color: C.muted,
+              textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8,
+            }}>
               Delivery Channel
             </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                flexWrap: "wrap",
-                marginBottom: 12,
-              }}
-            >
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
               {CHANNELS.map((channel) => {
                 const enabled = Boolean(data[channel.field]);
                 const isPush = channel.id === "push";
                 const pushUnsupported = isPush && !pushSupported;
-                const pushDesync =
-                  isPush && enabled && !pushSubscribed && !pushBusy;
-                const cardDisabled =
-                  channel.disabled || (isPush && pushBusy);
+                const pushDesync = isPush && enabled && !pushSubscribed && !pushBusy;
+                const cardDisabled = channel.disabled || (isPush && pushBusy);
 
                 let note = channel.note;
                 if (!note) {
                   if (isPush) {
                     if (pushUnsupported) {
-                      note =
-                        isIOSDevice() && !isStandaloneMode()
-                          ? "Add to Home Screen first"
-                          : "Not supported in this browser";
+                      note = isIOSDevice() && !isStandaloneMode()
+                        ? "Add to Home Screen first"
+                        : "Not supported in this browser";
                     } else if (pushBusy) {
                       note = enabled ? "Disabling…" : "Requesting…";
                     } else if (pushDesync) {
@@ -646,123 +474,51 @@ export default function ReminderSettings() {
                   }
                 }
 
-                const borderColor = pushDesync
-                  ? "rgba(232,160,32,0.5)"
-                  : enabled
-                    ? C.g3
-                    : "rgba(255,255,255,0.1)";
-                const bg = pushDesync
-                  ? "rgba(232,160,32,0.08)"
-                  : enabled
-                    ? "rgba(107,179,63,0.12)"
-                    : "rgba(255,255,255,0.03)";
-                const labelColor = pushDesync
-                  ? C.gold
-                  : enabled
-                    ? C.g3
-                    : "#fff";
+                const borderColor = pushDesync ? "rgba(232,160,32,0.5)" : enabled ? C.g3 : "rgba(255,255,255,0.1)";
+                const bg = pushDesync ? "rgba(232,160,32,0.08)" : enabled ? "rgba(107,179,63,0.12)" : "rgba(255,255,255,0.03)";
+                const labelColor = pushDesync ? C.gold : enabled ? C.g3 : "#fff";
 
                 return (
-                  <button
-                    key={channel.id}
-                    type="button"
-                    disabled={cardDisabled}
+                  <button key={channel.id} type="button" disabled={cardDisabled}
                     onClick={() => handleChannelClick(channel)}
                     style={{
-                      padding: "8px 14px",
-                      borderRadius: 10,
+                      padding: "8px 14px", borderRadius: 10,
                       cursor: cardDisabled ? "not-allowed" : "pointer",
-                      border: `1px solid ${borderColor}`,
-                      background: bg,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 3,
-                      minWidth: 90,
-                      opacity:
-                        channel.disabled || pushUnsupported ? 0.45 : 1,
+                      border: `1px solid ${borderColor}`, background: bg,
+                      display: "flex", flexDirection: "column", alignItems: "center",
+                      gap: 3, minWidth: 90,
+                      opacity: channel.disabled || pushUnsupported ? 0.45 : 1,
                       transition: "all 0.15s",
-                    }}
-                  >
+                    }}>
                     <span style={{ fontSize: 18 }}>{channel.icon}</span>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        color: labelColor,
-                      }}
-                    >
-                      {channel.label}
-                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: labelColor }}>{channel.label}</span>
                     <span style={{ fontSize: 8, color: C.muted }}>{note}</span>
-                    {isPush && pushBusy && (
-                      <span style={{ fontSize: 8, color: C.gold }}>
-                        Working…
-                      </span>
+                    {isPush && pushBusy && <span style={{ fontSize: 8, color: C.gold }}>Working…</span>}
+                    {isPush && enabled && pushSubscribed && !pushBusy && (
+                      <span style={{ fontSize: 8, color: C.g3 }}>✓ Enabled</span>
                     )}
-                    {isPush &&
-                      enabled &&
-                      pushSubscribed &&
-                      !pushBusy && (
-                        <span style={{ fontSize: 8, color: C.g3 }}>
-                          ✓ Enabled
-                        </span>
-                      )}
                   </button>
                 );
               })}
             </div>
 
             {pushDeniedNote && (
-              <Notice tone="warn" onClose={() => setPushDeniedNote("")}>
-                {pushDeniedNote}
-              </Notice>
+              <Notice tone="warn" onClose={() => setPushDeniedNote("")}>{pushDeniedNote}</Notice>
             )}
 
             {data.push_enabled && (
-              <div
-                style={{
-                  background: "rgba(107,179,63,0.06)",
-                  border: "1px solid rgba(107,179,63,0.2)",
-                  borderRadius: 10,
-                  padding: "10px 14px",
-                  marginBottom: 12,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    color: C.g3,
-                    marginBottom: 6,
-                  }}
-                >
+              <div style={{
+                background: "rgba(107,179,63,0.06)", border: "1px solid rgba(107,179,63,0.2)",
+                borderRadius: 10, padding: "10px 14px", marginBottom: 12,
+              }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.g3, marginBottom: 6 }}>
                   📲 How Browser Push Works
                 </div>
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 4 }}
-                >
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {PUSH_PLATFORM_NOTES.map(([platform, status]) => (
-                    <div
-                      key={platform}
-                      style={{
-                        display: "flex",
-                        gap: 10,
-                        alignItems: "center",
-                        fontSize: 8.5,
-                      }}
-                    >
-                      <span
-                        style={{
-                          minWidth: 160,
-                          color: "rgba(255,255,255,0.55)",
-                        }}
-                      >
-                        {platform}
-                      </span>
-                      <span style={{ color: pushNoteColor(status) }}>
-                        {status}
-                      </span>
+                    <div key={platform} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 8.5 }}>
+                      <span style={{ minWidth: 160, color: "rgba(255,255,255,0.55)" }}>{platform}</span>
+                      <span style={{ color: pushNoteColor(status) }}>{status}</span>
                     </div>
                   ))}
                 </div>
@@ -770,140 +526,62 @@ export default function ReminderSettings() {
             )}
 
             {/* TIME + TIMEZONE */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-              }}
-            >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-                <div
-                  style={{
-                    fontSize: 9,
-                    color: C.muted,
-                    marginBottom: 4,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.8,
-                  }}
-                >
+                <div style={{ fontSize: 9, color: C.muted, marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8 }}>
                   Reminder Time
                 </div>
-                <input
-                  type="time"
-                  value={timeDraft}
-                  onChange={handleTimeChange}
-                  style={{
-                    width: "100%",
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#fff",
-                    borderRadius: 8,
-                    padding: "7px 10px",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    outline: "none",
-                    cursor: "pointer",
-                    colorScheme: "dark",
-                    boxSizing: "border-box",
-                  }}
-                />
+                <input type="time" value={timeDraft} onChange={handleTimeChange} style={{
+                  width: "100%", background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.12)", color: "#fff",
+                  borderRadius: 8, padding: "7px 10px", fontSize: 13, fontWeight: 700,
+                  outline: "none", cursor: "pointer", colorScheme: "dark", boxSizing: "border-box",
+                }} />
                 <div style={{ fontSize: 8, color: C.muted, marginTop: 3 }}>
                   Daily challenge reminder fires at this time
                 </div>
               </div>
               <div>
-                <div
-                  style={{
-                    fontSize: 9,
-                    color: C.muted,
-                    marginBottom: 4,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.8,
-                  }}
-                >
+                <div style={{ fontSize: 9, color: C.muted, marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8 }}>
                   Timezone
                 </div>
-                <input
-                  type="text"
-                  value={tzDraft}
-                  onChange={(event) => setTzDraft(event.target.value)}
+                <input type="text" value={tzDraft}
+                  onChange={(e) => setTzDraft(e.target.value)}
                   onBlur={handleTimezoneBlur}
                   style={{
-                    width: "100%",
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "rgba(255,255,255,0.85)",
-                    borderRadius: 8,
-                    padding: "7px 10px",
-                    fontSize: 11,
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
-                />
-                <div style={{ fontSize: 8, color: C.muted, marginTop: 3 }}>
-                  Auto-detected from your browser
-                </div>
+                    width: "100%", background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.85)",
+                    borderRadius: 8, padding: "7px 10px", fontSize: 11,
+                    outline: "none", boxSizing: "border-box",
+                  }} />
+                <div style={{ fontSize: 8, color: C.muted, marginTop: 3 }}>Auto-detected from your browser</div>
               </div>
             </div>
           </div>
 
           {/* REMINDER TYPE TOGGLES */}
           <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                fontSize: 9,
-                fontWeight: 700,
-                color: C.muted,
-                textTransform: "uppercase",
-                letterSpacing: 0.8,
-                marginBottom: 8,
-              }}
-            >
+            <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
               Which Reminders to Receive
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {REMINDER_TYPES.map((type) => {
                 const active = Boolean(data[type.key]);
                 return (
-                  <div
-                    key={type.key}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "8px 12px",
-                      background: "rgba(255,255,255,0.03)",
-                      borderRadius: 8,
-                      border: `1px solid ${active ? "rgba(107,179,63,0.2)" : "rgba(255,255,255,0.06)"}`,
-                    }}
-                  >
-                    <span style={{ fontSize: 16, flexShrink: 0 }}>
-                      {type.icon}
-                    </span>
+                  <div key={type.key} style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "8px 12px", background: "rgba(255,255,255,0.03)",
+                    borderRadius: 8,
+                    border: `1px solid ${active ? "rgba(107,179,63,0.2)" : "rgba(255,255,255,0.06)"}`,
+                  }}>
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>{type.icon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: active ? "#fff" : "rgba(255,255,255,0.4)",
-                        }}
-                      >
+                      <div style={{ fontSize: 10, fontWeight: 700, color: active ? "#fff" : "rgba(255,255,255,0.4)" }}>
                         {type.label}
                       </div>
-                      <div
-                        style={{ fontSize: 8, color: C.muted, marginTop: 1 }}
-                      >
-                        {type.sub}
-                      </div>
+                      <div style={{ fontSize: 8, color: C.muted, marginTop: 1 }}>{type.sub}</div>
                     </div>
-                    <Toggle
-                      size="sm"
-                      checked={active}
-                      onChange={(next) => handleToggleField(type.key, next)}
-                    />
+                    <Toggle size="sm" checked={active} onChange={(next) => handleToggleField(type.key, next)} />
                   </div>
                 );
               })}
@@ -911,84 +589,36 @@ export default function ReminderSettings() {
           </div>
 
           {/* SNOOZE */}
-          <div
-            style={{
-              marginBottom: 16,
-              padding: "10px 14px",
-              background: "rgba(255,255,255,0.025)",
-              borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.07)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 8,
-                gap: 8,
-                flexWrap: "wrap",
-              }}
-            >
+          <div style={{
+            marginBottom: 16, padding: "10px 14px",
+            background: "rgba(255,255,255,0.025)", borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.07)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>
-                  ⏸ Snooze All Reminders
-                </div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⏸ Snooze All Reminders</div>
                 <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>
-                  {isSnoozing
-                    ? `Snoozed until ${snoozeEnds}`
-                    : "Temporarily pause all notifications"}
+                  {isSnoozing ? `Snoozed until ${snoozeEnds}` : "Temporarily pause all notifications"}
                 </div>
               </div>
               {isSnoozing && (
-                <button
-                  type="button"
-                  onClick={handleClearSnooze}
-                  style={{
-                    background: "rgba(240,80,80,0.15)",
-                    border: "1px solid rgba(240,80,80,0.3)",
-                    color: "#f87171",
-                    borderRadius: 8,
-                    padding: "4px 10px",
-                    cursor: "pointer",
-                    fontSize: 9,
-                    fontWeight: 600,
-                  }}
-                >
-                  Cancel Snooze
-                </button>
+                <button type="button" onClick={handleClearSnooze} style={{
+                  background: "rgba(240,80,80,0.15)", border: "1px solid rgba(240,80,80,0.3)",
+                  color: "#f87171", borderRadius: 8, padding: "4px 10px",
+                  cursor: "pointer", fontSize: 9, fontWeight: 600,
+                }}>Cancel Snooze</button>
               )}
             </div>
             {!isSnoozing && (
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {SNOOZE_OPTIONS.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleSnooze(option.id)}
-                    style={{
-                      padding: "5px 14px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      background: "transparent",
-                      color: "rgba(255,255,255,0.55)",
-                      cursor: "pointer",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      transition: "all 0.15s",
-                    }}
-                  >
+                  <button key={option.id} type="button" onClick={() => handleSnooze(option.id)} style={{
+                    padding: "5px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)",
+                    background: "transparent", color: "rgba(255,255,255,0.55)",
+                    cursor: "pointer", fontSize: 10, fontWeight: 600, transition: "all 0.15s",
+                  }}>
                     {option.label}{" "}
-                    <span
-                      style={{
-                        fontSize: 8,
-                        color: C.muted,
-                        marginLeft: 2,
-                        fontWeight: 400,
-                      }}
-                    >
-                      {option.note}
-                    </span>
+                    <span style={{ fontSize: 8, color: C.muted, marginLeft: 2, fontWeight: 400 }}>{option.note}</span>
                   </button>
                 ))}
               </div>
@@ -996,122 +626,74 @@ export default function ReminderSettings() {
           </div>
 
           {/* SAVE */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              marginBottom: 16,
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              type="button"
-              onClick={handleSavePreferences}
-              style={{
-                padding: "9px 28px",
-                borderRadius: 10,
-                border: "none",
-                cursor: "pointer",
-                fontWeight: 700,
-                fontSize: 12,
-                background: saved
-                  ? C.g3
-                  : `linear-gradient(135deg, ${C.g1}, ${C.g3})`,
-                color: "#fff",
-                transition: "all 0.2s",
-              }}
-            >
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+            <button type="button" onClick={handleSavePreferences} style={{
+              padding: "9px 28px", borderRadius: 10, border: "none",
+              cursor: "pointer", fontWeight: 700, fontSize: 12,
+              background: saved ? C.g3 : `linear-gradient(135deg, ${C.g1}, ${C.g3})`,
+              color: "#fff", transition: "all 0.2s",
+            }}>
               {saved ? "✓ Saved!" : "Save Preferences"}
             </button>
             <div style={{ fontSize: 9, color: C.muted }}>
-              Toggles save instantly · this button flushes any pending time
-              change
+              Toggles save instantly · this button flushes any pending time change
             </div>
           </div>
 
-          {/* HISTORY */}
+          {/* HISTORY — Point 8: live data from GET /api/v1/reminder-settings/log */}
           <div>
-            <button
-              type="button"
-              onClick={() => setHistoryOpen((current) => !current)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: C.muted,
-                cursor: "pointer",
-                fontSize: 9,
-                fontWeight: 600,
-                textDecoration: "underline",
-                padding: 0,
-                marginBottom: 8,
-              }}
-            >
-              {historyOpen
-                ? "▲ Hide reminder history"
-                : "▼ Show last 7 reminders"}
+            <button type="button" onClick={() => setHistoryOpen((c) => !c)} style={{
+              background: "transparent", border: "none", color: C.muted,
+              cursor: "pointer", fontSize: 9, fontWeight: 600,
+              textDecoration: "underline", padding: 0, marginBottom: 8,
+            }}>
+              {historyOpen ? "▲ Hide reminder history" : "▼ Show last 7 reminders"}
             </button>
+
             {historyOpen && (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 4 }}
-              >
-                {REMINDER_HISTORY.map((entry, index) => {
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {logStatus === "loading" && (
+                  <div style={{ fontSize: 10, color: C.muted, padding: "8px 0" }}>Loading recent sends…</div>
+                )}
+                {logStatus === "failed" && (
+                  <div style={{ fontSize: 10, color: "#f87171", padding: "8px 0" }}>Could not load reminder history.</div>
+                )}
+                {logStatus !== "loading" && reminderLog.length === 0 && (
+                  <div style={{ fontSize: 10, color: C.muted, padding: "8px 0" }}>No reminders sent yet.</div>
+                )}
+                {reminderLog.map((entry) => {
                   const statusColor = STATUS_COLOR[entry.status] || C.muted;
                   return (
-                    <div
-                      key={`${entry.type}-${index}`}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "28px 1fr 70px 60px",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "6px 10px",
-                        background: "rgba(255,255,255,0.02)",
-                        borderRadius: 8,
-                      }}
-                    >
+                    <div key={entry.id} style={{
+                      display: "grid", gridTemplateColumns: "28px 1fr 70px 60px",
+                      alignItems: "center", gap: 8, padding: "6px 10px",
+                      background: "rgba(255,255,255,0.02)", borderRadius: 8,
+                    }}>
                       <span style={{ fontSize: 14, textAlign: "center" }}>
-                        {entry.icon}
+                        {TYPE_ICONS[entry.reminder_type] ?? "🔔"}
                       </span>
                       <div style={{ minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 9.5,
-                            color: "rgba(255,255,255,0.65)",
-                            fontWeight: 600,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {entry.label}
+                        <div style={{
+                          fontSize: 9.5, color: "rgba(255,255,255,0.65)", fontWeight: 600,
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>
+                          {entry.reminder_type.replace(/_/g, " ")}
                         </div>
                         <div style={{ fontSize: 8, color: C.muted }}>
-                          {entry.time}
+                          {new Date(entry.sent_at).toLocaleString(undefined, {
+                            month: "short", day: "numeric",
+                            hour: "2-digit", minute: "2-digit",
+                          })}
                         </div>
                       </div>
-                      <span
-                        style={{
-                          fontSize: 8,
-                          color: C.muted,
-                          textAlign: "center",
-                          textTransform: "lowercase",
-                        }}
-                      >
+                      <span style={{ fontSize: 8, color: C.muted, textAlign: "center", textTransform: "lowercase" }}>
                         {entry.channel}
                       </span>
-                      <span
-                        style={{
-                          fontSize: 8,
-                          fontWeight: 700,
-                          textAlign: "center",
-                          color: statusColor,
-                          background: `${statusColor}28`,
-                          borderRadius: 4,
-                          padding: "1px 6px",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
+                      <span style={{
+                        fontSize: 8, fontWeight: 700, textAlign: "center",
+                        color: statusColor, background: `${statusColor}28`,
+                        borderRadius: 4, padding: "1px 6px", whiteSpace: "nowrap",
+                      }}>
                         {entry.status}
                       </span>
                     </div>
@@ -1123,9 +705,7 @@ export default function ReminderSettings() {
 
           {!data.is_enabled && (
             <div style={{ marginTop: 12 }}>
-              <Notice tone="info">
-                Toggle the master switch above to enable reminders.
-              </Notice>
+              <Notice tone="info">Toggle the master switch above to enable reminders.</Notice>
             </div>
           )}
         </div>

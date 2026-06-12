@@ -13,6 +13,7 @@ import api from "../../services/api";
 import { API_URLS } from "../../services/apiUrls";
 import { getCompanyId } from "../../utils/roleHelper";
 import Layout from "../../layouts/commonLayout/Layout";
+import KpiScheduleCalendar from "../../components/KpiScheduleCalendar";
 
 const FORM_GENDERS = ["male", "female", "other"];
 const FORM_AGE_BANDS = ["20-25", "26-30", "31-35", "36-40", "41-50", "50+"];
@@ -1104,6 +1105,9 @@ function HRDashboardContent() {
           </div>
         )}
       </Card>
+
+      <KpiScheduleCalendar companyId={resolvedCompanyId} />
+      
     </div>
   );
 }
