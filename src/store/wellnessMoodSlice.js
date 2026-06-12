@@ -36,7 +36,14 @@ const wellnessMoodSlice = createSlice({
     status: "idle",
     error: null
   },
-  reducers: {},
+  reducers: {
+    resetMood(state) {
+      state.loggedAt = null;
+      state.submittedScore = null;
+      state.status = "idle";
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(submitMood.pending, (s) => { s.status = "loading"; })
@@ -75,5 +82,5 @@ export const fetchMoodToday = createAsyncThunk(
   }
 );
 
-
+export const { resetMood } = wellnessMoodSlice.actions;
 export default wellnessMoodSlice.reducer;

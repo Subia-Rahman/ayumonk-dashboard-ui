@@ -8,8 +8,7 @@ import {
 } from "../../store/dashboardSlice";
 import { fetchWellnessIndex } from "../../store/wellnessIndexSlice";
 import { fetchMySuggestions, recordAction } from "../../store/userSuggestionsSlice";
-import { fetchMoodToday, submitMood, selectMoodLoggedToday } from "../../store/wellnessMoodSlice";
-import { API_URLS } from "../../services/apiUrls";
+import { fetchMoodToday, resetMood, submitMood, selectMoodLoggedToday } from "../../store/wellnessMoodSlice";
 
 const C = {
   bg: "#0b160c",
@@ -56,11 +55,9 @@ const formatMetricLabel = (name = "") =>
   name.replace(/\bKPI\b/gi, "").replace(/\s+/g, " ").trim() || "Wellness KPI";
 const clampPercent = (value) => { const n = Number(value); if (!Number.isFinite(n)) return 0; return Math.min(100, Math.max(0, n)); };
 const formatChange = (value) => { const n = Number(value); if (!Number.isFinite(n)) return "No trend"; return `${n >= 0 ? "+" : ""}${n.toFixed(0)}%`; };
-const getMetricColor = (index) => METRIC_COLOR_SET[index % METRIC_COLOR_SET.length];
 const getSuggestionColor = (type, index) =>
   SUGGESTION_TYPE_COLORS[String(type || "").toLowerCase()] || METRIC_COLOR_SET[index % METRIC_COLOR_SET.length];
 
-//Shared card wrapper
 function ClientCard({ children, style = {}, borderColor, onClick }) {
   return (
     <div
@@ -84,7 +81,6 @@ function ClientCard({ children, style = {}, borderColor, onClick }) {
   );
 }
 
-//Sparkline
 function Sparkline({ values = [], color = C.g3, w = 74, h = 16 }) {
   if (!Array.isArray(values) || values.length < 2) return <svg width={w} height={h} />;
   const mn = Math.min(...values) - 0.2, mx = Math.max(...values) + 0.2, range = mx - mn || 1;
@@ -100,7 +96,6 @@ function Sparkline({ values = [], color = C.g3, w = 74, h = 16 }) {
   );
 }
 
-//Donut chart
 function computeDonutArcs(slices) {
   const total = slices.reduce((a, s) => a + (Number(s.v) || 0), 0) || 1;
   let cursor = -Math.PI / 2;
@@ -129,7 +124,6 @@ function DonutChart({ slices, size = 130, cVal, cSub }) {
   );
 }
 
-//Wellness ring
 function WellnessRing({ score = 0, color = C.g3, size = 136 }) {
   const sw = 11, r = (size - sw) / 2, cx = size / 2, cy = size / 2;
   const circ = 2 * Math.PI * r, pct = Math.min(100, Math.max(0, score)) / 100;
@@ -143,7 +137,6 @@ function WellnessRing({ score = 0, color = C.g3, size = 136 }) {
   );
 }
 
-//Risk band
 const RISK_MAP = {
   excellent: { label: "Excellent", color: "#4ade80" },
   good: { label: "Good", color: "#86efac" },
@@ -151,15 +144,6 @@ const RISK_MAP = {
   attention: { label: "Needs Attention", color: "#f87171" },
 };
 
-function wellnessStatus(score) {
-  if (score >= 85) return { label: "Excellent", color: "#4ade80" };
-  if (score >= 70) return { label: "Great", color: "#86efac" };
-  if (score >= 55) return { label: "Good", color: C.g3 };
-  if (score >= 40) return { label: "Fair", color: C.gold };
-  return { label: "Needs Attention", color: "#f87171" };
-}
-
-//Trend line
 function TrendLine({ vals = [], labels = [], color = C.g3, h = 100 }) {
   if (vals.length < 2) {
     return (
@@ -201,7 +185,6 @@ function TrendLine({ vals = [], labels = [], color = C.g3, h = 100 }) {
   );
 }
 
-//KPI tile
 function KpiTile({ item, sparkValues, onClick }) {
   const trend = item.change === "No trend" ? null : item.change;
   const trendPos = trend && trend.startsWith("+");
@@ -217,8 +200,7 @@ function KpiTile({ item, sparkValues, onClick }) {
       <div style={{
         fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 600, marginBottom: 4,
         overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical"
-      }}
-        title={item.label}>
+      }} title={item.label}>
         {item.label}
       </div>
       <div style={{ fontSize: 18, fontWeight: 800, color: item.color, lineHeight: 1, marginBottom: 4 }}>
@@ -236,6 +218,14 @@ function KpiTile({ item, sparkValues, onClick }) {
     </div>
   );
 }
+
+const MOOD_OPTIONS = [
+  { score: 1, em: "😞" },
+  { score: 2, em: "😕" },
+  { score: 3, em: "😐" },
+  { score: 4, em: "🙂" },
+  { score: 5, em: "😄" },
+];
 
 export default function DashboardWellness() {
   const dispatch = useDispatch();
@@ -262,18 +252,23 @@ export default function DashboardWellness() {
     error: suggestionsError,
   } = useSelector((s) => s.userSuggestions);
 
+  const { user } = useSelector((s) => s.auth);
+
   useEffect(() => {
     dispatch(fetchDashboardKpis());
     dispatch(fetchWellnessIndex());
     dispatch(fetchMySuggestions());
-    dispatch(fetchMoodToday());
   }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(resetMood());
+    dispatch(fetchMoodToday());
+  }, [user?.email, dispatch]);
 
   useEffect(() => {
     dispatch(fetchWellnessTrends({ period: trendsPeriod }));
   }, [dispatch, trendsPeriod]);
 
-  //Derived: KPI metrics strip
   const metrics = useMemo(() =>
     dashboardItems.map((item) => {
       const label = formatMetricLabel(item.kpi_name);
@@ -303,13 +298,11 @@ export default function DashboardWellness() {
     (metric.kpiKey != null && sparkValuesByKpi[`key:${metric.kpiKey}`]) ||
     (metric.kpiName && sparkValuesByKpi[`name:${metric.kpiName}`]) || [];
 
-  //Derived: Wellness Index
   const overallWellnessScore = wellnessIndexData?.overall_score ?? 0;
   const wellnessRiskLevel = wellnessIndexData?.risk_level ?? null;
   const wellnessWeekDelta = wellnessIndexData?.week_delta ?? null;
   const riskInfo = RISK_MAP[wellnessRiskLevel] ?? null;
 
-  //Derived: Trends
   const trendsMultiSeries = useMemo(() =>
     (trends.series || [])
       .map((s) => ({ id: s.kpi_key ?? s.kpi_name, c: s.color || C.g3, vals: (s.points || []).map((p) => Number(p.average_score) || 0) }))
@@ -342,20 +335,12 @@ export default function DashboardWellness() {
         <Box sx={{ p: 1, color: C.muted, fontSize: 11 }}>No KPI metrics available yet.</Box>
       )}
 
-      {/* Section label */}
-      <Box sx={{
-        fontSize: 11, fontWeight: 700, letterSpacing: 0.8, color: C.muted,
-        textTransform: "uppercase", mb: "12px"
-      }}>
+      <Box sx={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8, color: C.muted, textTransform: "uppercase", mb: "12px" }}>
         Wellness Dimensions · Tap for Details
       </Box>
 
-      {/* KPI Strip */}
       {!dashboardError && !dashboardLoading && metrics.length > 0 && (
-        <Box sx={{
-          display: "flex", flexDirection: "row", gap: "8px", overflowX: "auto",
-          paddingBottom: "8px", scrollbarWidth: "none", msOverflowStyle: "none", mb: "18px"
-        }}>
+        <Box sx={{ display: "flex", flexDirection: "row", gap: "8px", overflowX: "auto", paddingBottom: "8px", scrollbarWidth: "none", msOverflowStyle: "none", mb: "18px" }}>
           {metrics.map((item) => (
             <KpiTile key={item.kpiKey ?? item.label} item={item} sparkValues={getSparkValues(item)} />
           ))}
@@ -369,35 +354,22 @@ export default function DashboardWellness() {
             Wellness Index
             <div style={{ fontSize: 7, fontWeight: 400, color: C.muted, marginTop: 2, letterSpacing: 0.5 }}>WHO SF-12 · Normalized 0–100</div>
           </div>
-
           {wellnessIndexStatus === "loading" ? (
-            <div style={{ height: 136, display: "grid", placeItems: "center", color: C.muted, fontSize: 10 }}>
-              Loading…
-            </div>
+            <div style={{ height: 136, display: "grid", placeItems: "center", color: C.muted, fontSize: 10 }}>Loading…</div>
           ) : (
             <>
               <div style={{ position: "relative", display: "flex", justifyContent: "center", alignItems: "center" }}>
-                <WellnessRing
-                  score={overallWellnessScore}
-                  color={riskInfo?.color ?? C.g3}
-                  size={136}
-                />
+                <WellnessRing score={overallWellnessScore} color={riskInfo?.color ?? C.g3} size={136} />
                 <div style={{ position: "absolute", textAlign: "center", pointerEvents: "none" }}>
-                  <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", lineHeight: 1 }}>
-                    {overallWellnessScore || "—"}
-                  </div>
+                  <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{overallWellnessScore || "—"}</div>
                   <div style={{ fontSize: 9, color: C.muted, marginTop: 3, letterSpacing: 0.5 }}>/ 100</div>
                 </div>
               </div>
-
               {riskInfo && (
                 <div style={{ textAlign: "center", marginTop: 10 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: riskInfo.color }}>
-                    {riskInfo.label}
-                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: riskInfo.color }}>{riskInfo.label}</span>
                 </div>
               )}
-
               {wellnessWeekDelta !== null && wellnessWeekDelta !== 0 && (() => {
                 const pos = wellnessWeekDelta > 0;
                 return (
@@ -405,8 +377,7 @@ export default function DashboardWellness() {
                     <span style={{
                       background: pos ? "#16a34a22" : "#f8717122",
                       border: `1px solid ${pos ? "#4ade8033" : "#f8717133"}`,
-                      borderRadius: 20, padding: "4px 12px",
-                      fontSize: 10, fontWeight: 700,
+                      borderRadius: 20, padding: "4px 12px", fontSize: 10, fontWeight: 700,
                       color: pos ? "#4ade80" : "#f87171",
                     }}>
                       {pos ? "▲" : "▼"} {Math.abs(wellnessWeekDelta).toFixed(1)}% from last week
@@ -435,34 +406,22 @@ export default function DashboardWellness() {
               ))}
             </div>
           </div>
-
           {trendsError && <Alert severity="error" sx={{ mb: 1 }}>{trendsError}</Alert>}
-
           {trendsLoading && averagedTrendVals.length === 0 ? (
-            <div style={{ height: 100, display: "grid", placeItems: "center", color: C.muted, fontSize: 10 }}>
-              Loading wellness trends…
-            </div>
+            <div style={{ height: 100, display: "grid", placeItems: "center", color: C.muted, fontSize: 10 }}>Loading wellness trends…</div>
           ) : (
             <TrendLine h={100} labels={trendsLabels} color={C.g3} vals={averagedTrendVals} />
           )}
-
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10, alignItems: "center" }}>
-            {(trends.top_improvements || [])
-              .filter((i) => i.delta_percent > 0).slice(0, 2)
-              .map((item) => {
-                const matched = (trends.series || []).find((s) => s.kpi_key === item.kpi_key || s.kpi_name === item.kpi_name);
-                const accent = matched?.color || C.g3;
-                return (
-                  <div key={`${item.kpi_key || item.kpi_name}-imp`} style={{
-                    display: "flex", alignItems: "center", gap: 4,
-                    background: accent + "22", borderRadius: 8, padding: "3px 9px"
-                  }}>
-                    <span style={{ fontSize: 9, color: accent, fontWeight: 700 }}>
-                      {item.kpi_name} ▲{Math.round(item.delta_percent)}%
-                    </span>
-                  </div>
-                );
-              })}
+            {(trends.top_improvements || []).filter((i) => i.delta_percent > 0).slice(0, 2).map((item) => {
+              const matched = (trends.series || []).find((s) => s.kpi_key === item.kpi_key || s.kpi_name === item.kpi_name);
+              const accent = matched?.color || C.g3;
+              return (
+                <div key={`${item.kpi_key || item.kpi_name}-imp`} style={{ display: "flex", alignItems: "center", gap: 4, background: accent + "22", borderRadius: 8, padding: "3px 9px" }}>
+                  <span style={{ fontSize: 9, color: accent, fontWeight: 700 }}>{item.kpi_name} ▲{Math.round(item.delta_percent)}%</span>
+                </div>
+              );
+            })}
             {trends.insight && <span style={{ fontSize: 9, color: C.muted }}>{trends.insight}</span>}
           </div>
         </ClientCard>
@@ -484,31 +443,18 @@ export default function DashboardWellness() {
             </div>
           ))}
 
-
           <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>Today's Mood Check</div>
-
             {moodLoggedToday ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                 <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
-                  {[
-                    { score: 1, em: "😞" },
-                    { score: 2, em: "😕" },
-                    { score: 3, em: "😐" },
-                    { score: 4, em: "🙂" },
-                    { score: 5, em: "😄" },
-                  ].map(({ score, em }) => (
-                    <span
-                      key={score}
-                      style={{
-                        fontSize: 20,
-                        borderRadius: 6,
-                        padding: "2px 4px",
-                        background: submittedScore === score ? "rgba(107,179,63,0.3)" : "transparent",
-                        outline: submittedScore === score ? `2px solid ${C.g3}` : "none",
-                        opacity: submittedScore === score ? 1 : 0.25,
-                      }}
-                    >{em}</span>
+                  {MOOD_OPTIONS.map(({ score, em }) => (
+                    <span key={score} style={{
+                      fontSize: 20, borderRadius: 6, padding: "2px 4px",
+                      background: submittedScore === score ? "rgba(107,179,63,0.3)" : "transparent",
+                      outline: submittedScore === score ? `2px solid ${C.g3}` : "none",
+                      opacity: submittedScore === score ? 1 : 0.25,
+                    }}>{em}</span>
                   ))}
                 </div>
                 <div style={{ fontSize: 9, color: C.g3, textAlign: "center" }}>✓ Mood logged for today</div>
@@ -516,33 +462,20 @@ export default function DashboardWellness() {
             ) : (
               <>
                 <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
-                  {[
-                    { score: 1, em: "😞" },
-                    { score: 2, em: "😕" },
-                    { score: 3, em: "😐" },
-                    { score: 4, em: "🙂" },
-                    { score: 5, em: "😄" },
-                  ].map(({ score, em }) => (
-                    <button
-                      key={score}
-                      type="button"
-                      disabled={moodStatus === "loading"}
+                  {MOOD_OPTIONS.map(({ score, em }) => (
+                    <button key={score} type="button" disabled={moodStatus === "loading"}
                       onClick={() => dispatch(submitMood(score))}
                       style={{
-                        fontSize: 20, border: "none",
-                        background: "transparent",
+                        fontSize: 20, border: "none", background: "transparent",
                         cursor: moodStatus === "loading" ? "not-allowed" : "pointer",
                         borderRadius: 6, padding: "2px 4px",
                         opacity: moodStatus === "loading" ? 0.5 : 1,
                         transition: "all 0.15s",
-                      }}
-                    >{em}</button>
+                      }}>{em}</button>
                   ))}
                 </div>
                 {moodStatus === "failed" && (
-                  <div style={{ fontSize: 9, color: C.red, textAlign: "center", marginTop: 4 }}>
-                    Failed to log — try again
-                  </div>
+                  <div style={{ fontSize: 9, color: C.red, textAlign: "center", marginTop: 4 }}>Failed to log — try again</div>
                 )}
               </>
             )}
@@ -550,12 +483,10 @@ export default function DashboardWellness() {
         </ClientCard>
       </Box>
 
-
       <ClientCard style={{ background: "rgba(107,179,63,0.04)" }} borderColor="rgba(107,179,63,0.18)">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 6, flexWrap: "wrap" }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.g3 }}>🌿 Ayumonk Lifestyle Suggestions — Focus Areas This Week</div>
         </div>
-
         {suggestionsError && suggestionsError !== "no_data" && (
           <Alert severity="error" sx={{ mb: 1 }}>{suggestionsError}</Alert>
         )}
@@ -565,61 +496,39 @@ export default function DashboardWellness() {
         {suggestionsStatus !== "loading" && suggestionItems.length === 0 && (
           <div style={{ fontSize: 10, color: C.muted, padding: "8px 0" }}>No lifestyle suggestions available yet.</div>
         )}
-
         {suggestionsStatus !== "loading" && suggestionItems.length > 0 && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 10 }}>
             {suggestionItems.map((item, index) => {
               const accent = getSuggestionColor(item.suggestion_type, index);
               const isActioned = !!item.action;
-
               return (
                 <div key={item.log_id ?? item.suggestion_id} style={{
                   background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "12px 14px",
                   borderLeft: `3px solid ${accent}`, display: "flex", flexDirection: "column", gap: 0,
                 }}>
-                  {/* Header */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, gap: 6 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{item.title}</div>
                     <span style={{
                       fontSize: 7.5, background: accent + "18", color: accent,
                       borderRadius: 4, padding: "1px 6px", fontWeight: 700,
                       textTransform: "uppercase", letterSpacing: 0.3, flexShrink: 0,
-                    }}>
-                      {item.suggestion_type}
-                    </span>
+                    }}>{item.suggestion_type}</span>
                   </div>
-
-                  {/* Description */}
                   {!!item.description && (
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 10 }}>
-                      {item.description}
-                    </div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 10 }}>{item.description}</div>
                   )}
-
-
-                  <div style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    gap: 6, marginTop: "auto", paddingTop: 4
-                  }}>
-
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: "auto", paddingTop: 4 }}>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                       {!!item.duration_mins && (
-                        <span style={{ fontSize: 9, background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.55)", borderRadius: 99, padding: "2px 8px", fontWeight: 600 }}>
-                          {item.duration_mins} min
-                        </span>
+                        <span style={{ fontSize: 9, background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.55)", borderRadius: 99, padding: "2px 8px", fontWeight: 600 }}>{item.duration_mins} min</span>
                       )}
                       {item.difficulty && (
-                        <span style={{ fontSize: 9, background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.55)", borderRadius: 99, padding: "2px 8px", fontWeight: 600 }}>
-                          {item.difficulty}
-                        </span>
+                        <span style={{ fontSize: 9, background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.55)", borderRadius: 99, padding: "2px 8px", fontWeight: 600 }}>{item.difficulty}</span>
                       )}
                       {item.dosha_type && (
-                        <span style={{ fontSize: 9, background: accent + "18", color: accent, borderRadius: 99, padding: "2px 8px", fontWeight: 700 }}>
-                          {item.dosha_type}
-                        </span>
+                        <span style={{ fontSize: 9, background: accent + "18", color: accent, borderRadius: 99, padding: "2px 8px", fontWeight: 700 }}>{item.dosha_type}</span>
                       )}
                     </div>
-
                     {isActioned ? (
                       <span style={{ fontSize: 9, fontWeight: 700, color: C.g3, flexShrink: 0 }}>
                         {item.action === "done" && "✓ Done"}
@@ -633,20 +542,14 @@ export default function DashboardWellness() {
                           { act: "skipped", label: "Skip" },
                           { act: "saved", label: "Save" },
                         ].map(({ act, label }) => (
-                          <button
-                            key={act}
-                            type="button"
-                            disabled={!!item._prevAction}
+                          <button key={act} type="button" disabled={!!item._prevAction}
                             onClick={() => dispatch(recordAction({ logId: item.log_id, action: act }))}
                             style={{
                               fontSize: 9, fontWeight: 700, cursor: item._prevAction ? "not-allowed" : "pointer",
-                              borderRadius: 99, padding: "3px 8px",
-                              border: `1px solid ${C.g3}`,
+                              borderRadius: 99, padding: "3px 8px", border: `1px solid ${C.g3}`,
                               background: "transparent", color: C.g3,
-                              opacity: item._prevAction ? 0.5 : 1,
-                              transition: "opacity 0.15s",
-                            }}
-                          >{label}</button>
+                              opacity: item._prevAction ? 0.5 : 1, transition: "opacity 0.15s",
+                            }}>{label}</button>
                         ))}
                       </div>
                     )}
@@ -657,6 +560,6 @@ export default function DashboardWellness() {
           </div>
         )}
       </ClientCard>
-    </Box >
+    </Box>
   );
 }

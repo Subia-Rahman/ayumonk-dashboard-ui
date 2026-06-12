@@ -647,7 +647,7 @@ export default function ReminderSettings() {
               cursor: "pointer", fontSize: 9, fontWeight: 600,
               textDecoration: "underline", padding: 0, marginBottom: 8,
             }}>
-              {historyOpen ? "▲ Hide reminder history" : "▼ Show last 7 reminders"}
+              {historyOpen ? "▲ Hide reminder history" : "▼ Show last 10 reminders"}
             </button>
 
             {historyOpen && (
