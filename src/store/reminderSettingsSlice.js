@@ -10,6 +10,8 @@ const initialState = {
   mutationError: "",
   saved: false,
   toggleSnapshot: null,
+  reminderLog: [],
+  logStatus: "idle",
 };
 
 const runRequest = async (request, fallback, rejectWithValue) => {
@@ -75,6 +77,16 @@ export const clearSnooze = createAsyncThunk(
     runRequest(
       () => api.delete(API_URLS.reminderSettingsSnooze),
       "Failed to clear snooze.",
+      rejectWithValue,
+    ),
+);
+
+export const fetchReminderLog = createAsyncThunk(
+  "reminderSettings/fetchLog",
+  (params = {}, { rejectWithValue }) =>
+    runRequest(
+      () => api.get(API_URLS.reminderSettingsLog, { params: { limit: params.limit ?? 10 } }),
+      "Failed to load reminder history.",
       rejectWithValue,
     ),
 );
@@ -175,6 +187,17 @@ const slice = createSlice({
       .addCase(clearSnooze.rejected, (state, action) => {
         state.mutating = false;
         state.mutationError = action.payload || "Failed to clear snooze.";
+      })
+
+      .addCase(fetchReminderLog.pending, (state) => {
+        state.logStatus = "loading";
+      })
+      .addCase(fetchReminderLog.fulfilled, (state, action) => {
+        state.logStatus = "succeeded";
+        state.reminderLog = action.payload?.items ?? action.payload ?? [];
+      })
+      .addCase(fetchReminderLog.rejected, (state) => {
+        state.logStatus = "failed";
       });
   },
 });

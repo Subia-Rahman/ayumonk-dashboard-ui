@@ -430,7 +430,8 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
     const resolvedTargetValue = targetRequired
       ? Number(form.targetValue) || 0
       : 0;
-    const resolvedOptions = optionsRequired ? trimmedOptionLabels : [];
+    //const resolvedOptions = optionsRequired ? trimmedOptionLabels : [];
+    const resolvedOptions = optionsRequired ? trimmedOptionLabels : undefined;
 
     try {
       if (mode === "edit") {
