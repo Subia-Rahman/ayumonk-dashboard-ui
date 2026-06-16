@@ -149,24 +149,67 @@ const normalizeByDimensionPayload = (data, fallbackKey) => {
 // The heatmap can land in a few shapes depending on backend serialization.
 // We collapse all of them into a single { locations, departments, cells }
 // structure so the table renderer doesn't have to branch.
+//
+// Canonical backend shape (config_service WellnessHeatmapResponse):
+//   { locations: [str], departments: [str],
+//     heatmap: [ { location: str, scores: [ { department, value } ] } ] }
+// Historic shapes still tolerated: top-level cells/items/results/rows/matrix,
+// or a raw array of flat {location, department, value} objects.
 const normalizeHeatmapPayload = (data) => {
   const root =
     data && typeof data === "object" && !Array.isArray(data) && data.data
       ? data.data
       : data || {};
+
+  // locations + departments live on the parent envelope, NOT inside the
+  // heatmap array, so they must be read off `root` before we descend.
+  const declaredLocations = Array.isArray(root?.locations)
+    ? root.locations.map(getLocationLabel).filter(Boolean)
+    : [];
+  const declaredDepartments = Array.isArray(root?.departments)
+    ? root.departments.map(getDepartmentLabel).filter(Boolean)
+    : [];
+
   const source =
     root && typeof root === "object" && !Array.isArray(root) && root.heatmap
       ? root.heatmap
       : root;
 
-  const declaredLocations = Array.isArray(source?.locations)
-    ? source.locations.map(getLocationLabel).filter(Boolean)
-    : [];
-  const declaredDepartments = Array.isArray(source?.departments)
-    ? source.departments.map(getDepartmentLabel).filter(Boolean)
-    : [];
-
   let cells = [];
+
+  // Each row's inner array of cells can be called `scores` (canonical),
+  // `departments` (legacy), or `cells` (object form). Pick whichever fits.
+  const expandRow = (row) => {
+    const location = getLocationLabel(row);
+    if (!location) return;
+    const innerArray = Array.isArray(row?.scores)
+      ? row.scores
+      : Array.isArray(row?.departments)
+        ? row.departments
+        : Array.isArray(row?.cells)
+          ? row.cells
+          : null;
+    if (innerArray) {
+      innerArray.forEach((cell) => {
+        cells.push({
+          location,
+          department: getDepartmentLabel(cell),
+          value: getHeatmapValue(cell),
+        });
+      });
+      return;
+    }
+    if (row?.cells && typeof row.cells === "object") {
+      Object.entries(row.cells).forEach(([department, value]) => {
+        cells.push({
+          location,
+          department,
+          value:
+            value == null || Number.isNaN(Number(value)) ? null : Number(value),
+        });
+      });
+    }
+  };
 
   if (Array.isArray(source?.cells)) {
     cells = source.cells.map((c) => ({
@@ -182,29 +225,7 @@ const normalizeHeatmapPayload = (data) => {
       value: getHeatmapValue(c),
     }));
   } else if (Array.isArray(source?.rows)) {
-    source.rows.forEach((row) => {
-      const location = getLocationLabel(row);
-      if (Array.isArray(row?.departments)) {
-        row.departments.forEach((dept) => {
-          cells.push({
-            location,
-            department: getDepartmentLabel(dept),
-            value: getHeatmapValue(dept),
-          });
-        });
-      } else if (row?.cells && typeof row.cells === "object") {
-        Object.entries(row.cells).forEach(([department, value]) => {
-          cells.push({
-            location,
-            department,
-            value:
-              value == null || Number.isNaN(Number(value))
-                ? null
-                : Number(value),
-          });
-        });
-      }
-    });
+    source.rows.forEach(expandRow);
   } else if (source?.matrix && typeof source.matrix === "object") {
     Object.entries(source.matrix).forEach(([location, departments]) => {
       if (!departments || typeof departments !== "object") return;
@@ -218,11 +239,26 @@ const normalizeHeatmapPayload = (data) => {
       });
     });
   } else if (Array.isArray(source)) {
-    cells = source.map((c) => ({
-      location: getLocationLabel(c),
-      department: getDepartmentLabel(c),
-      value: getHeatmapValue(c),
-    }));
+    // Either the canonical shape (each item has scores/departments) or a
+    // flat list of {location, department, value} cells. Try expanding first
+    // and fall back to flat mapping when a row has no inner array AND has
+    // its own department/value fields.
+    source.forEach((row) => {
+      if (
+        Array.isArray(row?.scores) ||
+        Array.isArray(row?.departments) ||
+        Array.isArray(row?.cells) ||
+        (row?.cells && typeof row.cells === "object")
+      ) {
+        expandRow(row);
+      } else {
+        cells.push({
+          location: getLocationLabel(row),
+          department: getDepartmentLabel(row),
+          value: getHeatmapValue(row),
+        });
+      }
+    });
   }
 
   const locations =
