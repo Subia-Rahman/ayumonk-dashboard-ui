@@ -275,6 +275,24 @@ export const API_URLS = {
   //       normalizes to { locations: [...], departments: [...], cells: [{location, department, value}] }
   hrHeatmapLocationDept: "/config/api/v1/hr/heatmap/location-department",
 
+  // HR Analytics summary tiles, employee count and headcount breakdowns.
+  // All three accept the same demographic filter set as the chart endpoints
+  // (department, location, age_band, gender) and derive company_id from JWT.
+  //   GET /config/api/v1/hr/summary-cards
+  //     → { avg_wellness:{value,unit,label,subtext}, productivity:{...},
+  //         engagement:{...}, absenteeism:{...}, sleep_score:{...},
+  //         stress_score:{...} } — value is null when the dimension isn't
+  //       configured or the filtered set is empty.
+  //   GET /config/api/v1/hr/employee-count
+  //     → { total: int, filtered: int } — rendered as
+  //       "{filtered} of {total} employees in scope".
+  //   GET /config/api/v1/hr/headcount
+  //     → { by_department: [{label,count}], by_location: [{label,count}] }
+  //       used for scatter bubble sizing and any per-segment headcount label.
+  hrSummaryCards: "/config/api/v1/hr/summary-cards",
+  hrEmployeeCount: "/config/api/v1/hr/employee-count",
+  hrHeadcount: "/config/api/v1/hr/headcount",
+
   challengeSchedule: "/config/api/v1/challenges/schedule",
 
   reminderSettingsLog: "/config/api/v1/reminder-settings/log",
