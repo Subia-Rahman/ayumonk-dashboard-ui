@@ -3,8 +3,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchDepartments } from "../../store/departmentSlice";
 import { fetchLocations } from "../../store/locationSlice";
 import {
+  fetchHrEmployeeCount,
   fetchHrGenderWellness,
+  fetchHrHeadcount,
   fetchHrHeatmapLocationDept,
+  fetchHrSummaryCards,
   fetchHrWellnessByDimension,
   fetchHrWellnessDimensions,
   buildFilterParams,
@@ -15,7 +18,10 @@ import { getCompanyId } from "../../utils/roleHelper";
 import Layout from "../../layouts/commonLayout/Layout";
 import KpiScheduleCalendar from "../../components/KpiScheduleCalendar";
 
-const FORM_GENDERS = ["male", "female", "other"];
+// Backend stores gender in title case and filters with an exact-match SQL
+// predicate (cu.gender = :f_gender), so the dropdown values must match the
+// DB casing or every row gets dropped.
+const FORM_GENDERS = ["Male", "Female", "Other"];
 const FORM_AGE_BANDS = ["20-25", "26-30", "31-35", "36-40", "41-50", "50+"];
 
 const C = {
@@ -38,37 +44,9 @@ const C = {
   pink: "#f472b6",
 };
 
-const DEPTS = ["Engineering", "Marketing", "Finance", "HR", "Operations", "Product"];
-const LOCATIONS = ["Delhi", "Mumbai", "Bengaluru", "Hyderabad", "Pune"];
-const AGE_BANDS = ["20-25", "26-30", "31-35", "36-40", "41-50", "50+"];
-const GENDERS = ["Male", "Female", "Other"];
-
-function buildSeed(i) {
-  let h = (i + 1) * 2654435761;
-  return () => {
-    h = Math.imul(h ^ (h >>> 15), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    h ^= h >>> 16;
-    return ((h >>> 0) % 100000) / 100000;
-  };
-}
-
-const HR_ROWS = Array.from({ length: 240 }, (_, i) => {
-  const r = buildSeed(i);
-  return {
-    dept: DEPTS[i % 6],
-    loc: LOCATIONS[i % 5],
-    age: AGE_BANDS[i % 6],
-    gender: GENDERS[i % 3],
-    wellnessIndex: +(58 + r() * 30).toFixed(1),
-    productivity: +(60 + r() * 30).toFixed(1),
-    engagement: +(55 + r() * 35).toFixed(1),
-    absenteeism: +(2 + r() * 5).toFixed(1),
-    sleep: +(2.8 + r() * 1.5).toFixed(2),
-    stress: +(2.5 + r() * 2).toFixed(2),
-    nutrition: +(3.0 + r() * 1.5).toFixed(2),
-  };
-});
+// Scatter bubble palette — picked here so the scatter render below stays
+// declarative. Department labels come from the API at runtime.
+const SCATTER_COLORS = ["#4A90C4", "#22c55e", "#E8924A", "#3AADA8", "#f472b6", "#D4A843"];
 
 function Card({ children, style = {}, color, onClick }) {
   return (
@@ -281,7 +259,17 @@ function HRDashboardContent() {
     heatmap: hrHeatmap,
     heatmapLoading: hrHeatmapLoading,
     heatmapError: hrHeatmapError,
+    summary: hrSummary,
+    summaryLoading: hrSummaryLoading,
+    employeeCount: hrEmployeeCount,
+    headcount: hrHeadcount,
   } = useSelector((state) => state.hrAnalytics);
+
+  // Productivity payload kept locally for the scatter plot. The CXO card's
+  // existing fetch only loads whichever metric is selected on the toggle, so
+  // we mirror just `productivity` here so the scatter keeps working when the
+  // CXO toggle is on engagement/absenteeism.
+  const [scatterProductivity, setScatterProductivity] = useState(null);
 
   // /companies/me is the authoritative source of the HR's company — the login
   // payload (and therefore localStorage / getCompanyId()) is empty for some
@@ -336,11 +324,45 @@ function HRDashboardContent() {
     dispatch(fetchHrWellnessDimensions());
   }, [dispatch]);
 
-  // Gender bar chart + heatmap refetch whenever any top-level filter changes.
+  // Gender bar chart + heatmap + summary tiles + counts all share the same
+  // filter set, so they refetch together. The wellnessindex dispatch keeps
+  // the scatter's x-axis fresh even when the wellness toggle is on a
+  // different dimension (its result lands in dataByDimension.wellnessindex).
   useEffect(() => {
     dispatch(fetchHrGenderWellness({ filters: hrFilters }));
     dispatch(fetchHrHeatmapLocationDept({ filters: hrFilters }));
+    dispatch(fetchHrSummaryCards({ filters: hrFilters }));
+    dispatch(fetchHrEmployeeCount({ filters: hrFilters }));
+    dispatch(fetchHrHeadcount({ filters: hrFilters }));
+    dispatch(
+      fetchHrWellnessByDimension({
+        dimension: "wellnessindex",
+        filters: hrFilters,
+      }),
+    );
   }, [dispatch, hrFilters]);
+
+  // Productivity for the scatter — separate from the CXO card's toggle fetch
+  // so flipping the CXO tab doesn't blow away the scatter's y-axis.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get(API_URLS.hrCxoMetrics, {
+        params: { metric: "productivity", ...buildFilterParams(hrFilters) },
+      })
+      .then((response) => {
+        if (cancelled) return;
+        const payload = response?.data;
+        if (payload?.success) setScatterProductivity(payload.data || null);
+        else setScatterProductivity(null);
+      })
+      .catch(() => {
+        if (!cancelled) setScatterProductivity(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hrFilters]);
 
   // Default `well` to the first dimension returned by the API
   // (typically "wellnessindex"). Computed-then-set so the initial render's
@@ -390,21 +412,19 @@ function HRDashboardContent() {
     return map;
   }, [hrHeatmap]);
 
-  const heatmapLocations =
-    hrHeatmap?.locations && hrHeatmap.locations.length > 0
-      ? hrHeatmap.locations
-      : LOCATIONS;
-  const heatmapDepartments =
-    hrHeatmap?.departments && hrHeatmap.departments.length > 0
-      ? hrHeatmap.departments
-      : DEPTS;
+  const heatmapLocations = hrHeatmap?.locations || [];
+  const heatmapDepartments = hrHeatmap?.departments || [];
 
   const genderRows = useMemo(() => {
-    // Backend already returns Male / Female / Other in that order and skips
-    // genders without data. Just normalize the case so the legend labels are
-    // stable regardless of how the backend casts them.
+    // /hr/gender-wellness intentionally ignores the gender filter on the
+    // backend (gender is the grouping axis), so when a user has narrowed
+    // scope to one gender we trim the other rows client-side. Without this,
+    // selecting Gender=Male would still render the Female/Other bars.
     const order = ["Male", "Female", "Other"];
+    const selectedGender =
+      fG && fG !== "All" ? String(fG).toLowerCase() : null;
     return order
+      .filter((g) => !selectedGender || g.toLowerCase() === selectedGender)
       .map((g) => {
         const row = hrGender.find(
           (r) =>
@@ -413,7 +433,7 @@ function HRDashboardContent() {
         return row ? { ...row, gender: g } : null;
       })
       .filter(Boolean);
-  }, [hrGender]);
+  }, [hrGender, fG]);
 
   // Load the tab list once. HR is a company-tier caller so the backend
   // forces the tenant from the JWT — we don't need to pass company_id.
@@ -503,6 +523,50 @@ function HRDashboardContent() {
     [departmentItems],
   );
 
+  // Department-level scatter points joined from three independent endpoints:
+  //   x = wellnessindex   (fetchHrWellnessByDimension dispatched for the
+  //                        scatter in the hrFilters effect above)
+  //   y = productivity    (scatterProductivity local state, see effect above)
+  //   r = headcount       (fetchHrHeadcount by_department)
+  // Inner join on the lowercased label so departments missing from any one
+  // endpoint are dropped rather than being plotted at 0.
+  const scatterPoints = useMemo(() => {
+    const wellnessDept =
+      hrDataByDimension?.wellnessindex?.by_department || [];
+    const productivityDept = scatterProductivity?.by_department || [];
+    const headcountDept = hrHeadcount?.by_department || [];
+
+    const productivityByLabel = new Map(
+      productivityDept.map((r) => [String(r.label || "").toLowerCase(), r.value]),
+    );
+    const headcountByLabel = new Map(
+      headcountDept.map((r) => [String(r.label || "").toLowerCase(), r.count]),
+    );
+
+    return wellnessDept
+      .map((row) => {
+        const key = String(row.label || "").toLowerCase();
+        const wellness = row.value;
+        const productivity = productivityByLabel.get(key);
+        const count = headcountByLabel.get(key);
+        if (
+          wellness == null ||
+          productivity == null ||
+          count == null ||
+          !row.label
+        ) {
+          return null;
+        }
+        return {
+          label: row.label,
+          wellness: Number(wellness),
+          productivity: Number(productivity),
+          count: Number(count),
+        };
+      })
+      .filter(Boolean);
+  }, [hrDataByDimension, scatterProductivity, hrHeadcount]);
+
   const locationOpts = useMemo(() => {
     const companyLocationId = companyMe?.location_id;
     if (!companyLocationId) return [];
@@ -512,30 +576,73 @@ function HRDashboardContent() {
     return match ? [match.name] : [];
   }, [companyMe, locationItems]);
 
-  const filtered = useMemo(
-    () =>
-      HR_ROWS.filter(
-        (r) =>
-          (fD === "All" || r.dept === fD) &&
-          (fL === "All" || r.loc === fL) &&
-          (fA === "All" || r.age === fA) &&
-          (fG === "All" || r.gender === fG),
-      ),
-    [fD, fL, fA, fG],
-  );
-
-  const avg = (m) =>
-    +(
-      filtered.reduce((s, r) => s + r[m], 0) / Math.max(filtered.length, 1)
-    ).toFixed(1);
-
+  // Render-time formatting for the six summary tiles. Each entry pairs a
+  // backend key under hrSummary with its accent colour, icon, and a
+  // value-formatter that handles null + unit suffixes. Labels and subtext
+  // come straight from the API so any future copy change is backend-driven.
+  const formatTileValue = (card, decimals = 1) => {
+    if (!card || card.value == null) return "—";
+    const fixed = Number(card.value).toFixed(decimals);
+    if (!card.unit) return fixed;
+    if (card.unit === "%") return `${fixed}%`;
+    if (card.unit === "/100") return fixed;
+    return `${fixed} ${card.unit}`;
+  };
   const summaryCards = [
-    ["🌿", "Avg Wellness", avg("wellnessIndex"), "/ 100", C.g3],
-    ["🎯", "Productivity", avg("productivity") + "%", "self-reported", C.blue],
-    ["💬", "Engagement", avg("engagement") + "%", "Gallup Q12", C.purple],
-    ["📅", "Absenteeism", avg("absenteeism") + " d", "per month", C.red],
-    ["🌙", "Sleep Score", avg("sleep"), "out of 5", C.purple],
-    ["🧘", "Stress Score", avg("stress"), "lower is better", C.orange],
+    {
+      icon: "🌿",
+      key: "avg_wellness",
+      card: hrSummary?.avg_wellness,
+      defaultLabel: "Avg Wellness",
+      defaultSubtext: "/ 100",
+      color: C.g3,
+      value: formatTileValue(hrSummary?.avg_wellness, 1),
+    },
+    {
+      icon: "🎯",
+      key: "productivity",
+      card: hrSummary?.productivity,
+      defaultLabel: "Productivity",
+      defaultSubtext: "self-reported",
+      color: C.blue,
+      value: formatTileValue(hrSummary?.productivity, 1),
+    },
+    {
+      icon: "💬",
+      key: "engagement",
+      card: hrSummary?.engagement,
+      defaultLabel: "Engagement",
+      defaultSubtext: "Gallup Q12",
+      color: C.purple,
+      value: formatTileValue(hrSummary?.engagement, 1),
+    },
+    {
+      icon: "📅",
+      key: "absenteeism",
+      card: hrSummary?.absenteeism,
+      defaultLabel: "Absenteeism",
+      defaultSubtext: "per month",
+      color: C.red,
+      value: formatTileValue(hrSummary?.absenteeism, 1),
+    },
+    {
+      icon: "🌙",
+      key: "sleep_score",
+      card: hrSummary?.sleep_score,
+      defaultLabel: "Sleep Score",
+      defaultSubtext: "out of 5",
+      color: C.purple,
+      value: formatTileValue(hrSummary?.sleep_score, 1),
+    },
+    {
+      icon: "🧘",
+      key: "stress_score",
+      card: hrSummary?.stress_score,
+      defaultLabel: "Stress Score",
+      defaultSubtext: "lower is better",
+      color: C.orange,
+      value: formatTileValue(hrSummary?.stress_score, 1),
+    },
   ];
 
   return (
@@ -559,9 +666,13 @@ function HRDashboardContent() {
         <Sel label="Gender" value={fG} onChange={setFG} opts={FORM_GENDERS} />
         <div style={{ marginLeft: "auto", fontSize: 11, color: C.muted }}>
           <span style={{ color: C.g3, fontWeight: 700, fontSize: 16 }}>
-            {companyMe?.no_of_employees ?? "—"}
+            {hrEmployeeCount?.filtered ?? "—"}
           </span>{" "}
-          employees selected
+          of{" "}
+          <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
+            {hrEmployeeCount?.total ?? companyMe?.no_of_employees ?? "—"}
+          </span>{" "}
+          employees in scope
         </div>
       </div>
 
@@ -574,20 +685,30 @@ function HRDashboardContent() {
           marginBottom: 18,
         }}
       >
-        {summaryCards.map(([icon, lbl, val, sub, col]) => (
-          <Card key={lbl} color={col + "33"} style={{ padding: "12px 14px" }}>
-            <div style={{ fontSize: 20, marginBottom: 3 }}>{icon}</div>
-            <div style={{ fontSize: 9, color: C.muted, marginBottom: 2 }}>
-              {lbl}
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: col }}>
-              {val}
-            </div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.28)" }}>
-              {sub}
-            </div>
-          </Card>
-        ))}
+        {summaryCards.map((tile) => {
+          const label = tile.card?.label || tile.defaultLabel;
+          const subtext = tile.card?.subtext || tile.defaultSubtext;
+          return (
+            <Card
+              key={tile.key}
+              color={tile.color + "33"}
+              style={{ padding: "12px 14px" }}
+            >
+              <div style={{ fontSize: 20, marginBottom: 3 }}>{tile.icon}</div>
+              <div style={{ fontSize: 9, color: C.muted, marginBottom: 2 }}>
+                {label}
+              </div>
+              <div
+                style={{ fontSize: 20, fontWeight: 800, color: tile.color }}
+              >
+                {hrSummaryLoading && tile.value === "—" ? "…" : tile.value}
+              </div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.28)" }}>
+                {subtext}
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       {/* CHART ROW */}
@@ -896,64 +1017,71 @@ function HRDashboardContent() {
           <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>
             Each bubble = dept avg · size = headcount
           </div>
-          <svg width="100%" height={130} viewBox="0 0 300 130">
-            {DEPTS.map((d, i) => {
-              const rows = filtered.filter((r) => r.dept === d);
-              if (!rows.length) return null;
-              const wi =
-                rows.reduce((s, r) => s + r.wellnessIndex, 0) / rows.length;
-              const pr =
-                rows.reduce((s, r) => s + r.productivity, 0) / rows.length;
-              const cols = [C.blue, "#22c55e", C.orange, C.teal, C.pink, C.gold];
-              const x = 20 + (wi / 100) * 260;
-              const y = 120 - (pr / 100) * 110;
-              return (
-                <g key={d}>
-                  <circle
-                    cx={x}
-                    cy={y}
-                    r={Math.sqrt(rows.length) * 1.6 + 4}
-                    fill={cols[i]}
-                    opacity="0.5"
-                  />
-                  <text
-                    x={x}
-                    y={y + 3.5}
-                    textAnchor="middle"
-                    fontSize="7"
-                    fill="#fff"
-                  >
-                    {d.slice(0, 3)}
-                  </text>
-                </g>
-              );
-            })}
-            <line
-              x1="20"
-              y1="120"
-              x2="280"
-              y2="120"
-              stroke="rgba(255,255,255,0.08)"
-              strokeWidth="1"
-            />
-            <line
-              x1="20"
-              y1="10"
-              x2="20"
-              y2="120"
-              stroke="rgba(255,255,255,0.08)"
-              strokeWidth="1"
-            />
-            <text
-              x="150"
-              y="129"
-              textAnchor="middle"
-              fontSize="7.5"
-              fill={C.muted}
+          {scatterPoints.length === 0 ? (
+            <div
+              style={{
+                fontSize: 9,
+                color: "rgba(255,255,255,0.3)",
+                padding: "30px 0",
+                textAlign: "center",
+              }}
             >
-              Wellness Index →
-            </text>
-          </svg>
+              No correlation data
+            </div>
+          ) : (
+            <svg width="100%" height={130} viewBox="0 0 300 130">
+              {scatterPoints.map((p, i) => {
+                const x = 20 + (p.wellness / 100) * 260;
+                const y = 120 - (p.productivity / 100) * 110;
+                const color = SCATTER_COLORS[i % SCATTER_COLORS.length];
+                return (
+                  <g key={p.label}>
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={Math.sqrt(Math.max(p.count, 1)) * 1.6 + 4}
+                      fill={color}
+                      opacity="0.5"
+                    />
+                    <text
+                      x={x}
+                      y={y + 3.5}
+                      textAnchor="middle"
+                      fontSize="7"
+                      fill="#fff"
+                    >
+                      {p.label.slice(0, 3)}
+                    </text>
+                  </g>
+                );
+              })}
+              <line
+                x1="20"
+                y1="120"
+                x2="280"
+                y2="120"
+                stroke="rgba(255,255,255,0.08)"
+                strokeWidth="1"
+              />
+              <line
+                x1="20"
+                y1="10"
+                x2="20"
+                y2="120"
+                stroke="rgba(255,255,255,0.08)"
+                strokeWidth="1"
+              />
+              <text
+                x="150"
+                y="129"
+                textAnchor="middle"
+                fontSize="7.5"
+                fill={C.muted}
+              >
+                Wellness Index →
+              </text>
+            </svg>
+          )}
         </Card>
       </div>
 

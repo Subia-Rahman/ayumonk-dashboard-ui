@@ -25,6 +25,31 @@ const initialState = {
   heatmap: { locations: [], departments: [], cells: [] },
   heatmapLoading: false,
   heatmapError: "",
+
+  // GET /hr/summary-cards — six KPI tiles. value may be null when the
+  // underlying dimension/metric isn't configured for this company or when
+  // the filtered set is empty.
+  summary: {
+    avg_wellness: null,
+    productivity: null,
+    engagement: null,
+    absenteeism: null,
+    sleep_score: null,
+    stress_score: null,
+  },
+  summaryLoading: false,
+  summaryError: "",
+
+  // GET /hr/employee-count — { total, filtered } headcount counters.
+  employeeCount: { total: null, filtered: null },
+  employeeCountLoading: false,
+  employeeCountError: "",
+
+  // GET /hr/headcount — per-segment headcount used as bubble size in the
+  // wellness ↔ productivity scatter and as denominators elsewhere.
+  headcount: { by_department: [], by_location: [] },
+  headcountLoading: false,
+  headcountError: "",
 };
 
 const extractArray = (payload) =>
@@ -233,6 +258,68 @@ const normalizeGenderRow = (item) => ({
       : Number(item.productivity_score),
 });
 
+const normalizeSummaryCard = (card) => {
+  if (!card || typeof card !== "object") return null;
+  return {
+    value:
+      card.value == null || Number.isNaN(Number(card.value))
+        ? null
+        : Number(card.value),
+    unit: card.unit || "",
+    label: card.label || "",
+    subtext: card.subtext || "",
+  };
+};
+
+const normalizeSummaryPayload = (data) => {
+  const root =
+    data && typeof data === "object" && data.data && typeof data.data === "object"
+      ? data.data
+      : data || {};
+  return {
+    avg_wellness: normalizeSummaryCard(root.avg_wellness),
+    productivity: normalizeSummaryCard(root.productivity),
+    engagement: normalizeSummaryCard(root.engagement),
+    absenteeism: normalizeSummaryCard(root.absenteeism),
+    sleep_score: normalizeSummaryCard(root.sleep_score),
+    stress_score: normalizeSummaryCard(root.stress_score),
+  };
+};
+
+const toIntOrNull = (value) =>
+  value == null || Number.isNaN(Number(value)) ? null : Number(value);
+
+const normalizeEmployeeCountPayload = (data) => {
+  const root =
+    data && typeof data === "object" && data.data && typeof data.data === "object"
+      ? data.data
+      : data || {};
+  return {
+    total: toIntOrNull(root.total),
+    filtered: toIntOrNull(root.filtered),
+  };
+};
+
+const normalizeCountBucket = (item) => ({
+  label: item?.label || "",
+  count: toIntOrNull(item?.count) ?? 0,
+});
+
+const normalizeHeadcountPayload = (data) => {
+  const root =
+    data && typeof data === "object" && data.data && typeof data.data === "object"
+      ? data.data
+      : data || {};
+  return {
+    by_department: Array.isArray(root.by_department)
+      ? root.by_department.map(normalizeCountBucket)
+      : [],
+    by_location: Array.isArray(root.by_location)
+      ? root.by_location.map(normalizeCountBucket)
+      : [],
+  };
+};
+
 export const fetchHrWellnessDimensions = createAsyncThunk(
   "hrAnalytics/fetchDimensions",
   async (_, { rejectWithValue }) => {
@@ -359,6 +446,72 @@ export const fetchHrGenderWellness = createAsyncThunk(
   },
 );
 
+export const fetchHrSummaryCards = createAsyncThunk(
+  "hrAnalytics/fetchSummary",
+  async ({ filters } = {}, { rejectWithValue }) => {
+    try {
+      const response = await api.get(API_URLS.hrSummaryCards, {
+        params: buildFilterParams(filters),
+      });
+      const payload = response?.data;
+      const failure = rejectIfFailed(
+        payload,
+        "Failed to fetch summary cards.",
+      );
+      if (failure) return rejectWithValue(failure);
+      return normalizeSummaryPayload(payload);
+    } catch (error) {
+      console.error("fetchHrSummaryCards failed:", error?.response || error);
+      return rejectWithValue(
+        getApiErrorMessage(error, "Failed to fetch summary cards."),
+      );
+    }
+  },
+);
+
+export const fetchHrEmployeeCount = createAsyncThunk(
+  "hrAnalytics/fetchEmployeeCount",
+  async ({ filters } = {}, { rejectWithValue }) => {
+    try {
+      const response = await api.get(API_URLS.hrEmployeeCount, {
+        params: buildFilterParams(filters),
+      });
+      const payload = response?.data;
+      const failure = rejectIfFailed(
+        payload,
+        "Failed to fetch employee count.",
+      );
+      if (failure) return rejectWithValue(failure);
+      return normalizeEmployeeCountPayload(payload);
+    } catch (error) {
+      console.error("fetchHrEmployeeCount failed:", error?.response || error);
+      return rejectWithValue(
+        getApiErrorMessage(error, "Failed to fetch employee count."),
+      );
+    }
+  },
+);
+
+export const fetchHrHeadcount = createAsyncThunk(
+  "hrAnalytics/fetchHeadcount",
+  async ({ filters } = {}, { rejectWithValue }) => {
+    try {
+      const response = await api.get(API_URLS.hrHeadcount, {
+        params: buildFilterParams(filters),
+      });
+      const payload = response?.data;
+      const failure = rejectIfFailed(payload, "Failed to fetch headcount.");
+      if (failure) return rejectWithValue(failure);
+      return normalizeHeadcountPayload(payload);
+    } catch (error) {
+      console.error("fetchHrHeadcount failed:", error?.response || error);
+      return rejectWithValue(
+        getApiErrorMessage(error, "Failed to fetch headcount."),
+      );
+    }
+  },
+);
+
 const slice = createSlice({
   name: "hrAnalytics",
   initialState,
@@ -368,6 +521,9 @@ const slice = createSlice({
       state.dimensionDataError = "";
       state.genderError = "";
       state.heatmapError = "";
+      state.summaryError = "";
+      state.employeeCountError = "";
+      state.headcountError = "";
     },
   },
   extraReducers: (builder) => {
@@ -428,6 +584,45 @@ const slice = createSlice({
         state.heatmapLoading = false;
         state.heatmapError =
           action.payload || "Failed to fetch wellness heatmap.";
+      })
+      .addCase(fetchHrSummaryCards.pending, (state) => {
+        state.summaryLoading = true;
+        state.summaryError = "";
+      })
+      .addCase(fetchHrSummaryCards.fulfilled, (state, action) => {
+        state.summaryLoading = false;
+        state.summary = action.payload || state.summary;
+      })
+      .addCase(fetchHrSummaryCards.rejected, (state, action) => {
+        state.summaryLoading = false;
+        state.summaryError =
+          action.payload || "Failed to fetch summary cards.";
+      })
+      .addCase(fetchHrEmployeeCount.pending, (state) => {
+        state.employeeCountLoading = true;
+        state.employeeCountError = "";
+      })
+      .addCase(fetchHrEmployeeCount.fulfilled, (state, action) => {
+        state.employeeCountLoading = false;
+        state.employeeCount = action.payload || { total: null, filtered: null };
+      })
+      .addCase(fetchHrEmployeeCount.rejected, (state, action) => {
+        state.employeeCountLoading = false;
+        state.employeeCountError =
+          action.payload || "Failed to fetch employee count.";
+      })
+      .addCase(fetchHrHeadcount.pending, (state) => {
+        state.headcountLoading = true;
+        state.headcountError = "";
+      })
+      .addCase(fetchHrHeadcount.fulfilled, (state, action) => {
+        state.headcountLoading = false;
+        state.headcount = action.payload || { by_department: [], by_location: [] };
+      })
+      .addCase(fetchHrHeadcount.rejected, (state, action) => {
+        state.headcountLoading = false;
+        state.headcountError =
+          action.payload || "Failed to fetch headcount.";
       });
   },
 });
