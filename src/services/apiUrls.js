@@ -121,6 +121,11 @@ export const API_URLS = {
 
   dashboardKpis: "/config/api/v1/dashboard/kpis",
   dashboardChallengeAction: "/config/api/v1/dashboard/challenges/action",
+  // Undo a previously-completed daily challenge so the tile reverts to
+  // "pending" and the user's XP/level is adjusted (the response carries an
+  // `xp` block, possibly including a level decrease).
+  //   POST /config/api/v1/dashboard/challenges/undo  body: { challenge_id }
+  dashboardChallengeUndo: "/config/api/v1/dashboard/challenges/undo",
   dashboardWellnessTrends: "/config/api/v1/dashboard/wellness-trends",
   // Caller's badge cabinet (earned + locked). JWT-authenticated.
   //   GET /config/api/v1/dashboard/me/badges
@@ -269,4 +274,37 @@ export const API_URLS = {
   //     → 2D wellness scores. Accepts several response shapes; the slice
   //       normalizes to { locations: [...], departments: [...], cells: [{location, department, value}] }
   hrHeatmapLocationDept: "/config/api/v1/hr/heatmap/location-department",
+
+  // HR Analytics summary tiles, employee count and headcount breakdowns.
+  // All three accept the same demographic filter set as the chart endpoints
+  // (department, location, age_band, gender) and derive company_id from JWT.
+  //   GET /config/api/v1/hr/summary-cards
+  //     → { avg_wellness:{value,unit,label,subtext}, productivity:{...},
+  //         engagement:{...}, absenteeism:{...}, sleep_score:{...},
+  //         stress_score:{...} } — value is null when the dimension isn't
+  //       configured or the filtered set is empty.
+  //   GET /config/api/v1/hr/employee-count
+  //     → { total: int, filtered: int } — rendered as
+  //       "{filtered} of {total} employees in scope".
+  //   GET /config/api/v1/hr/headcount
+  //     → { by_department: [{label,count}], by_location: [{label,count}] }
+  //       used for scatter bubble sizing and any per-segment headcount label.
+  hrSummaryCards: "/config/api/v1/hr/summary-cards",
+  hrEmployeeCount: "/config/api/v1/hr/employee-count",
+  hrHeadcount: "/config/api/v1/hr/headcount",
+
+  challengeSchedule: "/config/api/v1/challenges/schedule",
+
+  reminderSettingsLog: "/config/api/v1/reminder-settings/log",
+
+  // Wellness Index — GET caller's computed wellness score + risk band
+  wellnessIndex: "/config/api/v1/wellness/index",
+
+  // Wellness Mood — POST a daily mood check-in (score 1–5)
+  wellnessMood: "/config/api/v1/wellness/mood",
+  wellnessMoodToday: "/config/api/v1/wellness/mood/today",
+
+  // User Suggestions — GET personalised suggestions, POST an action on one
+  userSuggestionsMy:    "/config/api/v1/suggestions/my",
+  userSuggestionAction: (logId) => `/config/api/v1/suggestions/${logId}/action`,
 };

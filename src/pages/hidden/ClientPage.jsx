@@ -2703,7 +2703,7 @@ function ReminderSettings(){
             <button
               onClick={()=>setActiveHistory(p=>!p)}
               style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:9,fontWeight:600,textDecoration:"underline",padding:0,marginBottom:8}}>
-              {activeHistory ? "▲ Hide reminder history" : "▼ Show last 7 reminders"}
+              {activeHistory ? "▲ Hide reminder history" : "▼ Show last 10 reminders"}
             </button>
             {activeHistory&&(
               <div style={{display:"flex",flexDirection:"column",gap:4}}>

@@ -48,6 +48,12 @@ const initialState = {
   },
   leaderboardLoading: false,
   leaderboardError: "",
+  // FIX 1: Added schedule to initialState
+  schedule: {
+    items: [],
+    loading: false,
+    error: "",
+  },
 };
 
 const normalizeLeaderboardEntry = (entry = {}) => ({
@@ -178,6 +184,38 @@ export const postDashboardChallengeAction = createAsyncThunk(
   },
 );
 
+export const postDashboardChallengeUndo = createAsyncThunk(
+  "dashboard/postDashboardChallengeUndo",
+  async ({ challenge_id }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(API_URLS.dashboardChallengeUndo, {
+        challenge_id,
+      });
+      const responsePayload = response?.data || {};
+
+      if (!responsePayload?.success) {
+        return rejectWithValue({
+          challengeId: challenge_id,
+          message: responsePayload?.message || "Failed to undo challenge.",
+        });
+      }
+
+      return {
+        challengeId: challenge_id,
+        payload: responsePayload?.data || {},
+      };
+    } catch (error) {
+      return rejectWithValue({
+        challengeId: challenge_id,
+        message: getApiErrorMessage(
+          error,
+          "Failed to undo challenge due to server/network error.",
+        ),
+      });
+    }
+  },
+);
+
 export const fetchWellnessTrends = createAsyncThunk(
   "dashboard/fetchWellnessTrends",
   async ({ period = "weekly", bucket_count } = {}, { rejectWithValue }) => {
@@ -302,6 +340,69 @@ export const fetchSessionSuggestions = createAsyncThunk(
   },
 );
 
+// KPI label → color mapping for schedule cards
+const KPI_COLORS = {
+  "Digital Index":    "#8B6FCB",
+  "Hydration Goals":  "#4A90C4",
+  "Nutrition Goals":  "#6DB33F",
+  "Physical Health":  "#E8924A",
+  "Sleep Index":      "#4A8C2A",
+  "Social Queues":    "#D4A843",
+};
+const DEFAULT_SCHEDULE_COLOR = "#6DB33F";
+
+// Normalize a raw schedule item from the API into the shape the component expects
+const normalizeScheduleItem = (item = {}) => ({
+  id:             item.kpi_challenge_id || "",
+  label:          item.challenge_label  || "",
+  icon:           item.challenge_icon   || "🔹",
+  theme:          item.theme_label      || "",
+  kpi_label:      item.kpi_label        || "",
+  challenge_type: item.challenge_type   || "",
+  start_date:     item.start_date       || "",
+  end_date:       item.end_date         || "",
+  status:         item.status           || "active",
+  days_total:     Number(item.days_total)     || 0,
+  days_elapsed:   Number(item.days_elapsed)   || 0,
+  days_remaining: Number(item.days_remaining) || 0,
+  progress_pct:   Number(item.progress_pct)   || 0,
+  color:          KPI_COLORS[item.kpi_label]  || DEFAULT_SCHEDULE_COLOR,
+});
+
+// FIX 2: fetchChallengeSchedule moved to BEFORE createSlice
+export const fetchChallengeSchedule = createAsyncThunk(
+  "dashboard/fetchChallengeSchedule",
+  async ({ status, kpi_key } = {}, { rejectWithValue }) => {
+    try {
+      const params = {};
+      if (status)  params.status  = status;
+      if (kpi_key) params.kpi_key = kpi_key;
+      // NOTE: company_id is intentionally omitted — the backend
+      // derives the tenant from the JWT automatically.
+
+      const response = await api.get(API_URLS.challengeSchedule, { params });
+      const payload  = response?.data || {};
+
+      if (!payload?.success) {
+        return rejectWithValue(payload?.message || "Failed to fetch KPI schedule.");
+      }
+
+      const rawItems = Array.isArray(payload?.data?.items)
+        ? payload.data.items
+        : (Array.isArray(payload?.data) ? payload.data : []);
+
+      // Filter out soft-deleted / inactive items, then normalize field names
+      return rawItems
+        .filter((item) => item?.is_active === true)
+        .map(normalizeScheduleItem);
+    } catch (error) {
+      return rejectWithValue(
+        getApiErrorMessage(error, "Failed to fetch KPI schedule due to server/network error.")
+      );
+    }
+  }
+);
+
 const dashboardSlice = createSlice({
   name: "dashboard",
   initialState,
@@ -352,6 +453,26 @@ const dashboardSlice = createSlice({
         state.actionErrorById[challengeId] =
           action.payload?.message || "Failed to submit challenge action.";
       })
+      .addCase(postDashboardChallengeUndo.pending, (state, action) => {
+        const challengeId = action.meta.arg?.challenge_id;
+        if (!challengeId) return;
+
+        state.actionLoadingById[challengeId] = true;
+        delete state.actionErrorById[challengeId];
+      })
+      .addCase(postDashboardChallengeUndo.fulfilled, (state, action) => {
+        const { challengeId, payload } = action.payload;
+        state.actionLoadingById[challengeId] = false;
+        state.actionResultById[challengeId] = payload;
+      })
+      .addCase(postDashboardChallengeUndo.rejected, (state, action) => {
+        const challengeId = action.payload?.challengeId || action.meta.arg?.challenge_id;
+        if (!challengeId) return;
+
+        state.actionLoadingById[challengeId] = false;
+        state.actionErrorById[challengeId] =
+          action.payload?.message || "Failed to undo challenge.";
+      })
       .addCase(fetchWellnessTrends.pending, (state) => {
         state.trendsLoading = true;
         state.trendsError = "";
@@ -400,6 +521,19 @@ const dashboardSlice = createSlice({
         state.suggestionsLoading = false;
         state.suggestionsError =
           action.payload || "Failed to fetch session suggestions.";
+      })
+      // FIX 3: extraReducers cases for fetchChallengeSchedule
+      .addCase(fetchChallengeSchedule.pending, (state) => {
+        state.schedule.loading = true;
+        state.schedule.error   = "";
+      })
+      .addCase(fetchChallengeSchedule.fulfilled, (state, action) => {
+        state.schedule.loading = false;
+        state.schedule.items   = action.payload;
+      })
+      .addCase(fetchChallengeSchedule.rejected, (state, action) => {
+        state.schedule.loading = false;
+        state.schedule.error   = action.payload || "Failed to fetch KPI schedule.";
       });
   },
 });

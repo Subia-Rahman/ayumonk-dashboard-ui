@@ -10,10 +10,18 @@ import "./index.css";
 import { createAppTheme, getStoredThemeMode, THEME_MODE_KEY } from "./theme";
 import store from "./store";
 import { initPWAInstallListener } from "./utils/pwaInstall";
+import { clearAuthState } from "./store/authSlice";
 
 // Capture beforeinstallprompt before React mounts — the browser fires it once,
 // very early, and missing it leaves the in-app install button permanently disabled.
 initPWAInstallListener();
+
+// Multi-tab logout sync — when token is cleared in one tab, clear all other tabs too
+window.addEventListener('storage', (e) => {
+  if (e.key === 'token' && !e.newValue) {
+    store.dispatch(clearAuthState());
+  }
+});
 
 function Root() {
   const [mode, setMode] = useState(() => getStoredThemeMode());

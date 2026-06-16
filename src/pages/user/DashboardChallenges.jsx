@@ -5,9 +5,11 @@ import {
   clearDashboardChallengeActionError,
   fetchDashboardKpis,
   postDashboardChallengeAction,
+  postDashboardChallengeUndo,
 } from "../../store/dashboardSlice";
 import ReminderSettings from "./ReminderSettings";
 import { ACCENT, useClientPalette } from "../../utils/clientPalette";
+import KpiScheduleTimeline from "../../components/KpiScheduleTimeline";
 
 // Default dark palette retained for module-level helpers (leaderboard, badge
 // level/icon maps) that need accent colour shorthand at parse time. Inside the
@@ -63,36 +65,13 @@ const formatBadgeLevel = (level) => {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 };
 
-const LEADERBOARD_RANK_COLORS = {
-  1: C.gold,
-  2: "#94a3b8",
-  3: C.orange,
-};
-
-const getLeaderboardRowColor = (entry) => {
-  if (entry?.is_current_user) return C.g3;
-  return LEADERBOARD_RANK_COLORS[entry?.rank] || "rgba(255,255,255,0.3)";
-};
-
-const getLeaderboardChangeColor = (entry) => {
-  const change = String(entry?.display_change || "").trim();
-  if (entry?.change_type === "absolute") return C.blue;
-  if (change.startsWith("+") && change !== "+0%") return "#4ade80";
-  if (change.startsWith("-")) return "#f87171";
-  return "rgba(255,255,255,0.4)";
-};
-
-const formatLeaderboardWeekRange = (start, end) => {
-  if (!start || !end) return "";
-  try {
-    const opts = { month: "short", day: "numeric" };
-    const startLabel = new Date(start).toLocaleDateString(undefined, opts);
-    const endLabel = new Date(end).toLocaleDateString(undefined, opts);
-    return `${startLabel} – ${endLabel}`;
-  } catch {
-    return `${start} – ${end}`;
-  }
-};
+const leaderboard = [
+  { rank: "1st", name: "Priya S.", dept: "Engineering", loc: "Delhi", pct: "+42%", col: C.gold },
+  { rank: "2nd", name: "Rahul M.", dept: "Product", loc: "Mumbai", pct: "+38%", col: "#94a3b8" },
+  { rank: "3rd", name: "Anjali K.", dept: "HR", loc: "BLR", pct: "+35%", col: C.orange },
+  { rank: "4th ⬅ You", name: "Amit R.", dept: "Finance", loc: "Delhi", pct: "+31%", col: C.g3, current: true },
+  { rank: "5th", name: "Sneha P.", dept: "Marketing", loc: "Pune", pct: "+28%", col: "rgba(255,255,255,0.3)" },
+];
 
 const createChallengeStateFromItems = (challenges) =>
   challenges.reduce((accumulator, challenge) => {
@@ -116,8 +95,14 @@ const createChallengeStateFromItems = (challenges) =>
       done = isCompleted;
     } else if (challengeType === "choice") {
       chosen = isCompleted && hasLogged ? loggedNumber : null;
+      /* } else if (challengeType === "multi") {
+        done = isCompleted; */
     } else if (challengeType === "multi") {
       done = isCompleted;
+      if (isCompleted && hasLogged) {
+        const total = Math.max(1, Number(challenge.target_value) || 1);
+        chosen = Array.from({ length: total }, (_, i) => i);
+      }
     } else if (challengeType === "timer") {
       done = isCompleted;
       timer = isCompleted ? 0 : timerTarget;
@@ -130,7 +115,10 @@ const createChallengeStateFromItems = (challenges) =>
     return accumulator;
   }, {});
 
-const getChallengeTypeOptions = (challengeType) => {
+// Per-type fallbacks used only when the API hasn't populated `options` yet.
+// Choice/Multi now receive `options: list[str]` from /dashboard/kpis via
+// KPIChallengeBrief.options — when present, those labels are rendered directly.
+const getChallengeTypeOptionsFallback = (challengeType) => {
   const type = String(challengeType || "").toLowerCase();
 
   if (type === "choice") return ["Option 1", "Option 2", "Option 3"];
@@ -139,6 +127,12 @@ const getChallengeTypeOptions = (challengeType) => {
   if (type === "toggle") return ["Mark Complete"];
 
   return [];
+};
+
+const resolveOptions = (challenge) => {
+  const fromApi = Array.isArray(challenge?.options) ? challenge.options : [];
+  if (fromApi.length > 0) return fromApi;
+  return getChallengeTypeOptionsFallback(challenge?.challenge_type);
 };
 
 function ClientCard({ children, style = {}, borderColor, onClick }) {
@@ -194,15 +188,15 @@ export default function DashboardChallenges({
   badges,
   badgesLoading = false,
   badgesError = "",
-  leaderboard,
-  leaderboardLoading = false,
-  leaderboardError = "",
 }) {
   const dispatch = useDispatch();
   const themed = useClientPalette();
   const timerRef = useRef(null);
   const [activeTimerKey, setActiveTimerKey] = useState("");
   const [challengeState, setChallengeState] = useState({});
+  // Per-challenge inline validation message (currently used by multi tiles
+  // when the employee hits "Complete" without selecting every option).
+  const [validationById, setValidationById] = useState({});
   const { actionLoadingById, actionErrorById, actionResultById } = useSelector(
     (state) => state.dashboard,
   );
@@ -301,6 +295,33 @@ export default function DashboardChallenges({
     return result;
   };
 
+  // Undoes a previously-completed daily challenge. On success we revert the
+  // local tile to "pending" and refresh the dashboard so the XP/level cards
+  // pick up the (possibly decreased) values from the response's xp block.
+  const handleChallengeUndo = async (challenge) => {
+    dispatch(clearDashboardChallengeActionError(challenge.challenge_key));
+    const result = await dispatch(
+      postDashboardChallengeUndo({ challenge_id: challenge.challenge_key }),
+    );
+    if (postDashboardChallengeUndo.fulfilled.match(result)) {
+      updateChallenge(challenge.challenge_key, {
+        done: false,
+        count: 0,
+        chosen:
+          String(challenge.challenge_type || "").toLowerCase() === "multi"
+            ? []
+            : null,
+        rating: null,
+        timer:
+          String(challenge.challenge_type || "").toLowerCase() === "timer"
+            ? Math.max(1, Number(challenge.target_value) || 60)
+            : 0,
+      });
+      dispatch(fetchDashboardKpis());
+    }
+    return result;
+  };
+
   const isDone = (challenge) => {
     if (challenge.is_completed_today) return true;
 
@@ -312,7 +333,10 @@ export default function DashboardChallenges({
     if (challengeType === "counter") return state.count >= targetValue;
     if (challengeType === "toggle") return state.done;
     if (challengeType === "choice") return state.chosen !== null;
-    if (challengeType === "multi") return state.chosen.length > 0;
+    // Multi is only "done" after the server confirms (is_completed_today,
+    // already handled above) — partial selections must NOT mark the tile
+    // complete, otherwise the per-option taps would auto-finish it.
+    if (challengeType === "multi") return state.done;
     if (challengeType === "timer") return state.done;
     if (challengeType === "rating") return state.rating !== null;
     return false;
@@ -322,10 +346,11 @@ export default function DashboardChallenges({
     if (!isDone(challenge)) return 0;
 
     if (String(challenge.challenge_type || "").toLowerCase() === "multi") {
-      const optionCount = Math.max(getChallengeTypeOptions(challenge.challenge_type).length, 1);
+      //const optionCount = Math.max(getChallengeTypeOptions(challenge.challenge_type).length, 1);
+      const optionCount = Math.max(getChallengeTypeOptionsFallback(challenge.challenge_type).length, 1);
       return Math.round(
         (Number(challenge.xp_reward) || 0) *
-          ((challengeState[challenge.challenge_key]?.chosen?.length || 0) / optionCount),
+        ((challengeState[challenge.challenge_key]?.chosen?.length || 0) / optionCount),
       );
     }
 
@@ -512,7 +537,7 @@ export default function DashboardChallenges({
         >
           {challenges.map((challenge) => {
             const challengeType = String(challenge.challenge_type || "").toLowerCase();
-            const options = getChallengeTypeOptions(challenge.challenge_type);
+            const options = resolveOptions(challenge);
             const targetValue = Math.max(1, Number(challenge.target_value) || 1);
             const state =
               challengeState[challenge.challenge_key] ||
@@ -675,24 +700,52 @@ export default function DashboardChallenges({
 
                 {/* TOGGLE */}
                 {challengeType === "toggle" && (
-                  <Btn
-                    active={state.done || completedToday}
-                    color={color}
-                    disabled={completedToday || actionLoading}
-                    onClick={async () => {
-                      const nextDone = !state.done;
-                      updateChallenge(challenge.challenge_key, { done: nextDone });
-                      await handleChallengeAction(challenge, { toggle_value: nextDone });
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
                     }}
                   >
-                    {actionLoading
-                      ? "Saving…"
-                      : completedToday
-                        ? `✓ Completed`
-                        : state.done
-                          ? `✓ ${options[0]}`
+                    <Btn
+                      active={state.done || completedToday}
+                      color={color}
+                      disabled={completedToday || state.done || actionLoading}
+                      onClick={async () => {
+                        updateChallenge(challenge.challenge_key, { done: true });
+                        await handleChallengeAction(challenge, {
+                          toggle_value: true,
+                        });
+                      }}
+                    >
+                      {actionLoading
+                        ? "Saving…"
+                        : completedToday || state.done
+                          ? `✓ Completed`
                           : `⬜ ${options[0]}`}
-                  </Btn>
+                    </Btn>
+                    {(completedToday || state.done) && (
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleChallengeUndo(challenge)}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid rgba(255,255,255,0.18)",
+                          color: "rgba(255,255,255,0.62)",
+                          borderRadius: 9,
+                          padding: "6px 12px",
+                          fontSize: 10,
+                          fontWeight: 600,
+                          cursor: actionLoading ? "not-allowed" : "pointer",
+                          opacity: actionLoading ? 0.5 : 1,
+                        }}
+                      >
+                        ↩ Undo
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {/* CHOICE */}
@@ -720,28 +773,94 @@ export default function DashboardChallenges({
 
                 {/* MULTI */}
                 {challengeType === "multi" && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {options.map((opt, i) => {
-                      const selected = (state.chosen || []).includes(i);
-                      return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {options.map((opt, i) => {
+                        const selected = (state.chosen || []).includes(i);
+                        return (
+                          <Btn
+                            key={opt}
+                            active={selected || completedToday}
+                            color={color}
+                            disabled={completedToday || actionLoading}
+                            onClick={() => {
+                              const arr = state.chosen || [];
+                              const nextValues = selected
+                                ? arr.filter((x) => x !== i)
+                                : [...arr, i];
+                              updateChallenge(challenge.challenge_key, {
+                                chosen: nextValues,
+                              });
+                              setValidationById((current) => {
+                                if (!current[challenge.challenge_key]) return current;
+                                const next = { ...current };
+                                delete next[challenge.challenge_key];
+                                return next;
+                              });
+                            }}
+                          >
+                            {opt}
+                          </Btn>
+                        );
+                      })}
+                    </div>
+                    {!completedToday && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          flexWrap: "wrap",
+                        }}
+                      >
                         <Btn
-                          key={opt}
-                          active={selected}
                           color={color}
-                          disabled={completedToday || actionLoading}
+                          active
+                          disabled={actionLoading}
                           onClick={async () => {
-                            const arr = state.chosen || [];
-                            const nextValues = selected
-                              ? arr.filter((x) => x !== i)
-                              : [...arr, i];
-                            updateChallenge(challenge.challenge_key, { chosen: nextValues });
-                            await handleChallengeAction(challenge, { multi_values: nextValues });
+                            const chosenArr = state.chosen || [];
+                            if (chosenArr.length === 0) {
+                              setValidationById((current) => ({
+                                ...current,
+                                [challenge.challenge_key]:
+                                  "Select at least one option that applies before completing.",
+                              }));
+                              return;
+                            }
+                            setValidationById((current) => {
+                              if (!current[challenge.challenge_key]) return current;
+                              const next = { ...current };
+                              delete next[challenge.challenge_key];
+                              return next;
+                            });
+                            const result = await handleChallengeAction(challenge, {
+                              multi_values: chosenArr,
+                            });
+                            if (
+                              postDashboardChallengeAction.fulfilled.match(result)
+                            ) {
+                              updateChallenge(challenge.challenge_key, { done: true });
+                            }
                           }}
                         >
-                          {opt}
+                          {actionLoading ? "Saving…" : "Complete"}
                         </Btn>
-                      );
-                    })}
+                        <span style={{ fontSize: 10, color: C.muted }}>
+                          Select all that applies · {(state.chosen || []).length}/{options.length} chosen
+                        </span>
+                      </div>
+                    )}
+                    {validationById[challenge.challenge_key] && (
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: "#fca5a5",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {validationById[challenge.challenge_key]}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -843,6 +962,8 @@ export default function DashboardChallenges({
             );
           })}
         </div>
+        
+        <KpiScheduleTimeline />
 
         {/* BADGES + LEADERBOARD */}
         <div
@@ -947,196 +1068,48 @@ export default function DashboardChallenges({
           </ClientCard>
 
           <ClientCard>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 8,
-                marginBottom: 12,
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 700 }}>
-                🏆 Weekly Leaderboard
-              </div>
-              {leaderboard?.week_start && leaderboard?.week_end && (
-                <div style={{ fontSize: 9, color: C.muted, whiteSpace: "nowrap" }}>
-                  {formatLeaderboardWeekRange(
-                    leaderboard.week_start,
-                    leaderboard.week_end,
-                  )}
-                </div>
-              )}
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12 }}>
+              🏆 Weekly Leaderboard
             </div>
-
-            {leaderboardLoading && (
-              <div style={{ fontSize: 11, color: C.muted }}>Loading leaderboard…</div>
-            )}
-
-            {!leaderboardLoading && leaderboardError && (
-              <Alert severity="error" sx={{ py: 0, fontSize: 11 }}>
-                {leaderboardError}
-              </Alert>
-            )}
-
-            {!leaderboardLoading &&
-              !leaderboardError &&
-              (!leaderboard?.items || leaderboard.items.length === 0) && (
-                <div style={{ fontSize: 10, color: C.muted }}>
-                  No leaderboard data yet for this week.
+            {leaderboard.map((row) => (
+              <div
+                key={row.rank}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "7px 0",
+                  borderBottom: "1px solid rgba(255,255,255,0.04)",
+                }}
+              >
+                <div
+                  style={{
+                    width: 80,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: row.col,
+                  }}
+                >
+                  {row.rank}
                 </div>
-              )}
-
-            {!leaderboardLoading &&
-              !leaderboardError &&
-              Array.isArray(leaderboard?.items) &&
-              leaderboard.items.length > 0 && (
-                <>
-                  {leaderboard.items.map((entry) => {
-                    const rowColor = getLeaderboardRowColor(entry);
-                    const changeColor = getLeaderboardChangeColor(entry);
-                    return (
-                      <div
-                        key={entry.user_id ?? `${entry.rank}-${entry.display_name}`}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          padding: "7px 0",
-                          borderBottom: "1px solid rgba(255,255,255,0.04)",
-                          background: entry.is_current_user
-                            ? "rgba(109,179,63,0.08)"
-                            : "transparent",
-                          borderRadius: entry.is_current_user ? 8 : 0,
-                          paddingLeft: entry.is_current_user ? 8 : 0,
-                          paddingRight: entry.is_current_user ? 8 : 0,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 80,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: rowColor,
-                          }}
-                        >
-                          {entry.rank_label || `${entry.rank}`}
-                          {entry.is_current_user && (
-                            <span style={{ marginLeft: 6 }}>⬅ You</span>
-                          )}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: entry.is_current_user ? C.g3 : "#fff",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                            title={entry.display_name}
-                          >
-                            {entry.display_name}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 9,
-                              color: C.muted,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {entry.subtext || entry.level_label || ""}
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            textAlign: "right",
-                            minWidth: 60,
-                          }}
-                        >
-                          <div
-                            style={{ fontSize: 13, fontWeight: 700, color: changeColor }}
-                          >
-                            {entry.display_change || "—"}
-                          </div>
-                          <div style={{ fontSize: 9, color: C.muted }}>
-                            {entry.xp_this_week} XP
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {leaderboard.your_position && (
-                    <>
-                      <div
-                        style={{
-                          fontSize: 9,
-                          color: C.muted,
-                          textAlign: "center",
-                          padding: "8px 0 4px",
-                          letterSpacing: 1,
-                        }}
-                      >
-                        • • •
-                      </div>
-                      {(() => {
-                        const entry = leaderboard.your_position;
-                        const changeColor = getLeaderboardChangeColor(entry);
-                        return (
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 10,
-                              padding: "8px",
-                              borderRadius: 8,
-                              background: "rgba(109,179,63,0.1)",
-                              border: `1px solid ${C.g3}55`,
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: 80,
-                                fontSize: 11,
-                                fontWeight: 700,
-                                color: C.g3,
-                              }}
-                            >
-                              {entry.rank_label || `${entry.rank}`}
-                              <span style={{ marginLeft: 6 }}>⬅ You</span>
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 11, color: C.g3 }}>
-                                {entry.display_name}
-                              </div>
-                              <div style={{ fontSize: 9, color: C.muted }}>
-                                {entry.subtext || entry.level_label || ""}
-                              </div>
-                            </div>
-                            <div style={{ textAlign: "right", minWidth: 60 }}>
-                              <div
-                                style={{
-                                  fontSize: 13,
-                                  fontWeight: 700,
-                                  color: changeColor,
-                                }}
-                              >
-                                {entry.display_change || "—"}
-                              </div>
-                              <div style={{ fontSize: 9, color: C.muted }}>
-                                {entry.xp_this_week} XP
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </>
-                  )}
-                </>
-              )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: row.current ? C.g3 : "#fff",
+                    }}
+                  >
+                    {row.name}
+                  </div>
+                  <div style={{ fontSize: 9, color: C.muted }}>
+                    {row.dept} · {row.loc}
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: row.col }}>
+                  {row.pct}
+                </div>
+              </div>
+            ))}
           </ClientCard>
         </div>
       </Box>

@@ -30,11 +30,17 @@ import cxoMetricsReducer from "./cxoMetricsSlice";
 import wellnessDimensionsReducer from "./wellnessDimensionsSlice";
 import hrAnalyticsReducer from "./hrAnalyticsSlice";
 import rbacInvalidationMiddleware from "./middleware/rbacInvalidation";
+import wellnessIndexReducer from './wellnessIndexSlice';
+import wellnessMoodReducer    from './wellnessMoodSlice';
+import userSuggestionsReducer from './userSuggestionsSlice';
 
 const store = configureStore({
   reducer: {
     auth: authReducer,
     permission: permissionReducer,
+    wellnessIndex: wellnessIndexReducer,
+    wellnessMood: wellnessMoodReducer,
+    userSuggestions: userSuggestionsReducer,
     session: sessionReducer,
     company: companyReducer,
     user: userReducer,

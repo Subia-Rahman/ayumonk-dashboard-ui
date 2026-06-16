@@ -63,11 +63,37 @@ const CHALLENGE_TYPE_OPTIONS = [
   "Rating",
 ];
 
+// Per-type UI rules for the platform admin form:
+//   counter / timer  → target_value shown, no options
+//   toggle / rating  → neither (server defaults / ignores target_value here)
+//   choice           → options repeater required (min 2 labels), no target_value
+//   multi            → options repeater required (min 1 label), no target_value
+const normalizeChallengeType = (challengeType) =>
+  String(challengeType || "").toLowerCase();
+
+const showsTargetValue = (challengeType) => {
+  const type = normalizeChallengeType(challengeType);
+  return type === "counter" || type === "timer";
+};
+
+const showsOptions = (challengeType) => {
+  const type = normalizeChallengeType(challengeType);
+  return type === "choice" || type === "multi";
+};
+
+const minOptionsFor = (challengeType) =>
+  normalizeChallengeType(challengeType) === "choice" ? 2 : 1;
+
 const defaultMapping = () => ({
   localId: `${Date.now()}-${Math.random()}`,
   kpiKey: "",
   startDate: "",
   endDate: "",
+});
+
+const defaultOption = () => ({
+  localId: `opt-${Date.now()}-${Math.random()}`,
+  label: "",
 });
 
 export default function ChallengeForm({ mode, role = "superadmin" }) {
@@ -99,6 +125,7 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
     isActive: true,
   });
   const [draftMappings, setDraftMappings] = useState([defaultMapping()]);
+  const [draftOptions, setDraftOptions] = useState([defaultOption(), defaultOption()]);
   const [hasStartedEditing, setHasStartedEditing] = useState(false);
   const [formError, setFormError] = useState("");
   const [companyMe, setCompanyMe] = useState(null);
@@ -162,6 +189,23 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
           }))
         : [defaultMapping()],
     );
+
+    const existingOptions = Array.isArray(selectedChallenge.options)
+      ? selectedChallenge.options
+      : [];
+    if (existingOptions.length) {
+      setDraftOptions(
+        existingOptions.map((label, index) => ({
+          localId: `opt-${index}-${label}`,
+          label: String(label || ""),
+        })),
+      );
+    } else {
+      const min = minOptionsFor(selectedChallenge.challenge_type);
+      setDraftOptions(
+        Array.from({ length: Math.max(min, 1) }, () => defaultOption()),
+      );
+    }
   }, [mode, selectedChallenge]);
 
   useEffect(() => {
@@ -211,6 +255,27 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
     return draftMappings;
   }, [draftMappings, hasStartedEditing, mode, selectedChallenge]);
 
+  const options = useMemo(() => {
+    if (mode === "edit" && selectedChallenge && !hasStartedEditing) {
+      const existing = Array.isArray(selectedChallenge.options)
+        ? selectedChallenge.options
+        : [];
+      if (existing.length) {
+        return existing.map((label, index) => ({
+          localId: `opt-${index}-${label}`,
+          label: String(label || ""),
+        }));
+      }
+      const min = minOptionsFor(selectedChallenge.challenge_type);
+      return Array.from({ length: Math.max(min, 1) }, () => defaultOption());
+    }
+
+    return draftOptions;
+  }, [draftOptions, hasStartedEditing, mode, selectedChallenge]);
+
+  const optionsRequired = showsOptions(form.challengeType);
+  const targetRequired = showsTargetValue(form.challengeType);
+
   const selectedCompanyId = useMemo(() => {
     if (role === "superadmin") {
       return form.companyId;
@@ -240,6 +305,19 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
         : { ...current, companyId: selectedCompanyId },
     );
   }, [role, selectedCompanyId]);
+
+  // Keep the options repeater at or above the per-type minimum (choice ≥ 2,
+  // multi ≥ 1) whenever the admin flips between challenge types.
+  useEffect(() => {
+    if (!showsOptions(form.challengeType)) return;
+    const min = minOptionsFor(form.challengeType);
+    setDraftOptions((current) => {
+      if (current.length >= min) return current;
+      const padded = [...current];
+      while (padded.length < min) padded.push(defaultOption());
+      return padded;
+    });
+  }, [form.challengeType]);
 
   const filteredKpis = useMemo(
     () => {
@@ -333,7 +411,27 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
       return;
     }
 
+    const trimmedOptionLabels = options
+      .map((option) => option.label.trim())
+      .filter((label) => label.length > 0);
+    const minOptions = minOptionsFor(form.challengeType);
+
+    if (optionsRequired && trimmedOptionLabels.length < minOptions) {
+      setFormError(
+        normalizeChallengeType(form.challengeType) === "choice"
+          ? "Choice challenges need at least two non-empty option labels."
+          : "Multi challenges need at least one non-empty option label.",
+      );
+      return;
+    }
+
     setFormError("");
+
+    const resolvedTargetValue = targetRequired
+      ? Number(form.targetValue) || 0
+      : 0;
+    //const resolvedOptions = optionsRequired ? trimmedOptionLabels : [];
+    const resolvedOptions = optionsRequired ? trimmedOptionLabels : undefined;
 
     try {
       if (mode === "edit") {
@@ -344,11 +442,12 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
             name: form.name.trim(),
             challengeType: form.challengeType.trim(),
             description: form.description.trim(),
-            targetValue: Number(form.targetValue) || 0,
+            targetValue: resolvedTargetValue,
             xpReward: Number(form.xpReward) || 0,
             icon: form.icon.trim(),
             isDaily: form.isDaily,
             isActive: form.isActive,
+            options: resolvedOptions,
             kpiMappings: mappings.map((mapping) => ({
               kpi_key: mapping.kpiKey,
               start_date: mapping.startDate,
@@ -375,10 +474,11 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
           name: form.name.trim(),
           challengeType: form.challengeType.trim(),
           description: form.description.trim(),
-          targetValue: Number(form.targetValue) || 0,
+          targetValue: resolvedTargetValue,
           xpReward: Number(form.xpReward) || 0,
           icon: form.icon.trim(),
           isDaily: form.isDaily,
+          options: resolvedOptions,
           kpiMappings: mappings.map((mapping) => ({
             kpi_key: mapping.kpiKey,
             start_date: mapping.startDate,
@@ -447,6 +547,32 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
     setDraftMappings((current) =>
       current.map((item) =>
         item.localId === localId ? { ...item, [field]: value } : item,
+      ),
+    );
+  };
+
+  const handleAddOptionRow = () => {
+    setFormError("");
+    setHasStartedEditing(true);
+    setDraftOptions((current) => [...current, defaultOption()]);
+  };
+
+  const handleRemoveOptionRow = (localId) => {
+    setFormError("");
+    setHasStartedEditing(true);
+    setDraftOptions((current) => {
+      const min = minOptionsFor(form.challengeType);
+      if (current.length <= min) return current;
+      return current.filter((item) => item.localId !== localId);
+    });
+  };
+
+  const handleOptionLabelChange = (localId, value) => {
+    setFormError("");
+    setHasStartedEditing(true);
+    setDraftOptions((current) =>
+      current.map((item) =>
+        item.localId === localId ? { ...item, label: value } : item,
       ),
     );
   };
@@ -595,19 +721,25 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
               fullWidth
             />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <TextField
-                label="Target Value"
-                type="number"
-                value={form.targetValue}
-                onChange={(event) => {
-                  setHasStartedEditing(true);
-                  setDraftForm((current) => ({
-                    ...current,
-                    targetValue: event.target.value,
-                  }));
-                }}
-                fullWidth
-              />
+              {targetRequired && (
+                <TextField
+                  label={
+                    normalizeChallengeType(form.challengeType) === "timer"
+                      ? "Target Value (seconds)"
+                      : "Target Value"
+                  }
+                  type="number"
+                  value={form.targetValue}
+                  onChange={(event) => {
+                    setHasStartedEditing(true);
+                    setDraftForm((current) => ({
+                      ...current,
+                      targetValue: event.target.value,
+                    }));
+                  }}
+                  fullWidth
+                />
+              )}
               <TextField
                 label="XP Reward"
                 type="number"
@@ -622,6 +754,76 @@ export default function ChallengeForm({ mode, role = "superadmin" }) {
                 fullWidth
               />
             </Stack>
+
+            {optionsRequired && (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  borderRadius: 2.5,
+                  bgcolor: "background.default",
+                }}
+              >
+                <Stack spacing={2}>
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    justifyContent="space-between"
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                    spacing={1}
+                  >
+                    <Box>
+                      <Typography sx={{ fontWeight: 700 }}>
+                        {normalizeChallengeType(form.challengeType) === "choice"
+                          ? "Choice Options"
+                          : "Multi Options"}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5 }}
+                      >
+                        {normalizeChallengeType(form.challengeType) === "choice"
+                          ? "Provide at least two labels — the employee picks exactly one."
+                          : "Provide at least one label — the employee selects all that apply before completing."}
+                      </Typography>
+                    </Box>
+                    <Button
+                      startIcon={<AddRoundedIcon />}
+                      onClick={handleAddOptionRow}
+                    >
+                      Add Option
+                    </Button>
+                  </Stack>
+
+                  <Stack spacing={1.25}>
+                    {options.map((option, index) => (
+                      <Stack
+                        key={option.localId}
+                        direction="row"
+                        spacing={1.5}
+                        alignItems="center"
+                      >
+                        <TextField
+                          label={`Option ${index + 1}`}
+                          value={option.label}
+                          onChange={(event) =>
+                            handleOptionLabelChange(option.localId, event.target.value)
+                          }
+                          fullWidth
+                        />
+                        <IconButton
+                          color="error"
+                          onClick={() => handleRemoveOptionRow(option.localId)}
+                          disabled={options.length <= minOptionsFor(form.challengeType)}
+                        >
+                          <DeleteOutlineRoundedIcon />
+                        </IconButton>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </Stack>
+              </Paper>
+            )}
             <Paper
               variant="outlined"
               sx={{

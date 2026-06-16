@@ -25,6 +25,31 @@ const initialState = {
   heatmap: { locations: [], departments: [], cells: [] },
   heatmapLoading: false,
   heatmapError: "",
+
+  // GET /hr/summary-cards — six KPI tiles. value may be null when the
+  // underlying dimension/metric isn't configured for this company or when
+  // the filtered set is empty.
+  summary: {
+    avg_wellness: null,
+    productivity: null,
+    engagement: null,
+    absenteeism: null,
+    sleep_score: null,
+    stress_score: null,
+  },
+  summaryLoading: false,
+  summaryError: "",
+
+  // GET /hr/employee-count — { total, filtered } headcount counters.
+  employeeCount: { total: null, filtered: null },
+  employeeCountLoading: false,
+  employeeCountError: "",
+
+  // GET /hr/headcount — per-segment headcount used as bubble size in the
+  // wellness ↔ productivity scatter and as denominators elsewhere.
+  headcount: { by_department: [], by_location: [] },
+  headcountLoading: false,
+  headcountError: "",
 };
 
 const extractArray = (payload) =>
@@ -59,6 +84,52 @@ const normalizeBucket = (item) => ({
       : Number(item.value),
 });
 
+const firstPresent = (...values) =>
+  values.find((value) => value !== undefined && value !== null && value !== "");
+
+const toNumberOrNull = (...values) => {
+  const value = firstPresent(...values);
+  return value == null || Number.isNaN(Number(value)) ? null : Number(value);
+};
+
+const getLocationLabel = (item) =>
+  firstPresent(
+    typeof item === "string" ? item : null,
+    item?.location,
+    item?.location_name,
+    item?.location_label,
+    item?.locationName,
+    item?.label,
+    item?.name,
+    item?.l,
+  ) || "";
+
+const getDepartmentLabel = (item) =>
+  firstPresent(
+    typeof item === "string" ? item : null,
+    item?.department,
+    item?.department_name,
+    item?.department_label,
+    item?.departmentName,
+    item?.label,
+    item?.name,
+    item?.d,
+  ) || "";
+
+const getHeatmapValue = (item) =>
+  toNumberOrNull(
+    item?.value,
+    item?.wellness_score,
+    item?.wellnessScore,
+    item?.wellness_index,
+    item?.wellnessIndex,
+    item?.score,
+    item?.avg_score,
+    item?.average_score,
+    item?.avg_wellness_score,
+    item?.average_wellness_score,
+  );
+
 const normalizeByDimensionPayload = (data, fallbackKey) => {
   const root =
     data && typeof data === "object" && (data.data || data.items)
@@ -78,80 +149,118 @@ const normalizeByDimensionPayload = (data, fallbackKey) => {
 // The heatmap can land in a few shapes depending on backend serialization.
 // We collapse all of them into a single { locations, departments, cells }
 // structure so the table renderer doesn't have to branch.
+//
+// Canonical backend shape (config_service WellnessHeatmapResponse):
+//   { locations: [str], departments: [str],
+//     heatmap: [ { location: str, scores: [ { department, value } ] } ] }
+// Historic shapes still tolerated: top-level cells/items/results/rows/matrix,
+// or a raw array of flat {location, department, value} objects.
 const normalizeHeatmapPayload = (data) => {
   const root =
-    data && typeof data === "object" && (data.data || data.cells || data.rows)
-      ? data.data || data
+    data && typeof data === "object" && !Array.isArray(data) && data.data
+      ? data.data
       : data || {};
 
-  // Pre-declared header arrays in the response take precedence — those keep
-  // the column / row order the backend intends.
+  // locations + departments live on the parent envelope, NOT inside the
+  // heatmap array, so they must be read off `root` before we descend.
   const declaredLocations = Array.isArray(root?.locations)
-    ? root.locations.map((l) => (typeof l === "string" ? l : l?.name || l?.label || ""))
+    ? root.locations.map(getLocationLabel).filter(Boolean)
     : [];
   const declaredDepartments = Array.isArray(root?.departments)
-    ? root.departments.map((d) =>
-        typeof d === "string" ? d : d?.name || d?.label || "",
-      )
+    ? root.departments.map(getDepartmentLabel).filter(Boolean)
     : [];
+
+  const source =
+    root && typeof root === "object" && !Array.isArray(root) && root.heatmap
+      ? root.heatmap
+      : root;
 
   let cells = [];
 
-  // Shape A: cells: [{ location, department, value }]
-  if (Array.isArray(root?.cells)) {
-    cells = root.cells.map((c) => ({
-      location: c?.location || c?.location_label || c?.l || "",
-      department: c?.department || c?.department_label || c?.d || "",
-      value:
-        c?.value == null || Number.isNaN(Number(c.value))
-          ? null
-          : Number(c.value),
-    }));
-  }
-  // Shape B: rows: [{ location, cells: { department: value } }]
-  // Shape C: rows: [{ location, departments: [{ name, value }] }]
-  else if (Array.isArray(root?.rows)) {
-    root.rows.forEach((row) => {
-      const location = row?.location || row?.label || row?.name || "";
-      if (Array.isArray(row?.departments)) {
-        row.departments.forEach((dept) => {
-          cells.push({
-            location,
-            department: dept?.name || dept?.label || dept?.department || "",
-            value:
-              dept?.value == null || Number.isNaN(Number(dept.value))
-                ? null
-                : Number(dept.value),
-          });
+  // Each row's inner array of cells can be called `scores` (canonical),
+  // `departments` (legacy), or `cells` (object form). Pick whichever fits.
+  const expandRow = (row) => {
+    const location = getLocationLabel(row);
+    if (!location) return;
+    const innerArray = Array.isArray(row?.scores)
+      ? row.scores
+      : Array.isArray(row?.departments)
+        ? row.departments
+        : Array.isArray(row?.cells)
+          ? row.cells
+          : null;
+    if (innerArray) {
+      innerArray.forEach((cell) => {
+        cells.push({
+          location,
+          department: getDepartmentLabel(cell),
+          value: getHeatmapValue(cell),
         });
-      } else if (row?.cells && typeof row.cells === "object") {
-        Object.entries(row.cells).forEach(([department, value]) => {
-          cells.push({
-            location,
-            department,
-            value:
-              value == null || Number.isNaN(Number(value))
-                ? null
-                : Number(value),
-          });
+      });
+      return;
+    }
+    if (row?.cells && typeof row.cells === "object") {
+      Object.entries(row.cells).forEach(([department, value]) => {
+        cells.push({
+          location,
+          department,
+          value:
+            value == null || Number.isNaN(Number(value)) ? null : Number(value),
+        });
+      });
+    }
+  };
+
+  if (Array.isArray(source?.cells)) {
+    cells = source.cells.map((c) => ({
+      location: getLocationLabel(c),
+      department: getDepartmentLabel(c),
+      value: getHeatmapValue(c),
+    }));
+  } else if (Array.isArray(source?.items) || Array.isArray(source?.results)) {
+    const items = Array.isArray(source?.items) ? source.items : source.results;
+    cells = items.map((c) => ({
+      location: getLocationLabel(c),
+      department: getDepartmentLabel(c),
+      value: getHeatmapValue(c),
+    }));
+  } else if (Array.isArray(source?.rows)) {
+    source.rows.forEach(expandRow);
+  } else if (source?.matrix && typeof source.matrix === "object") {
+    Object.entries(source.matrix).forEach(([location, departments]) => {
+      if (!departments || typeof departments !== "object") return;
+      Object.entries(departments).forEach(([department, value]) => {
+        cells.push({
+          location,
+          department,
+          value:
+            value == null || Number.isNaN(Number(value)) ? null : Number(value),
+        });
+      });
+    });
+  } else if (Array.isArray(source)) {
+    // Either the canonical shape (each item has scores/departments) or a
+    // flat list of {location, department, value} cells. Try expanding first
+    // and fall back to flat mapping when a row has no inner array AND has
+    // its own department/value fields.
+    source.forEach((row) => {
+      if (
+        Array.isArray(row?.scores) ||
+        Array.isArray(row?.departments) ||
+        Array.isArray(row?.cells) ||
+        (row?.cells && typeof row.cells === "object")
+      ) {
+        expandRow(row);
+      } else {
+        cells.push({
+          location: getLocationLabel(row),
+          department: getDepartmentLabel(row),
+          value: getHeatmapValue(row),
         });
       }
     });
   }
-  // Shape D: raw array at the root.
-  else if (Array.isArray(data)) {
-    cells = data.map((c) => ({
-      location: c?.location || "",
-      department: c?.department || "",
-      value:
-        c?.value == null || Number.isNaN(Number(c.value))
-          ? null
-          : Number(c.value),
-    }));
-  }
 
-  // Derive headers from cells if the backend didn't declare them. Insertion
-  // order via Set preserves whatever the backend returned first.
   const locations =
     declaredLocations.length > 0
       ? declaredLocations
@@ -163,10 +272,9 @@ const normalizeHeatmapPayload = (data) => {
 
   return { locations, departments, cells };
 };
-
 // Build a query-param object from the page's filter state. Any value left as
 // "All" / "" is dropped so the backend sees a clean filter set.
-const buildFilterParams = (filters) => {
+export const buildFilterParams = (filters) => {
   const out = {};
   if (!filters) return out;
   if (filters.department) out.department = filters.department;
@@ -185,6 +293,68 @@ const normalizeGenderRow = (item) => ({
       ? null
       : Number(item.productivity_score),
 });
+
+const normalizeSummaryCard = (card) => {
+  if (!card || typeof card !== "object") return null;
+  return {
+    value:
+      card.value == null || Number.isNaN(Number(card.value))
+        ? null
+        : Number(card.value),
+    unit: card.unit || "",
+    label: card.label || "",
+    subtext: card.subtext || "",
+  };
+};
+
+const normalizeSummaryPayload = (data) => {
+  const root =
+    data && typeof data === "object" && data.data && typeof data.data === "object"
+      ? data.data
+      : data || {};
+  return {
+    avg_wellness: normalizeSummaryCard(root.avg_wellness),
+    productivity: normalizeSummaryCard(root.productivity),
+    engagement: normalizeSummaryCard(root.engagement),
+    absenteeism: normalizeSummaryCard(root.absenteeism),
+    sleep_score: normalizeSummaryCard(root.sleep_score),
+    stress_score: normalizeSummaryCard(root.stress_score),
+  };
+};
+
+const toIntOrNull = (value) =>
+  value == null || Number.isNaN(Number(value)) ? null : Number(value);
+
+const normalizeEmployeeCountPayload = (data) => {
+  const root =
+    data && typeof data === "object" && data.data && typeof data.data === "object"
+      ? data.data
+      : data || {};
+  return {
+    total: toIntOrNull(root.total),
+    filtered: toIntOrNull(root.filtered),
+  };
+};
+
+const normalizeCountBucket = (item) => ({
+  label: item?.label || "",
+  count: toIntOrNull(item?.count) ?? 0,
+});
+
+const normalizeHeadcountPayload = (data) => {
+  const root =
+    data && typeof data === "object" && data.data && typeof data.data === "object"
+      ? data.data
+      : data || {};
+  return {
+    by_department: Array.isArray(root.by_department)
+      ? root.by_department.map(normalizeCountBucket)
+      : [],
+    by_location: Array.isArray(root.by_location)
+      ? root.by_location.map(normalizeCountBucket)
+      : [],
+  };
+};
 
 export const fetchHrWellnessDimensions = createAsyncThunk(
   "hrAnalytics/fetchDimensions",
@@ -312,6 +482,72 @@ export const fetchHrGenderWellness = createAsyncThunk(
   },
 );
 
+export const fetchHrSummaryCards = createAsyncThunk(
+  "hrAnalytics/fetchSummary",
+  async ({ filters } = {}, { rejectWithValue }) => {
+    try {
+      const response = await api.get(API_URLS.hrSummaryCards, {
+        params: buildFilterParams(filters),
+      });
+      const payload = response?.data;
+      const failure = rejectIfFailed(
+        payload,
+        "Failed to fetch summary cards.",
+      );
+      if (failure) return rejectWithValue(failure);
+      return normalizeSummaryPayload(payload);
+    } catch (error) {
+      console.error("fetchHrSummaryCards failed:", error?.response || error);
+      return rejectWithValue(
+        getApiErrorMessage(error, "Failed to fetch summary cards."),
+      );
+    }
+  },
+);
+
+export const fetchHrEmployeeCount = createAsyncThunk(
+  "hrAnalytics/fetchEmployeeCount",
+  async ({ filters } = {}, { rejectWithValue }) => {
+    try {
+      const response = await api.get(API_URLS.hrEmployeeCount, {
+        params: buildFilterParams(filters),
+      });
+      const payload = response?.data;
+      const failure = rejectIfFailed(
+        payload,
+        "Failed to fetch employee count.",
+      );
+      if (failure) return rejectWithValue(failure);
+      return normalizeEmployeeCountPayload(payload);
+    } catch (error) {
+      console.error("fetchHrEmployeeCount failed:", error?.response || error);
+      return rejectWithValue(
+        getApiErrorMessage(error, "Failed to fetch employee count."),
+      );
+    }
+  },
+);
+
+export const fetchHrHeadcount = createAsyncThunk(
+  "hrAnalytics/fetchHeadcount",
+  async ({ filters } = {}, { rejectWithValue }) => {
+    try {
+      const response = await api.get(API_URLS.hrHeadcount, {
+        params: buildFilterParams(filters),
+      });
+      const payload = response?.data;
+      const failure = rejectIfFailed(payload, "Failed to fetch headcount.");
+      if (failure) return rejectWithValue(failure);
+      return normalizeHeadcountPayload(payload);
+    } catch (error) {
+      console.error("fetchHrHeadcount failed:", error?.response || error);
+      return rejectWithValue(
+        getApiErrorMessage(error, "Failed to fetch headcount."),
+      );
+    }
+  },
+);
+
 const slice = createSlice({
   name: "hrAnalytics",
   initialState,
@@ -321,6 +557,9 @@ const slice = createSlice({
       state.dimensionDataError = "";
       state.genderError = "";
       state.heatmapError = "";
+      state.summaryError = "";
+      state.employeeCountError = "";
+      state.headcountError = "";
     },
   },
   extraReducers: (builder) => {
@@ -381,9 +620,49 @@ const slice = createSlice({
         state.heatmapLoading = false;
         state.heatmapError =
           action.payload || "Failed to fetch wellness heatmap.";
+      })
+      .addCase(fetchHrSummaryCards.pending, (state) => {
+        state.summaryLoading = true;
+        state.summaryError = "";
+      })
+      .addCase(fetchHrSummaryCards.fulfilled, (state, action) => {
+        state.summaryLoading = false;
+        state.summary = action.payload || state.summary;
+      })
+      .addCase(fetchHrSummaryCards.rejected, (state, action) => {
+        state.summaryLoading = false;
+        state.summaryError =
+          action.payload || "Failed to fetch summary cards.";
+      })
+      .addCase(fetchHrEmployeeCount.pending, (state) => {
+        state.employeeCountLoading = true;
+        state.employeeCountError = "";
+      })
+      .addCase(fetchHrEmployeeCount.fulfilled, (state, action) => {
+        state.employeeCountLoading = false;
+        state.employeeCount = action.payload || { total: null, filtered: null };
+      })
+      .addCase(fetchHrEmployeeCount.rejected, (state, action) => {
+        state.employeeCountLoading = false;
+        state.employeeCountError =
+          action.payload || "Failed to fetch employee count.";
+      })
+      .addCase(fetchHrHeadcount.pending, (state) => {
+        state.headcountLoading = true;
+        state.headcountError = "";
+      })
+      .addCase(fetchHrHeadcount.fulfilled, (state, action) => {
+        state.headcountLoading = false;
+        state.headcount = action.payload || { by_department: [], by_location: [] };
+      })
+      .addCase(fetchHrHeadcount.rejected, (state, action) => {
+        state.headcountLoading = false;
+        state.headcountError =
+          action.payload || "Failed to fetch headcount.";
       });
   },
 });
 
 export const { clearHrAnalyticsErrors } = slice.actions;
 export default slice.reducer;
+

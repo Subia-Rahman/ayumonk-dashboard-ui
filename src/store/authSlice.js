@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import api, { getApiErrorMessage } from "../services/api";
 import { API_URLS } from "../services/apiUrls";
 import authService from "../services/authService";
+
 import {
   canonicaliseRawRole,
   clearAuthSession,
@@ -23,9 +24,6 @@ import {
 const initialState = {
   isAuthenticated: isAuthenticated(),
   role: getRole(),
-  // Original backend role string (lowercased, punctuation-stripped). Used by
-  // getHomePath to tell Company Admin apart from HR / CXO / Manager — they
-  // all share the normalized `role === "admin"` bucket.
   rawRole: getRawRole(),
   token: getToken(),
   user: getUserProfile(),
@@ -51,8 +49,6 @@ export const loginUser = createAsyncThunk(
 
       const claims = decodeJwtPayload(accessToken) || {};
       const normalizedRole = normalizeRole(user.role);
-      // Original role from backend, lowercased + punctuation-stripped so we
-      // can route Company Admin → /admin/dashboard and HR/CXO → /admin/hr-dashboard.
       const rawRole = canonicaliseRawRole(user.role);
       const isPlatformAdmin = Boolean(claims.is_platform_admin);
       const jwtTenantId = claims.tenant_id || "";
@@ -104,9 +100,6 @@ export const loginUser = createAsyncThunk(
   },
 );
 
-// Sign the user out on the backend, then clear the local session. We do not
-// block local sign-out on the API call — if the token has expired or the
-// network is down, we still want the user to land back on the login screen.
 export const logout = createAsyncThunk(
   "auth/logout",
   async (_, { dispatch }) => {
@@ -127,6 +120,8 @@ const authSlice = createSlice({
     clearAuthState(state) {
       clearAuthSession();
       authService.clear();
+      delete api.defaults.headers.common['Authorization'];
+      window.dispatchEvent(new StorageEvent('storage', { key: 'token', newValue: null }));
       state.isAuthenticated = false;
       state.role = null;
       state.rawRole = "";
@@ -146,7 +141,6 @@ const authSlice = createSlice({
     updateProfile(state, action) {
       const { name, email, companyId } = action.payload;
       if (!state.user) return;
-
       state.user = {
         ...state.user,
         name,

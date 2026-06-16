@@ -197,14 +197,57 @@ export default function ChallengeView({ role = "superadmin" }) {
                   {selectedChallenge.challenge_type || "-"}
                 </Typography>
               </Paper>
-              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Target Value
-                </Typography>
-                <Typography sx={{ mt: 0.8, fontWeight: 600 }}>
-                  {selectedChallenge.target_value ?? "-"}
-                </Typography>
-              </Paper>
+              {(() => {
+                const type = String(
+                  selectedChallenge.challenge_type || "",
+                ).toLowerCase();
+                const showsTarget = type === "counter" || type === "timer";
+                if (!showsTarget) return null;
+                return (
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {type === "timer" ? "Target Value (seconds)" : "Target Value"}
+                    </Typography>
+                    <Typography sx={{ mt: 0.8, fontWeight: 600 }}>
+                      {selectedChallenge.target_value ?? "-"}
+                    </Typography>
+                  </Paper>
+                );
+              })()}
+              {(() => {
+                const type = String(
+                  selectedChallenge.challenge_type || "",
+                ).toLowerCase();
+                const showsOpts = type === "choice" || type === "multi";
+                const optionList = Array.isArray(selectedChallenge.options)
+                  ? selectedChallenge.options
+                  : [];
+                if (!showsOpts) return null;
+                return (
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Options
+                    </Typography>
+                    {optionList.length > 0 ? (
+                      <Stack
+                        direction="row"
+                        spacing={0.75}
+                        sx={{ mt: 0.8, flexWrap: "wrap", gap: 0.75 }}
+                      >
+                        {optionList.map((label, idx) => (
+                          <Chip
+                            key={`${label}-${idx}`}
+                            size="small"
+                            label={label}
+                          />
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Typography sx={{ mt: 0.8, fontWeight: 600 }}>-</Typography>
+                    )}
+                  </Paper>
+                );
+              })()}
               <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5 }}>
                 <Typography variant="caption" color="text.secondary">
                   XP Reward
