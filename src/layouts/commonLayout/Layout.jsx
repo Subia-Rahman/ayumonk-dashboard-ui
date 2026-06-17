@@ -110,6 +110,7 @@ const ICON_BY_SLUG = {
   challenges: <EmojiEventsIcon />,
   sessions: <EventIcon />,
   "suggestion-master": <TipsAndUpdatesRoundedIcon />,
+  "admin-suggestions": <TipsAndUpdatesRoundedIcon />,
   "kpi-suggestion-mapping": <LinkRoundedIcon />,
   roles: <BadgeOutlinedIcon />,
   permissions: <VpnKeyOutlinedIcon />,
@@ -207,7 +208,7 @@ const superAdminItems = [
   { label: "Sessions", to: "/super-admin/sessions", icon: <EventIcon /> },
   {
     label: "Suggestion Master",
-    to: "/super-admin/suggestion-master",
+    to: "/super-admin/admin-suggestions",
     icon: <TipsAndUpdatesRoundedIcon />,
   },
   {
