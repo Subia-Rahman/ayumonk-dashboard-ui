@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Alert,
@@ -30,6 +30,8 @@ export default function SuggestionView() {
   const { selectedSuggestion, detailLoading, detailError } = useSelector(
     (state) => state.adminSuggestion,
   );
+  const location = useLocation();
+  const returnBase = location.state?.returnBase || "/super-admin/suggestion-master";
   const { canEdit } = usePermissions();
   const canEditSuggestions = canEdit("suggestion-master");
 
@@ -91,7 +93,7 @@ export default function SuggestionView() {
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Button
               startIcon={<ArrowBackRoundedIcon />}
-              onClick={() => navigate("/super-admin/suggestion-master")}
+              onClick={() => navigate(returnBase)}
             >
               Back to list
             </Button>
@@ -100,7 +102,7 @@ export default function SuggestionView() {
                 variant="contained"
                 startIcon={<EditRoundedIcon />}
                 onClick={() =>
-                  navigate(`/super-admin/suggestion-master/${id}/edit`)
+                  navigate(`${returnBase}/${id}/edit`, { state: { returnBase } })
                 }
               >
                 Edit

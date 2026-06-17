@@ -34,6 +34,7 @@ import SketchLab from "../pages/hidden/SketchLab";
 import UserDashboard from "../pages/user/Dashboard";
 import MyResponses from "../pages/user/MyResponses";
 import SuperAdminDashboard from "../pages/superadmin/Dashboard";
+import AdminSuggestions from "../pages/superadmin/AdminSuggestions";
 import SuggestionMaster from "../pages/superadmin/SuggestionMaster";
 import SuggestionForm from "../pages/superadmin/SuggestionForm";
 import SuggestionView from "../pages/superadmin/SuggestionView";
@@ -640,6 +641,38 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute codename="sessions:read">
             <SessionManagement role="superadmin" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/admin-suggestions"
+        element={
+          <ProtectedRoute codename="suggestion:read">
+            <AdminSuggestions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/admin-suggestions/add"
+        element={
+          <ProtectedRoute codename="suggestion:read">
+            <SuggestionForm mode="add" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/admin-suggestions/:id"
+        element={
+          <ProtectedRoute codename="suggestion:read">
+            <SuggestionView />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/admin-suggestions/:id/edit"
+        element={
+          <ProtectedRoute codename="suggestion:read">
+            <SuggestionForm mode="edit" />
           </ProtectedRoute>
         }
       />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Alert,
@@ -88,6 +88,8 @@ export default function SuggestionForm({ mode }) {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnBase = location.state?.returnBase || "/super-admin/suggestion-master";
   const { id } = useParams();
   const {
     selectedSuggestion,
@@ -155,7 +157,7 @@ export default function SuggestionForm({ mode }) {
         await dispatch(createAdminSuggestion(buildPayload(formValues))).unwrap();
       }
 
-      navigate("/super-admin/suggestion-master", {
+      navigate(returnBase, {
         replace: true,
         state: {
           feedback: {
@@ -220,7 +222,7 @@ export default function SuggestionForm({ mode }) {
           </Box>
           <Button
             startIcon={<ArrowBackRoundedIcon />}
-            onClick={() => navigate("/super-admin/suggestion-master")}
+            onClick={() => navigate(returnBase)}
           >
             Back to list
           </Button>
@@ -338,7 +340,7 @@ export default function SuggestionForm({ mode }) {
             )}
             <Button
               variant="outlined"
-              onClick={() => navigate("/super-admin/suggestion-master")}
+              onClick={() => navigate(returnBase)}
               disabled={isSubmitting}
             >
               Cancel

@@ -187,7 +187,7 @@ export default function AdminSuggestions() {
               <IconButton
                 size="small"
                 onClick={() =>
-                  navigate(`/super-admin/admin-suggestions/${row.id}`)
+                  navigate(`/super-admin/admin-suggestions/${row.id}`, { state: { returnBase: '/super-admin/admin-suggestions' } })
                 }
               >
                 <PreviewRoundedIcon fontSize="small" />
@@ -197,7 +197,7 @@ export default function AdminSuggestions() {
               <IconButton
                 size="small"
                 onClick={() =>
-                  navigate(`/super-admin/admin-suggestions/${row.id}/edit`)
+                  navigate(`/super-admin/admin-suggestions/${row.id}/edit`, { state: { returnBase: '/super-admin/admin-suggestions' } })
                 }
               >
                 <EditRoundedIcon fontSize="small" />
@@ -265,7 +265,7 @@ export default function AdminSuggestions() {
               <Button
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
-                onClick={() => navigate("/super-admin/admin-suggestions/add")}
+                onClick={() => navigate("/super-admin/admin-suggestions/add", { state: { returnBase: '/super-admin/admin-suggestions' } })}
               >
                 Add Suggestion
               </Button>
