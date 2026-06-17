@@ -6,6 +6,7 @@ import useTenantContext from "../../hooks/useTenantContext";
 import { fetchRbacMatrix } from "../../store/rbacMatrixSlice";
 import { fetchCompanies } from "../../store/companySlice";
 import { ACCENT, useClientPalette } from "../../utils/clientPalette";
+import TenantHealthBoard from "../../components/superadmin/TenantHealthBoard";
 
 const ROLE_LABELS = { employee: "Employee", hr: "HR Manager", cxo: "CXO", admin: "Company Admin", ayumonk_admin: "Ayumonk Admin", super_admin: "Super Admin", superadmin: "Super Admin" };
 const ROLE_COLORS = { employee: "#6B8F6D", hr: "#4A90C4", cxo: "#D4A843", admin: "#8B6FCB", ayumonk_admin: "#6DB33F", super_admin: "#f97316", superadmin: "#f97316" };
@@ -134,6 +135,9 @@ export default function Dashboard() {
             Logged in as {myRoleLabel} · Full access
           </div>
         </div>
+
+        {/* LIVE TENANT HEALTH BOARD */}
+        <TenantHealthBoard />
 
         {/* RBAC COMPANY FILTER */}
         {canFilterByCompany && (
