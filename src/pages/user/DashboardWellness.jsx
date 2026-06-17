@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Box } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
+import ConnectDeviceCard from "../../features/wearables/ConnectDeviceCard";
+import WatchTodayTile from "../../features/wearables/WatchTodayTile";
 import { dimHue } from "../../components/mobile/dimensionColors";
 import {
   fetchDashboardKpis,
@@ -560,6 +562,12 @@ export default function DashboardWellness() {
           </div>
         )}
       </ClientCard>
+
+      {/* Wearables */}
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2, mt: 1 }}>
+        <ConnectDeviceCard />
+        <WatchTodayTile />
+      </Box>
     </Box>
   );
 }
